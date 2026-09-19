@@ -273,9 +273,22 @@ function renderDraft(post) {
     card.appendChild(block);
   });
 
+  const scheduleRow = el(`
+    <div class="post-block schedule-row ${post.status === "scheduled" ? "" : "hidden"}">
+      <label>מתי לפרסם?</label>
+      <input type="datetime-local" class="scheduleInput" value="${post.scheduledFor ? toLocalInputValue(post.scheduledFor) : ""}" />
+      <div class="row-actions">
+        <button class="secondary confirmScheduleBtn">קבע תזמון</button>
+        ${post.status === "scheduled" ? `<button class="danger cancelScheduleBtn">בטל תזמון</button>` : ""}
+      </div>
+    </div>
+  `);
+  card.appendChild(scheduleRow);
+
   const actions = el(`
     <div class="row-actions">
       <button class="publishBtn">🚀 פרסם עכשיו</button>
+      <button class="secondary scheduleToggleBtn">${post.status === "scheduled" ? "ערוך תזמון" : "⏰ תזמן"}</button>
       <button class="secondary saveBtn">שמור עריכות</button>
       <button class="danger deleteBtn">מחק</button>
     </div>
@@ -290,8 +303,60 @@ function renderDraft(post) {
     await api(`/api/posts/${post.id}`, { method: "DELETE" });
     card.remove();
   });
+  actions.querySelector(".scheduleToggleBtn").addEventListener("click", () => {
+    scheduleRow.classList.toggle("hidden");
+  });
+  scheduleRow.querySelector(".confirmScheduleBtn").addEventListener("click", async () => {
+    const value = scheduleRow.querySelector(".scheduleInput").value;
+    if (!value) {
+      alert("בחרו תאריך ושעה");
+      return;
+    }
+    const iso = new Date(value).toISOString();
+    const updated = await api(`/api/posts/${post.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ scheduledFor: iso }),
+    });
+    post.status = updated.status;
+    post.scheduledFor = updated.scheduledFor;
+    updatePostHeaderStatus(card, post);
+    alert("הפוסט תוזמן. הוא יפורסם אוטומטית בזמן שנקבע.");
+  });
+  const cancelBtn = scheduleRow.querySelector(".cancelScheduleBtn");
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", async () => {
+      const updated = await api(`/api/posts/${post.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ scheduledFor: null }),
+      });
+      post.status = updated.status;
+      post.scheduledFor = undefined;
+      updatePostHeaderStatus(card, post);
+      scheduleRow.classList.add("hidden");
+    });
+  }
 
+  updatePostHeaderStatus(card, post);
   container.prepend(card);
+}
+
+function toLocalInputValue(isoString) {
+  const d = new Date(isoString);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function updatePostHeaderStatus(card, post) {
+  let badge = card.querySelector(".scheduleBadge");
+  if (post.status === "scheduled" && post.scheduledFor) {
+    if (!badge) {
+      badge = el(`<p class="muted-small scheduleBadge"></p>`);
+      card.querySelector("h2").after(badge);
+    }
+    badge.textContent = `⏰ מתוזמן ל-${new Date(post.scheduledFor).toLocaleString("he-IL")}`;
+  } else if (badge) {
+    badge.remove();
+  }
 }
 
 async function saveDraftEdits(card, post, thenPublish) {

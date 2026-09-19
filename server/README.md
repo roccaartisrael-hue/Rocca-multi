@@ -1,5 +1,7 @@
 # ROCCA Social — בוט תוכן ורשתות חברתיות
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/roccaartisrael-hue/Rocca-multi)
+
 שירות שרץ 24/7 (לא אפליקציה מה-App Store), שמשתמש ב-Claude כדי לנסח פוסטים ותגובות,
 ומפרסם אותם דרך ה-API הרשמי של כל רשת. אתם שולטים בכול דרך "דשבורד" נייד —
 עמוד אינטרנט שמתקינים על מסך הבית של האייפון/אנדרואיד ונראה ומתנהג כמו אפליקציה,
@@ -66,10 +68,32 @@ npm start
 
 ## שלב 3 — פריסה (כדי שהטלפון יוכל להתחבר מכל מקום)
 
-השרת צריך לרוץ במקום נגיש באינטרנט עם HTTPS (חובה עבור Webhooks של מטא).
-האפשרויות הכי פשוטות: Render.com, Railway.app או Fly.io — כולן תומכות בפריסת
-פרויקט Node.js/TypeScript ישירות מ-GitHub, כולל דיסק קטן לשמירת `server/data/`.
-הוסיפו שם את כל משתני ה-`.env` כ"Environment Variables" בממשק שלהם.
+השרת צריך לרוץ במקום נגיש באינטרנט עם HTTPS (חובה עבור Webhooks של מטא) — לא רק
+על המחשב שלכם. הדרך הכי פשוטה בלי טרמינל בכלל:
+
+### פריסה בקליק אחד ל-Render
+
+יש בשורש הריפו קובץ `render.yaml` (Blueprint) שמגדיר הכול מראש.
+
+1. היכנסו ל-https://render.com והתחברו עם GitHub.
+2. "New +" ← "Blueprint" ← בחרו את הריפו הזה. Render יזהה את `render.yaml` לבד.
+3. Render ייצור אוטומטית `DASHBOARD_TOKEN` ו-`META_WEBHOOK_VERIFY_TOKEN` אקראיים —
+   תמצאו אותם בטאב "Environment" של השירות אחרי הפריסה.
+4. עדיין בטאב "Environment", הזינו את שאר המפתחות (Claude, Meta, X, TikTOK) לפי
+   ההוראות בשלב 1 למעלה, ולחצו "Save, rebuild, and deploy".
+5. הכתובת הציבורית (`https://rocca-social-bot.onrender.com` או דומה) היא מה
+   שתפתחו בטלפון בשלב 4.
+
+> ⚠️ בתוכנית החינמית של Render אין דיסק קבוע — היסטוריית הפוסטים/התגובות
+> (`server/data/`) מתאפסת בכל דיפלוי מחדש. זה לא משפיע על היכולת לפרסם, רק על
+> ההיסטוריה בדשבורד. אם זה מפריע, שדרגו לתוכנית בתשלום (Starter, כ-7$/חודש)
+> והפעילו את בלוק ה-`disk` המוער ב-`render.yaml`.
+
+### חלופות
+
+Railway.app או Fly.io עובדות באותה מידה טובה — צריך לחבר את הריפו, להגדיר
+Root Directory ל-`server`, Build Command `npm install && npm run build`,
+Start Command `npm start`, ולהזין את משתני ה-`.env` בממשק שלהם.
 
 > ⚠️ ה-webhook של מטא ומשיכת התגובות/הודעות עובדים רק כשהשרת נגיש ב-HTTPS קבוע —
 > לא כשהוא רץ רק על המחשב שלכם.
