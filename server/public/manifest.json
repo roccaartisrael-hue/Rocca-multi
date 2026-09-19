@@ -1,0 +1,14 @@
+{
+  "name": "ROCCA Social",
+  "short_name": "ROCCA",
+  "description": "כלי ניהול תוכן ורשתות חברתיות של ROCCA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1c1a17",
+  "theme_color": "#1c1a17",
+  "dir": "rtl",
+  "lang": "he",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

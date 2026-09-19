@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>ROCCA Social</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<meta name="theme-color" content="#1c1a17" />
+<link rel="manifest" href="/manifest.json" />
+<link rel="apple-touch-icon" href="/icon.svg" />
+<style>
+  :root {
+    --bg: #14120f;
+    --panel: #1f1c18;
+    --panel-2: #2a251f;
+    --text: #f3ede2;
+    --muted: #a89c86;
+    --accent: #d9c9a3;
+    --ok: #7fae7f;
+    --err: #c97b6d;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    padding-bottom: 88px;
+  }
+  header {
+    padding: 18px 16px 10px;
+    position: sticky; top: 0; background: var(--bg); z-index: 10;
+    border-bottom: 1px solid #2c2822;
+  }
+  header h1 { font-size: 20px; margin: 0 0 2px; letter-spacing: 0.5px; color: var(--accent); }
+  header p { margin: 0; font-size: 12px; color: var(--muted); }
+  main { padding: 16px; max-width: 640px; margin: 0 auto; }
+  .card {
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+    border: 1px solid #2c2822;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], textarea, input[type=url], input[type=password], input[type=datetime-local] {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid #3a342b;
+    border-radius: 10px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+  }
+  textarea { min-height: 84px; resize: vertical; }
+  .platforms { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .chip {
+    border: 1px solid #3a342b; border-radius: 999px; padding: 7px 14px;
+    font-size: 13px; color: var(--muted); cursor: pointer; user-select: none;
+  }
+  .chip.active { background: var(--accent); color: #1c1a17; border-color: var(--accent); font-weight: 600; }
+  button {
+    background: var(--accent); color: #1c1a17; border: none; border-radius: 10px;
+    padding: 11px 16px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px;
+  }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button.danger { background: transparent; color: var(--err); border: 1px solid var(--err); }
+  button:disabled { opacity: 0.5; }
+  .post-block { border-top: 1px solid #3a342b; padding-top: 10px; margin-top: 10px; }
+  .post-block .tag { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .status { font-size: 12px; padding: 2px 8px; border-radius: 999px; display: inline-block; margin-inline-start: 6px; }
+  .status.pending { background: #3a342b; color: var(--muted); }
+  .status.sent, .status.published { background: #234023; color: var(--ok); }
+  .status.failed { background: #402323; color: var(--err); }
+  .status.draft { background: #3a342b; color: var(--muted); }
+  .status.scheduled { background: #40391f; color: var(--accent); }
+  .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  nav.tabs {
+    position: fixed; bottom: 0; inset-inline: 0; display: flex;
+    background: var(--panel); border-top: 1px solid #2c2822;
+    padding: 8px max(8px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom));
+  }
+  nav.tabs button {
+    flex: 1; background: transparent; color: var(--muted); margin: 0; font-weight: 500; border-radius: 10px;
+  }
+  nav.tabs button.active { color: var(--accent); background: var(--panel-2); }
+  .hidden { display: none !important; }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 20px 0; }
+  .muted-small { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  #loginScreen .card { width: 100%; max-width: 360px; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="card">
+    <h2>ROCCA Social — כניסה</h2>
+    <label for="tokenInput">קוד גישה (Dashboard Token)</label>
+    <input type="password" id="tokenInput" placeholder="הדבק כאן את הטוקן מהשרת" />
+    <button id="loginBtn" style="width:100%">כניסה</button>
+    <p class="muted-small">הטוקן נמצא בקובץ ה-.env של השרת (DASHBOARD_TOKEN). הוא נשמר רק על המכשיר הזה.</p>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>ROCCA Social</h1>
+    <p>ניהול תוכן ורשתות חברתיות · מופעל ע"י Claude</p>
+  </header>
+
+  <main>
+    <section id="tab-new" class="tab">
+      <div class="card">
+        <h2>פוסט חדש</h2>
+        <label for="topicInput">על מה כותבים?</label>
+        <input type="text" id="topicInput" placeholder='למשל: "מגזרת אוניקס חדשה הגיעה מהמכרה"' />
+
+        <label>לאילו פלטפורמות?</label>
+        <div class="platforms" id="platformChips"></div>
+
+        <label for="imageInput">קישור לתמונה (חובה לאינסטגרם/טיקטוק, אופציונלי לשאר)</label>
+        <input type="url" id="imageInput" placeholder="https://..." />
+
+        <button id="generateBtn">✨ צור טיוטה עם Claude</button>
+      </div>
+
+      <div id="draftContainer"></div>
+    </section>
+
+    <section id="tab-replies" class="tab hidden">
+      <div class="card">
+        <h2>תגובות והודעות ממתינות</h2>
+        <p class="muted-small">תגובות/הודעות/אזכורים חדשים מופיעים כאן עם טיוטת תשובה שמוצעת ע"י Claude. אפשר לערוך לפני שליחה.</p>
+      </div>
+      <div id="repliesContainer"></div>
+    </section>
+
+    <section id="tab-history" class="tab hidden">
+      <div id="historyContainer"></div>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button data-tab="tab-new" class="active">פוסט חדש</button>
+    <button data-tab="tab-replies">תגובות</button>
+    <button data-tab="tab-history">היסטוריה</button>
+  </nav>
+</div>
+
+<script>
+const PLATFORM_LABELS = {
+  facebook: "פייסבוק",
+  instagram: "אינסטגרם",
+  x: "X (טוויטר)",
+  tiktok: "טיקטוק",
+  website: "אתר",
+};
+let selectedPlatforms = new Set(["facebook", "instagram"]);
+let token = localStorage.getItem("rocca_token") || "";
+
+function api(path, opts = {}) {
+  return fetch(path, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + token,
+      ...(opts.headers || {}),
+    },
+  }).then(async (r) => {
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error || r.statusText);
+    return body;
+  });
+}
+
+function el(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html.trim();
+  return div.firstElementChild;
+}
+
+// ---- Login ----
+function showApp() {
+  document.getElementById("loginScreen").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  renderPlatformChips();
+  loadReplies();
+  loadHistory();
+}
+
+document.getElementById("loginBtn").addEventListener("click", () => {
+  const v = document.getElementById("tokenInput").value.trim();
+  if (!v) return;
+  token = v;
+  localStorage.setItem("rocca_token", v);
+  showApp();
+});
+
+if (token) showApp();
+
+// ---- Tabs ----
+document.querySelectorAll("nav.tabs button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".tab").forEach((t) => t.classList.add("hidden"));
+    document.getElementById(btn.dataset.tab).classList.remove("hidden");
+    if (btn.dataset.tab === "tab-replies") loadReplies();
+    if (btn.dataset.tab === "tab-history") loadHistory();
+  });
+});
+
+// ---- New post ----
+function renderPlatformChips() {
+  const wrap = document.getElementById("platformChips");
+  wrap.innerHTML = "";
+  Object.entries(PLATFORM_LABELS).forEach(([key, label]) => {
+    const chip = el(`<div class="chip ${selectedPlatforms.has(key) ? "active" : ""}">${label}</div>`);
+    chip.addEventListener("click", () => {
+      if (selectedPlatforms.has(key)) selectedPlatforms.delete(key);
+      else selectedPlatforms.add(key);
+      renderPlatformChips();
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+document.getElementById("generateBtn").addEventListener("click", async () => {
+  const topic = document.getElementById("topicInput").value.trim();
+  const imageUrl = document.getElementById("imageInput").value.trim();
+  const platforms = Array.from(selectedPlatforms);
+  if (!topic || !platforms.length) {
+    alert("צריך נושא ולפחות פלטפורמה אחת");
+    return;
+  }
+  const btn = document.getElementById("generateBtn");
+  btn.disabled = true;
+  btn.textContent = "יוצר טיוטה...";
+  try {
+    const post = await api("/api/posts/generate", {
+      method: "POST",
+      body: JSON.stringify({ topic, platforms, imageUrl: imageUrl || undefined }),
+    });
+    renderDraft(post);
+    document.getElementById("topicInput").value = "";
+  } catch (err) {
+    alert("שגיאה: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ צור טיוטה עם Claude";
+  }
+});
+
+function renderDraft(post) {
+  const container = document.getElementById("draftContainer");
+  const card = el(`<div class="card" data-post-id="${post.id}"></div>`);
+  card.appendChild(el(`<h2>${escapeHtml(post.topic)}</h2>`));
+
+  post.platforms.forEach((pc, i) => {
+    const block = el(`
+      <div class="post-block" data-platform-block="${i}">
+        <span class="tag">${PLATFORM_LABELS[pc.platform] || pc.platform}</span>
+        <span class="status ${pc.status}">${statusLabel(pc.status)}</span>
+        <textarea data-idx="${i}">${escapeHtml(pc.text)}</textarea>
+        <p class="muted-small errorText" style="color:var(--err)">${pc.error ? escapeHtml(pc.error) : ""}</p>
+      </div>
+    `);
+    card.appendChild(block);
+  });
+
+  const actions = el(`
+    <div class="row-actions">
+      <button class="publishBtn">🚀 פרסם עכשיו</button>
+      <button class="secondary saveBtn">שמור עריכות</button>
+      <button class="danger deleteBtn">מחק</button>
+    </div>
+  `);
+  card.appendChild(actions);
+
+  actions.querySelector(".saveBtn").addEventListener("click", () => saveDraftEdits(card, post));
+  actions.querySelector(".publishBtn").addEventListener("click", async () => {
+    await saveDraftEdits(card, post, true);
+  });
+  actions.querySelector(".deleteBtn").addEventListener("click", async () => {
+    await api(`/api/posts/${post.id}`, { method: "DELETE" });
+    card.remove();
+  });
+
+  container.prepend(card);
+}
+
+async function saveDraftEdits(card, post, thenPublish) {
+  const textareas = card.querySelectorAll("textarea[data-idx]");
+  const platforms = post.platforms.map((pc, i) => ({
+    ...pc,
+    text: textareas[i] ? textareas[i].value : pc.text,
+  }));
+  const updated = await api(`/api/posts/${post.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ platforms }),
+  });
+  post.platforms = updated.platforms;
+  if (thenPublish) {
+    const publishBtn = card.querySelector(".publishBtn");
+    publishBtn.disabled = true;
+    publishBtn.textContent = "מפרסם...";
+    try {
+      const result = await api(`/api/posts/${post.id}/publish`, { method: "POST" });
+      post.platforms = result.platforms;
+      post.status = result.status;
+      applyPlatformResults(card, result.platforms);
+    } catch (err) {
+      alert("שגיאה בפרסום: " + err.message);
+    } finally {
+      publishBtn.disabled = false;
+      publishBtn.textContent = "🚀 פרסם עכשיו";
+    }
+  }
+}
+
+function applyPlatformResults(card, platforms) {
+  platforms.forEach((pc, i) => {
+    const block = card.querySelector(`[data-platform-block="${i}"]`);
+    if (!block) return;
+    const statusEl = block.querySelector(".status");
+    statusEl.className = `status ${pc.status}`;
+    statusEl.textContent = statusLabel(pc.status);
+    block.querySelector(".errorText").textContent = pc.error || "";
+  });
+}
+
+function statusLabel(s) {
+  return { pending: "ממתין", sent: "נשלח", failed: "נכשל", draft: "טיוטה", scheduled: "מתוזמן", published: "פורסם" }[s] || s;
+}
+
+function escapeHtml(str) {
+  return String(str || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ---- Replies ----
+async function loadReplies() {
+  const container = document.getElementById("repliesContainer");
+  container.innerHTML = `<p class="empty">טוען...</p>`;
+  try {
+    const replies = await api("/api/replies?status=pending");
+    if (!replies.length) {
+      container.innerHTML = `<p class="empty">אין תגובות ממתינות כרגע 🎉</p>`;
+      return;
+    }
+    container.innerHTML = "";
+    replies.forEach((r) => container.appendChild(renderReply(r)));
+  } catch (err) {
+    container.innerHTML = `<p class="empty">שגיאה בטעינה: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function sourceLabel(s) {
+  return { facebook_comment: "תגובה בפייסבוק", instagram_comment: "תגובה באינסטגרם", facebook_message: "הודעה במסנג'ר", x_mention: "אזכור ב-X" }[s] || s;
+}
+
+function renderReply(reply) {
+  const card = el(`
+    <div class="card">
+      <span class="tag">${sourceLabel(reply.source)}${reply.incomingAuthor ? " · " + escapeHtml(reply.incomingAuthor) : ""}</span>
+      <p style="color:var(--muted); font-size:14px;">"${escapeHtml(reply.incomingText)}"</p>
+      <label>טיוטת תשובה</label>
+      <textarea id="reply-${reply.id}">${escapeHtml(reply.draftReply)}</textarea>
+      <div class="row-actions">
+        <button class="approveBtn">✅ שלח תשובה</button>
+        <button class="danger rejectBtn">✕ התעלם</button>
+      </div>
+    </div>
+  `);
+  card.querySelector(".approveBtn").addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    e.target.textContent = "שולח...";
+    try {
+      const text = card.querySelector("textarea").value;
+      await api(`/api/replies/${reply.id}/approve`, { method: "POST", body: JSON.stringify({ text }) });
+      card.remove();
+    } catch (err) {
+      alert("שגיאה: " + err.message);
+      e.target.disabled = false;
+      e.target.textContent = "✅ שלח תשובה";
+    }
+  });
+  card.querySelector(".rejectBtn").addEventListener("click", async () => {
+    await api(`/api/replies/${reply.id}/reject`, { method: "POST" });
+    card.remove();
+  });
+  return card;
+}
+
+// ---- History ----
+async function loadHistory() {
+  const container = document.getElementById("historyContainer");
+  container.innerHTML = `<p class="empty">טוען...</p>`;
+  try {
+    const posts = await api("/api/posts");
+    if (!posts.length) {
+      container.innerHTML = `<p class="empty">עדיין אין פוסטים</p>`;
+      return;
+    }
+    container.innerHTML = "";
+    posts.forEach((p) => {
+      const card = el(`<div class="card"><h2>${escapeHtml(p.topic)}</h2></div>`);
+      p.platforms.forEach((pc) => {
+        card.appendChild(el(`
+          <div class="post-block">
+            <span class="tag">${PLATFORM_LABELS[pc.platform] || pc.platform}</span>
+            <span class="status ${pc.status}">${statusLabel(pc.status)}</span>
+            <p style="font-size:13px;color:var(--muted);margin:6px 0 0;">${escapeHtml(pc.text)}</p>
+          </div>
+        `));
+      });
+      container.appendChild(card);
+    });
+  } catch (err) {
+    container.innerHTML = `<p class="empty">שגיאה בטעינה: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>
