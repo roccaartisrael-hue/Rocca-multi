@@ -140,7 +140,35 @@
       <div id="repliesContainer"></div>
     </section>
 
-    <section id="tab-history" class="tab hidden">
+    <section id="tab-performance" class="tab hidden">
+      <div class="card">
+        <h2>מה עובד הכי טוב</h2>
+        <p class="muted-small">מבוסס על נתוני Insights מפייסבוק/אינסטגרם. מתעדכן אוטומטית פעם ביום לפוסטים שפורסמו ב-14 הימים האחרונים.</p>
+        <label>לפי איזה מדד?</label>
+        <div class="platforms" id="metricChips">
+          <div class="chip active" data-metric="engagement">מעורבות</div>
+          <div class="chip" data-metric="reach">חשיפה</div>
+          <div class="chip" data-metric="clicks">קליקים</div>
+        </div>
+      </div>
+      <div id="performanceContainer"></div>
+    </section>
+
+    <section id="tab-inspiration" class="tab hidden">
+      <div class="card">
+        <h2>הוסיפו השראה</h2>
+        <p class="muted-small">תמונות/קישורים שאתם אוהבים — ה-AI ישתמש בהם כהשראת סגנון (לא העתקה) בפוסטים הבאים. אף פעם לא scraping של מתחרים — רק מה שאתם מוסיפים ידנית.</p>
+        <label for="inspImageInput">קישור לתמונה (אופציונלי)</label>
+        <input type="url" id="inspImageInput" placeholder="https://..." />
+        <label for="inspNoteInput">למה זה מוצא חן בעיניכם?</label>
+        <input type="text" id="inspNoteInput" placeholder='למשל: "אהבתי את הזוית והתאורה האחורית"' />
+        <button id="addInspirationBtn">הוסיפו</button>
+      </div>
+      <div id="inspirationGallery"></div>
+
+      <div class="card">
+        <h2>מה כבר פורסם</h2>
+      </div>
       <div id="historyContainer"></div>
     </section>
   </main>
@@ -148,7 +176,8 @@
   <nav class="tabs">
     <button data-tab="tab-new" class="active">פוסט חדש</button>
     <button data-tab="tab-replies">תגובות</button>
-    <button data-tab="tab-history">היסטוריה</button>
+    <button data-tab="tab-performance">ביצועים</button>
+    <button data-tab="tab-inspiration">השראה</button>
   </nav>
 </div>
 
@@ -211,7 +240,11 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     document.querySelectorAll(".tab").forEach((t) => t.classList.add("hidden"));
     document.getElementById(btn.dataset.tab).classList.remove("hidden");
     if (btn.dataset.tab === "tab-replies") loadReplies();
-    if (btn.dataset.tab === "tab-history") loadHistory();
+    if (btn.dataset.tab === "tab-inspiration") {
+      loadInspirations();
+      loadHistory();
+    }
+    if (btn.dataset.tab === "tab-performance") loadPerformance();
   });
 });
 
@@ -432,6 +465,7 @@ function renderReply(reply) {
   const card = el(`
     <div class="card">
       <span class="tag">${sourceLabel(reply.source)}${reply.incomingAuthor ? " · " + escapeHtml(reply.incomingAuthor) : ""}</span>
+      ${reply.flaggedPriceQuestion ? `<span class="status failed">❗ שאלת מחיר — לא לחשוף, להעביר לשיחה פרטית</span>` : ""}
       <p style="color:var(--muted); font-size:14px;">"${escapeHtml(reply.incomingText)}"</p>
       <label>טיוטת תשובה</label>
       <textarea id="reply-${reply.id}">${escapeHtml(reply.draftReply)}</textarea>
@@ -475,13 +509,108 @@ async function loadHistory() {
     posts.forEach((p) => {
       const card = el(`<div class="card"><h2>${escapeHtml(p.topic)}</h2></div>`);
       p.platforms.forEach((pc) => {
+        const m = pc.metrics;
+        const metricsLine = m
+          ? `<p class="muted-small">${[
+              m.reach != null ? `חשיפה: ${m.reach}` : "",
+              m.engagement != null ? `מעורבות: ${m.engagement}` : "",
+              m.clicks != null ? `קליקים: ${m.clicks}` : "",
+              m.saved != null ? `שמירות: ${m.saved}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}</p>`
+          : "";
         card.appendChild(el(`
           <div class="post-block">
             <span class="tag">${PLATFORM_LABELS[pc.platform] || pc.platform}</span>
             <span class="status ${pc.status}">${statusLabel(pc.status)}</span>
             <p style="font-size:13px;color:var(--muted);margin:6px 0 0;">${escapeHtml(pc.text)}</p>
+            ${metricsLine}
           </div>
         `));
+      });
+      container.appendChild(card);
+    });
+  } catch (err) {
+    container.innerHTML = `<p class="empty">שגיאה בטעינה: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+// ---- Performance ----
+let currentMetric = "engagement";
+const METRIC_LABELS = { engagement: "מעורבות", reach: "חשיפה", clicks: "קליקים" };
+
+document.getElementById("metricChips").addEventListener("click", (e) => {
+  const chip = e.target.closest("[data-metric]");
+  if (!chip) return;
+  document.querySelectorAll("#metricChips .chip").forEach((c) => c.classList.remove("active"));
+  chip.classList.add("active");
+  currentMetric = chip.dataset.metric;
+  loadPerformance();
+});
+
+async function loadPerformance() {
+  const container = document.getElementById("performanceContainer");
+  container.innerHTML = `<p class="empty">טוען...</p>`;
+  try {
+    const rows = await api(`/api/performance?metric=${currentMetric}&limit=10`);
+    if (!rows.length) {
+      container.innerHTML = `<p class="empty">עדיין אין נתוני ביצועים — יופיעו אחרי שיהיו פוסטים שפורסמו ונתוני Insights יתעדכנו (פעם ביום).</p>`;
+      return;
+    }
+    container.innerHTML = "";
+    rows.forEach((row, i) => {
+      const value = row.content.metrics?.[currentMetric];
+      const card = el(`
+        <div class="card">
+          <span class="tag">#${i + 1} · ${PLATFORM_LABELS[row.content.platform] || row.content.platform}</span>
+          <h2 style="margin-top:6px;">${escapeHtml(row.post.topic)}</h2>
+          <p style="font-size:13px;color:var(--muted);">${escapeHtml(row.content.text)}</p>
+          <p class="muted-small" style="color:var(--accent);font-weight:600;">${METRIC_LABELS[currentMetric]}: ${value ?? "—"}</p>
+        </div>
+      `);
+      container.appendChild(card);
+    });
+  } catch (err) {
+    container.innerHTML = `<p class="empty">שגיאה בטעינה: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+// ---- Inspiration ----
+document.getElementById("addInspirationBtn").addEventListener("click", async () => {
+  const imageUrl = document.getElementById("inspImageInput").value.trim();
+  const note = document.getElementById("inspNoteInput").value.trim();
+  if (!imageUrl && !note) {
+    alert("הוסיפו תמונה או הערה");
+    return;
+  }
+  await api("/api/inspirations", { method: "POST", body: JSON.stringify({ imageUrl, note }) });
+  document.getElementById("inspImageInput").value = "";
+  document.getElementById("inspNoteInput").value = "";
+  loadInspirations();
+});
+
+async function loadInspirations() {
+  const container = document.getElementById("inspirationGallery");
+  container.innerHTML = `<p class="empty">טוען...</p>`;
+  try {
+    const items = await api("/api/inspirations");
+    if (!items.length) {
+      container.innerHTML = `<p class="empty">עדיין לא הוספתם דוגמאות השראה</p>`;
+      return;
+    }
+    container.innerHTML = "";
+    items.forEach((item) => {
+      const card = el(`
+        <div class="card">
+          ${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" style="width:100%;border-radius:8px;margin-bottom:8px;" loading="lazy" />` : ""}
+          <p style="font-size:14px;">${escapeHtml(item.note)}</p>
+          <button class="danger deleteInspBtn">מחק</button>
+        </div>
+      `);
+      card.querySelector(".deleteInspBtn").addEventListener("click", async () => {
+        await api(`/api/inspirations/${item.id}`, { method: "DELETE" });
+        card.remove();
       });
       container.appendChild(card);
     });

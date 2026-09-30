@@ -3,7 +3,10 @@ import { config } from "./config";
 import { store } from "./lib/store";
 import { publishPost } from "./lib/publish";
 import { getRecentMentions } from "./connectors/x";
+import { fetchInsights } from "./connectors/insights";
 import { handleIncoming } from "./routes/api";
+
+const INSIGHTS_MAX_AGE_DAYS = 14;
 
 let lastSeenMentionId: string | undefined;
 
@@ -33,6 +36,22 @@ async function pollXMentions() {
   }
 }
 
+async function refreshInsights() {
+  if (!config.meta.pageAccessToken) return; // Meta not configured, skip silently
+  const posts = store.postsNeedingInsightsRefresh(INSIGHTS_MAX_AGE_DAYS);
+  for (const post of posts) {
+    for (const pc of post.platforms) {
+      if ((pc.platform !== "facebook" && pc.platform !== "instagram") || !pc.remoteId) continue;
+      try {
+        const metrics = await fetchInsights(pc.platform, pc.remoteId);
+        if (metrics) store.updatePlatformMetrics(post.id, pc.platform, metrics);
+      } catch (err) {
+        console.error(`Failed to refresh insights for post ${post.id} (${pc.platform}):`, err);
+      }
+    }
+  }
+}
+
 export function startScheduler() {
   // Check for due scheduled posts every minute.
   cron.schedule("* * * * *", () => {
@@ -44,7 +63,13 @@ export function startScheduler() {
     pollXMentions().catch((err) => console.error("X mentions poll error:", err));
   });
 
+  // Insights settle over the first day or two, so a daily refresh (not hourly) is plenty
+  // and keeps well within the Graph API's call-rate limits.
+  cron.schedule("17 3 * * *", () => {
+    refreshInsights().catch((err) => console.error("Insights refresh error:", err));
+  });
+
   console.log(
-    `Scheduler started: checking scheduled posts every minute, polling X mentions every ${minutes} minutes.`
+    `Scheduler started: checking scheduled posts every minute, polling X mentions every ${minutes} minutes, refreshing insights daily.`
   );
 }

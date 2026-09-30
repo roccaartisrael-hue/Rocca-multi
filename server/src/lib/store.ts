@@ -6,8 +6,17 @@ import { Platform } from "../config";
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const POSTS_FILE = path.join(DATA_DIR, "posts.json");
 const REPLIES_FILE = path.join(DATA_DIR, "replies.json");
+const INSPIRATIONS_FILE = path.join(DATA_DIR, "inspirations.json");
 
 export type PostStatus = "draft" | "scheduled" | "published" | "failed";
+
+export interface PostMetrics {
+  reach?: number;
+  engagement?: number;
+  clicks?: number;
+  saved?: number;
+  fetchedAt: string;
+}
 
 export interface PlatformContent {
   platform: Platform;
@@ -16,6 +25,7 @@ export interface PlatformContent {
   status: "pending" | "sent" | "failed";
   error?: string;
   remoteId?: string;
+  metrics?: PostMetrics;
 }
 
 export interface Post {
@@ -39,6 +49,14 @@ export interface PendingReply {
   draftReply: string;
   status: "pending" | "sent" | "rejected" | "failed";
   error?: string;
+  flaggedPriceQuestion?: boolean;
+}
+
+export interface Inspiration {
+  id: string;
+  imageUrl: string;
+  note: string;
+  createdAt: string;
 }
 
 function ensureFile(file: string) {
@@ -99,6 +117,42 @@ export const store = {
       (p) => p.status === "scheduled" && p.scheduledFor && p.scheduledFor <= now
     );
   },
+  postsNeedingInsightsRefresh(maxAgeDays: number): Post[] {
+    const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000).toISOString();
+    return readJson<Post>(POSTS_FILE).filter(
+      (p) =>
+        p.status === "published" &&
+        p.createdAt >= cutoff &&
+        p.platforms.some((pc) => (pc.platform === "facebook" || pc.platform === "instagram") && pc.remoteId)
+    );
+  },
+  updatePlatformMetrics(postId: string, platform: Platform, metrics: PostMetrics): Post | undefined {
+    const posts = readJson<Post>(POSTS_FILE);
+    const idx = posts.findIndex((p) => p.id === postId);
+    if (idx === -1) return undefined;
+    posts[idx] = {
+      ...posts[idx],
+      platforms: posts[idx].platforms.map((pc) => (pc.platform === platform ? { ...pc, metrics } : pc)),
+    };
+    writeJson(POSTS_FILE, posts);
+    return posts[idx];
+  },
+  topPerformingPlatformContent(
+    metric: "reach" | "engagement" | "clicks",
+    limit: number
+  ): { post: Post; content: PlatformContent }[] {
+    const posts = readJson<Post>(POSTS_FILE);
+    const flattened: { post: Post; content: PlatformContent }[] = [];
+    for (const post of posts) {
+      for (const pc of post.platforms) {
+        if (pc.metrics && typeof pc.metrics[metric] === "number") {
+          flattened.push({ post, content: pc });
+        }
+      }
+    }
+    flattened.sort((a, b) => (b.content.metrics![metric] || 0) - (a.content.metrics![metric] || 0));
+    return flattened.slice(0, limit);
+  },
 
   listReplies(statusFilter?: PendingReply["status"]): PendingReply[] {
     const all = readJson<PendingReply>(REPLIES_FILE).sort((a, b) =>
@@ -133,5 +187,22 @@ export const store = {
     return readJson<PendingReply>(REPLIES_FILE).some(
       (r) => r.source === source && r.targetId === targetId
     );
+  },
+
+  listInspirations(): Inspiration[] {
+    return readJson<Inspiration>(INSPIRATIONS_FILE).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+  createInspiration(imageUrl: string, note: string): Inspiration {
+    const items = readJson<Inspiration>(INSPIRATIONS_FILE);
+    const item: Inspiration = { id: uuid(), imageUrl, note, createdAt: new Date().toISOString() };
+    items.push(item);
+    writeJson(INSPIRATIONS_FILE, items);
+    return item;
+  },
+  deleteInspiration(id: string): boolean {
+    const items = readJson<Inspiration>(INSPIRATIONS_FILE);
+    const next = items.filter((i) => i.id !== id);
+    writeJson(INSPIRATIONS_FILE, next);
+    return next.length !== items.length;
   },
 };

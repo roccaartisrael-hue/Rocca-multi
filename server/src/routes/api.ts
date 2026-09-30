@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { config, ALL_PLATFORMS, Platform } from "../config";
 import { store, PlatformContent } from "../lib/store";
-import { generatePostForPlatforms, generateReplyDraft } from "../lib/claude";
+import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion } from "../lib/claude";
 import { publishPost } from "../lib/publish";
 import {
   verifyWebhookChallenge,
@@ -11,6 +11,7 @@ import {
   sendFacebookMessage,
 } from "../connectors/meta";
 import { replyToTweet } from "../connectors/x";
+import { fetchInsights } from "../connectors/insights";
 
 export const api = Router();
 
@@ -47,7 +48,17 @@ api.post("/api/posts/generate", async (req, res) => {
       return res.status(400).json({ error: `Unknown platforms: ${invalid.join(", ")}` });
     }
 
-    const generated = await generatePostForPlatforms(topic, platforms);
+    const topPerformers = store
+      .topPerformingPlatformContent("engagement", 3)
+      .map((row) => row.content.text)
+      .filter(Boolean);
+    const inspirationNotes = store
+      .listInspirations()
+      .slice(0, 3)
+      .map((i) => i.note)
+      .filter(Boolean);
+
+    const generated = await generatePostForPlatforms(topic, platforms, { topPerformers, inspirationNotes });
     const platformContents: PlatformContent[] = platforms.map((p) => ({
       platform: p,
       text: generated[p] || "",
@@ -95,6 +106,50 @@ api.post("/api/posts/:id/publish", async (req, res) => {
 
 api.delete("/api/posts/:id", (req, res) => {
   const ok = store.deletePost(req.params.id);
+  res.json({ deleted: ok });
+});
+
+// ---- Performance / insights ----
+
+api.get("/api/performance", (req, res) => {
+  const metric = (req.query.metric as "reach" | "engagement" | "clicks") || "engagement";
+  const limit = Number(req.query.limit) || 10;
+  res.json(store.topPerformingPlatformContent(metric, limit));
+});
+
+api.post("/api/posts/:id/refresh-insights", async (req, res) => {
+  const post = store.getPost(req.params.id);
+  if (!post) return res.status(404).json({ error: "Not found" });
+  const results: Record<string, string> = {};
+  for (const pc of post.platforms) {
+    if ((pc.platform !== "facebook" && pc.platform !== "instagram") || !pc.remoteId) continue;
+    try {
+      const metrics = await fetchInsights(pc.platform, pc.remoteId);
+      if (metrics) store.updatePlatformMetrics(post.id, pc.platform, metrics);
+      results[pc.platform] = "ok";
+    } catch (err: any) {
+      results[pc.platform] = err?.message || String(err);
+    }
+  }
+  res.json({ post: store.getPost(post.id), results });
+});
+
+// ---- Inspiration (manual references — no competitor scraping, ever) ----
+
+api.get("/api/inspirations", (_req, res) => {
+  res.json(store.listInspirations());
+});
+
+api.post("/api/inspirations", (req, res) => {
+  const { imageUrl, note } = req.body as { imageUrl?: string; note?: string };
+  if (!imageUrl && !note) {
+    return res.status(400).json({ error: "imageUrl or note is required" });
+  }
+  res.json(store.createInspiration(imageUrl || "", note || ""));
+});
+
+api.delete("/api/inspirations/:id", (req, res) => {
+  const ok = store.deleteInspiration(req.params.id);
   res.json({ deleted: ok });
 });
 
@@ -156,15 +211,20 @@ export async function handleIncoming(
     draftReply = "";
   }
 
+  const priceQuestion = isPriceQuestion(text);
+
   const reply = store.createReply({
     source,
     incomingText: text,
     incomingAuthor: author,
     targetId,
     draftReply,
+    flaggedPriceQuestion: priceQuestion,
   });
 
-  if (config.autoSendReplies && draftReply) {
+  // Price questions always wait for a human, no matter AUTO_SEND_REPLIES — never let the bot
+  // improvise or confirm a number on its own.
+  if (config.autoSendReplies && draftReply && !priceQuestion) {
     try {
       await sendReply(source, targetId, draftReply);
       store.updateReply(reply.id, { status: "sent" });
