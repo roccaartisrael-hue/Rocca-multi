@@ -3,110 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>קולקציית האבנים | ROCCA רוקה — אוניקס ושיש</title>
-<meta name="description" content="קולקציית האבן הטבעית של ROCCA: אוניקס בשבעה גוונים ואוניקס ספר פתוח (Bookmatch), שיש לבן, אפור, קרמה וטרוורטין. מפרטים, עוביים, גימורים ויישומים.">
+<title>קטלוג אוניקס ושיש | ROCCA רוקה</title>
+<meta name="description" content="קטלוג האבן הטבעית של ROCCA: אוניקס בשבעה גוונים, אוניקס ספר פתוח (Bookmatch), שיש לבן, אפור, קרמה וטרוורטין — מפרטים, עוביים, גימורים ויישומים.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ROCCA">
-<meta property="og:title" content="קולקציית האבנים | ROCCA">
+<meta property="og:title" content="קטלוג אוניקס ושיש | ROCCA">
 <meta property="og:description" content="אוניקס בשבעה גוונים, אוניקס ספר פתוח ושיש פרימיום — הכול במקום אחד.">
 <meta property="og:locale" content="he_IL">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@700;900&family=Frank+Ruhl+Libre:wght@500;700;900&family=Assistant:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#FFFFFF;
-    --bg-alt:#F5F3EF;
+    --bg-soft:#FAFAFA;
+    --bg-warm:#F5F0E8;
     --panel:#FFFFFF;
-    --ink:#14110D;
-    --ink-soft:#5B5650;
-    --gold:#D4970C;
-    --gold-deep:#8C5F26;
-    --wine:#7A1F2B;
-    --line:#E4E0D8;
-    --serif:'Frank Ruhl Libre', serif;
-    --display:'Bodoni Moda', serif;
-    --sans:'Assistant', sans-serif;
+    --ink:#333333;
+    --ink-strong:#1F1A1A;
+    --ink-soft:#555555;
+    --muted:#666666;
+    --accent:#532323;
+    --accent-2:#5B1F26;
+    --accent-soft:#DBC9CC;
+    --line:#E6E6E6;
+    --line-2:#DDDDDD;
+    --on-accent:#FFFFFF;
+    --font:Arial, Helvetica, sans-serif;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#171410; --bg-alt:#1F1B15; --panel:#221D17; --ink:#F2EDE2; --ink-soft:#C9C0AE; --line:#3A3327;
+      --bg:#161212; --bg-soft:#1D1818; --bg-warm:#231C19; --panel:#1D1818; --ink:#E6DEDC; --ink-strong:#F5EFEE;
+      --ink-soft:#C4B9B7; --muted:#A99D9B; --accent:#C98F8F; --accent-2:#D9A0A0; --accent-soft:#4A3436;
+      --line:#3A3030; --line-2:#433838; --on-accent:#1A1212;
     }
   }
   :root[data-theme="dark"]{
-    --bg:#171410; --bg-alt:#1F1B15; --panel:#221D17; --ink:#F2EDE2; --ink-soft:#C9C0AE; --line:#3A3327;
+    --bg:#161212; --bg-soft:#1D1818; --bg-warm:#231C19; --panel:#1D1818; --ink:#E6DEDC; --ink-strong:#F5EFEE;
+    --ink-soft:#C4B9B7; --muted:#A99D9B; --accent:#C98F8F; --accent-2:#D9A0A0; --accent-soft:#4A3436;
+    --line:#3A3030; --line-2:#433838; --on-accent:#1A1212;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
-  html{scroll-behavior:smooth;scroll-padding-top:76px;}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.7;overflow-x:hidden;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.7;overflow-x:hidden;}
   img{max-width:100%;display:block;}
   a{color:inherit;text-decoration:none;}
-  .wrap{max-width:1180px;margin:0 auto;padding:0 28px;}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px;}
   @media (max-width:600px){.wrap{padding:0 16px;}}
 
-  header.site{position:sticky;top:0;z-index:50;background:color-mix(in srgb, var(--bg) 90%, transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
-  .nav{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;max-width:1180px;margin:0 auto;gap:12px;}
-  .brand{display:flex;align-items:center;gap:10px;}
-  .brand-word{font-family:var(--display);font-weight:900;font-size:22px;letter-spacing:2px;color:var(--ink);}
-  .brand-heb{font-family:var(--serif);font-weight:900;font-size:15px;color:var(--wine);}
-  .back{font-size:15px;font-weight:700;color:var(--ink-soft);}
-  .back:hover{color:var(--gold-deep);}
+  header.site{background:var(--accent);color:var(--on-accent);position:sticky;top:0;z-index:50;}
+  .nav{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:980px;margin:0 auto;padding:12px 20px;}
+  .brand{font-weight:700;font-size:20px;letter-spacing:3px;}
+  .brand small{font-size:13px;letter-spacing:0;font-weight:400;opacity:.85;margin-inline-start:8px;}
+  .nav-links{display:flex;gap:6px;flex-wrap:wrap;font-size:14px;}
+  .nav-links a{padding:6px 10px;border-radius:3px;}
+  .nav-links a:hover,.nav-links a.active{background:rgba(255,255,255,.15);}
+  @media (max-width:600px){.nav-links .hide-sm{display:none;}}
 
-  .intro{padding:64px 0 40px;background:var(--bg-alt);}
-  .kicker{font-family:var(--serif);font-style:italic;color:var(--wine);font-size:19px;margin:0 0 10px;}
-  h1{font-family:var(--serif);font-size:clamp(32px,5vw,54px);font-weight:900;margin:0 0 16px;line-height:1.15;}
-  .lede{color:var(--ink-soft);font-size:18px;max-width:66ch;margin:0;}
-  .jump{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px;}
-  .jump a{border:1px solid var(--line);background:var(--panel);padding:8px 16px;border-radius:20px;font-size:14.5px;font-weight:700;color:var(--ink-soft);}
-  .jump a:hover{border-color:var(--gold);color:var(--ink);}
-  .jump .grp{width:100%;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--gold-deep);margin-top:6px;}
+  .crumbs{font-size:13px;color:var(--muted);margin:18px 0 0;}
+  .crumbs a{color:var(--accent);}
+  .crumbs a:hover{text-decoration:underline;}
 
-  .group-title{padding:70px 0 10px;}
-  .group-title h2{font-family:var(--serif);font-size:clamp(28px,3.6vw,40px);font-weight:900;margin:0 0 10px;}
-  .note{border-right:3px solid var(--gold);background:var(--bg-alt);padding:14px 18px;margin:16px 0 0;font-size:16px;max-width:72ch;}
+  h1{font-size:30px;font-weight:700;margin:14px 0 12px;color:var(--ink-strong);line-height:1.3;}
+  h2{font-size:22px;font-weight:700;margin:0 0 14px;color:var(--ink-strong);}
+  .center{text-align:center;}
+  p{margin:0 0 12px;color:var(--ink-soft);}
+  strong{color:var(--ink);}
 
-  .stone{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:start;padding:44px 0;border-bottom:1px solid var(--line);}
-  .stone:nth-child(even) .gallery{order:2;}
-  @media (max-width:900px){.stone{grid-template-columns:1fr;gap:22px;}.stone:nth-child(even) .gallery{order:0;}}
-  .gallery .main{all:unset;cursor:zoom-in;display:block;aspect-ratio:4/3;overflow:hidden;border-radius:4px;border:1px solid var(--line);background:var(--bg-alt);}
-  .gallery .main img{width:100%;height:100%;object-fit:cover;}
-  .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;}
-  .thumbs button{all:unset;cursor:zoom-in;aspect-ratio:1;overflow:hidden;border-radius:3px;border:1px solid var(--line);}
-  .thumbs img{width:100%;height:100%;object-fit:cover;}
-  .gallery button:focus-visible{outline:3px solid var(--gold);outline-offset:2px;}
-  .placeholder{display:flex;align-items:center;justify-content:center;height:100%;color:var(--ink-soft);font-size:15px;}
+  /* Catalog grid */
+  .lead{max-width:760px;}
+  .note{border:1px solid var(--accent-soft);background:var(--bg-warm);padding:14px 16px;margin:18px 0 0;font-size:14.5px;}
+  .group{margin:34px 0 10px;padding-bottom:8px;border-bottom:2px solid var(--accent);color:var(--accent);font-size:20px;font-weight:700;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin:16px 0 10px;}
+  .card{border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;transition:box-shadow .2s, transform .2s;}
+  .card:hover{box-shadow:0 6px 18px rgba(0,0,0,.12);transform:translateY(-2px);}
+  .card .ph{aspect-ratio:4/3;overflow:hidden;background:var(--bg-soft);border-bottom:1px solid var(--line);}
+  .card .ph img{width:100%;height:100%;object-fit:cover;}
+  .card .t{padding:10px 12px 0;font-weight:700;font-size:15px;letter-spacing:.5px;color:var(--ink-strong);}
+  .card .go{padding:4px 12px 12px;color:var(--accent);font-size:13.5px;font-weight:700;}
 
-  .stone h3{font-family:var(--serif);font-size:30px;font-weight:900;margin:0 0 4px;}
-  .latin{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--gold-deep);margin-bottom:12px;}
-  .stone p{color:var(--ink-soft);margin:0 0 18px;}
-  dl.specs{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;margin:0 0 18px;font-size:15.5px;}
-  dl.specs dt{font-weight:700;color:var(--ink);}
-  dl.specs dd{margin:0;color:var(--ink-soft);}
-  .uses{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;padding:0;list-style:none;}
-  .uses li{font-size:13.5px;font-weight:700;padding:4px 12px;border-radius:14px;background:var(--bg-alt);border:1px solid var(--line);}
-  .cta{display:inline-block;background:var(--ink);color:var(--bg);padding:12px 22px;font-weight:700;font-size:15px;border-radius:2px;}
-  .cta:hover{background:var(--gold);color:#1c1710;}
+  /* Stone page */
+  .hero{display:flex;gap:24px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:30px;}
+  .hero > div{flex:1;min-width:280px;}
+  .frame{border:1px solid var(--line);background:var(--panel);padding:8px;}
+  .frame button{all:unset;cursor:zoom-in;display:block;}
+  .frame button:focus-visible{outline:3px solid var(--accent);}
+  .caption{text-align:center;font-size:12px;color:var(--muted);margin-top:6px;}
+  .box{margin:0 0 30px;padding:16px;border:1px solid var(--line);background:var(--bg-soft);}
+  .why{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:0 0 35px;}
+  .why div{border:1px solid var(--line-2);padding:14px;background:var(--panel);}
+  .why b{display:block;margin-bottom:6px;color:var(--ink-strong);}
+  .why span{font-size:13.5px;color:var(--ink-soft);}
+  table.spec{width:100%;border-collapse:collapse;margin:0 0 35px;font-size:14px;border:1px solid var(--line);}
+  table.spec th,table.spec td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top;}
+  table.spec th{width:32%;background:var(--bg-warm);color:var(--ink-strong);font-weight:700;}
+  table.spec td{color:var(--ink-soft);}
+  .apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:0 0 35px;}
+  .apps div{border:1px solid var(--line-2);padding:14px;background:var(--panel);}
+  .apps b{display:block;margin-bottom:6px;color:var(--ink-strong);}
+  .apps span{font-size:13.5px;color:var(--ink-soft);}
+  .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:0 0 35px;}
+  .gal button{all:unset;cursor:zoom-in;border:1px solid var(--line);padding:6px;background:var(--panel);display:block;}
+  .gal img{width:100%;aspect-ratio:4/3;object-fit:cover;}
+  .gal button:focus-visible{outline:3px solid var(--accent);}
+  .ctabox{text-align:center;padding:24px 16px;border:1px solid var(--accent-soft);background:var(--bg-warm);margin:0 0 30px;}
+  .ctabox p{margin:0 0 14px;}
+  .btn{display:inline-block;background:var(--accent);color:var(--on-accent);padding:12px 22px;font-weight:700;border-radius:4px;margin:4px;}
+  .btn:hover{background:var(--accent-2);}
+  .btn.wa{background:#25D366;color:#fff;}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);}
+  .more{margin:0 0 40px;}
+  .more .cards{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
 
-  .cta-band{background:#14110D;color:#F2EDE2;text-align:center;padding:76px 0;margin-top:40px;}
-  .cta-band h2{font-family:var(--serif);font-size:clamp(26px,3.4vw,38px);margin:0 0 12px;}
-  .cta-band p{color:#C9C0AE;margin:0 auto 26px;max-width:54ch;}
-  .btn-primary{background:var(--gold);color:#1c1710;padding:15px 28px;font-weight:700;font-size:16px;border-radius:2px;display:inline-block;}
-
-  footer{padding:36px 0;border-top:1px solid var(--line);background:var(--bg-alt);font-size:14px;color:var(--ink-soft);}
+  footer{background:var(--accent);color:var(--on-accent);padding:24px 0;font-size:13.5px;margin-top:20px;}
   footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 
-  .lightbox{position:fixed;inset:0;z-index:100;background:rgba(10,8,6,.94);display:none;align-items:center;justify-content:center;padding:16px;}
+  .lightbox{position:fixed;inset:0;z-index:100;background:rgba(10,8,8,.94);display:none;align-items:center;justify-content:center;padding:16px;}
   .lightbox.open{display:flex;}
   .lightbox img{max-width:100%;max-height:86vh;object-fit:contain;}
-  .lb-btn{position:absolute;background:rgba(255,255,255,.12);color:#fff;border:none;width:48px;height:48px;border-radius:50%;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-  .lb-btn:hover{background:rgba(255,255,255,.22);}
+  .lb-btn{position:absolute;background:rgba(255,255,255,.14);color:#fff;border:none;width:48px;height:48px;border-radius:50%;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
   .lb-close{top:16px;left:16px;}
   .lb-prev{right:16px;top:50%;transform:translateY(-50%);}
   .lb-next{left:16px;top:50%;transform:translateY(-50%);}
-  .lb-caption{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#E9E3D6;font-size:15px;}
+  .lb-caption{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#eee;font-size:14px;}
 
-  .whatsapp-float{position:fixed;bottom:calc(22px + env(safe-area-inset-bottom, 0px));left:22px;z-index:80;width:58px;height:58px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.3);}
+  .whatsapp-float{position:fixed;bottom:calc(22px + env(safe-area-inset-bottom, 0px));left:22px;z-index:80;width:56px;height:56px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.3);}
   .whatsapp-float svg{width:30px;height:30px;}
 </style>
 </head>
@@ -114,53 +132,26 @@
 
 <header class="site">
   <div class="nav">
-    <a class="brand" href="index.html"><span class="brand-word">ROCCA</span><span class="brand-heb">רוקה</span></a>
-    <a class="back" href="index.html">→ חזרה לאתר</a>
+    <a class="brand" href="index.html">ROCCA<small>רוקה</small></a>
+    <nav class="nav-links" aria-label="ניווט">
+      <a href="index.html" class="hide-sm">דף הבית</a>
+      <a href="#/" id="navCat">קטלוג</a>
+      <a href="onyx-mexico.html">אוניקס ממקסיקו</a>
+      <a href="index.html#contact">צור קשר</a>
+    </nav>
   </div>
 </header>
 
-<a class="whatsapp-float" href="https://wa.me/19093443250?text=%D7%94%D7%99%D7%99%2C%20%D7%A8%D7%90%D7%99%D7%AA%D7%99%20%D7%90%D7%AA%20%D7%94%D7%A7%D7%95%D7%9C%D7%A7%D7%A6%D7%99%D7%94%20%D7%A9%D7%9C%20ROCCA%20%D7%95%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A4%D7%A8%D7%98%D7%99%D7%9D" target="_blank" rel="noopener" aria-label="וואטסאפ">
+<a class="whatsapp-float" id="waFloat" href="https://wa.me/19093443250" target="_blank" rel="noopener" aria-label="וואטסאפ">
   <svg viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.6-.92-2.2-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.27.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.27-.2-.57-.35zM12.05 21.5h-.01a9.4 9.4 0 0 1-4.8-1.32l-.34-.2-3.57.94.95-3.48-.22-.36a9.4 9.4 0 0 1-1.44-5.02c0-5.2 4.24-9.43 9.44-9.43 2.52 0 4.89.98 6.67 2.77a9.37 9.37 0 0 1 2.76 6.67c0 5.2-4.23 9.43-9.44 9.43zm8.03-17.46A11.32 11.32 0 0 0 12.05.72C5.8.72.7 5.8.7 12.07c0 2 .52 3.95 1.52 5.67L.6 23.28l5.67-1.49a11.3 11.3 0 0 0 5.77 1.47h.01c6.26 0 11.35-5.09 11.35-11.35 0-3.03-1.18-5.88-3.32-8.02z"/></svg>
 </a>
 
-<section class="intro">
-  <div class="wrap">
-    <div class="kicker">הקולקציה של ROCCA</div>
-    <h1>אוניקס ושיש — כל הגוונים, במקום אחד</h1>
-    <p class="lede">אבן טבעית נבחרת בקפידה: אוניקס שקוף בשבעה גוונים, אוניקס בתבנית ספר פתוח, ומגוון שיש לרצפות, קירות ומשטחים. אנחנו מלווים מהבחירה, דרך החיתוך והעיבוד ועד ההתקנה והתאורה.</p>
-    <nav class="jump" id="jump" aria-label="מעבר מהיר לאבנים"></nav>
-  </div>
-</section>
-
-<main class="wrap">
-  <div class="group-title" id="onyx">
-    <div class="kicker">אוניקס</div>
-    <h2>אוניקס שקוף — אבן שהאור עובר דרכה</h2>
-    <p class="lede">האוניקס הוא אבן טבעית שקופה למחצה. כשמאירים אותו מאחור, העורקים והצבעים מתעוררים — ולכן הוא הבחירה המושלמת לקירות מוארים, ברים, שולחנות, אמבטיות וגופי תאורה.</p>
-    <p class="note"><strong>חשוב לדעת:</strong> באוניקס לא בוחרים מדוגמה — בוחרים את הלוח עצמו. כל לוח הוא יחיד במינו, ומה שתבחרו הוא בדיוק מה שיותקן אצלכם. הגוונים כאן מציגים את סוגי האבן; את הלוחות הזמינים נציג לכם לבחירה אישית.</p>
-  </div>
-  <div id="onyxList"></div>
-
-  <div class="group-title" id="marble">
-    <div class="kicker">שיש</div>
-    <h2>שיש טבעי — לרצפות, לקירות ולמשטחים</h2>
-    <p class="lede">שיש בגוונים בהירים, חמים ואפורים, בלוחות, באריחים ובחיתוכים לפי מידה — לכל חלל בבית ובפרויקט.</p>
-  </div>
-  <div id="marbleList"></div>
-</main>
-
-<section class="cta-band">
-  <div class="wrap">
-    <h2>מצאתם את האבן שלכם?</h2>
-    <p>שלחו לנו הודעה עם סוג האבן והמידות של הפרויקט — ונחזור אליכם עם הצעה מותאמת ותיאום צפייה בלוחות.</p>
-    <a class="btn-primary" href="https://wa.me/19093443250?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%94%D7%A6%D7%A2%D7%AA%20%D7%9E%D7%97%D7%99%D7%A8%20%D7%9C%D7%A4%D7%A8%D7%95%D7%99%D7%A7%D7%98" target="_blank" rel="noopener">לקבלת הצעת מחיר בוואטסאפ</a>
-  </div>
-</section>
+<main class="wrap" id="app"></main>
 
 <footer>
   <div class="wrap">
-    <div>© 2026 ROCCA — כל הזכויות שמורות</div>
-    <a href="index.html">אבן טבעית &middot; חדשנות ללא פשרות</a>
+    <div>© 2026 ROCCA — אבן טבעית פרימיום</div>
+    <div><a href="tel:0528792023">052-879-2023</a> · <a href="https://wa.me/19093443250" target="_blank" rel="noopener">וואטסאפ</a></div>
   </div>
 </footer>
 
@@ -184,59 +175,95 @@ const MARBLE_USES = ['רצפות','חיפוי קירות','מטבחים','אמב
 // imgs: file names under images/collection/ — filled in when photos are imported.
 const STONES = {
   onyx: [
-    {id:'onyx-white', name:'אוניקס לבן', latin:'WHITE ONYX', imgs:[],
+    {id:'onyx-white', name:'אוניקס לבן', latin:'WHITE ONYX', imgs:['onyx-white-1.webp'],
      text:'אוניקס בלבן טהור וקריסטלי, עם עורקים עדינים בגווני שנהב ובז\'. אבן שמכניסה לחלל אור, ניקיון ואלגנטיות קלאסית — ובתאורה אחורית היא זוהרת ברכות.',
      look:'לבן טהור, עורקים עדינים בשנהב ובז\''},
-    {id:'onyx-black', name:'אוניקס שחור', latin:'BLACK ONYX', imgs:[],
+    {id:'onyx-black', name:'אוניקס שחור', latin:'BLACK ONYX', imgs:['onyx-black-1.webp','onyx-black-2.webp','onyx-black-3.webp','onyx-black-4.webp'],
      text:'אוניקס כהה ודרמטי, חצוי בעורקים של זהב ונחושת. נותן לכל חלל עומק, יוקרה ותחושה של בוטיק — מושלם לברים, שולחנות וקירות מרכזיים.',
      look:'גוון כהה עם עורקי זהב ונחושת'},
-    {id:'onyx-honey', name:'אוניקס דבש', latin:'HONEY ONYX', imgs:[],
+    {id:'onyx-honey', name:'אוניקס דבש', latin:'HONEY ONYX', imgs:['onyx-honey-1.webp','onyx-honey-2.webp','onyx-honey-3.webp','onyx-honey-4.webp','onyx-honey-5.webp'],
      text:'הגוון החם והאהוב ביותר: זהב, ענבר ושמנת, עם עורקים זוהרים. באור אחורי הוא מקרין חום ונעימות — אידיאלי לקירות מוארים, מדרגות ופינות אוכל.',
      look:'זהב, ענבר ושמנת רכה'},
-    {id:'onyx-green', name:'אוניקס ירוק', latin:'GREEN ONYX', imgs:[],
+    {id:'onyx-green', name:'אוניקס ירוק', latin:'GREEN ONYX', imgs:['onyx-green-1.webp'],
      text:'גווני ירוק קריסטליים ומהפנטים, עם עורקים עדינים בלבן ובדבש. מביא לחלל שלווה, טבע ואלגנטיות שקטה.',
      look:'ירוק קריסטלי, עורקים בלבן ודבש'},
-    {id:'onyx-red', name:'אוניקס אדום', latin:'RED ONYX', imgs:[],
+    {id:'onyx-red', name:'אוניקס אדום', latin:'RED ONYX', imgs:['onyx-red-1.webp','onyx-red-2.webp'],
      text:'אדום עמוק ובורדו, עם עורקים כתומים וורדרדים. אבן עם נוכחות חזקה ודרמטית — כשמאירים אותה, היא הופכת לפסל.',
      look:'אדום עז ובורדו, עורקים כתומים וורודים'},
-    {id:'onyx-blue', name:'אוניקס כחול', latin:'BLUE ONYX', imgs:[],
+    {id:'onyx-blue', name:'אוניקס כחול', latin:'BLUE ONYX', imgs:['onyx-blue-1.webp'],
      text:'כחול עמוק בשכבות, שעובר בהדרגה לתכלת ואפור. נדיר ומתוחכם — לפרויקטים שרוצים להיות שונים מכל מה שראו.',
      look:'כחול עמוק, עורקי תכלת ואפור'},
-    {id:'onyx-ochre', name:'אוניקס אוקר', latin:'OCHRE ONYX', imgs:[],
+    {id:'onyx-ochre', name:'אוניקס אוקר', latin:'OCHRE ONYX', imgs:['onyx-ochre-1.webp','onyx-ochre-2.webp','onyx-ochre-3.webp','onyx-ochre-4.webp'],
      text:'אוקר חם עם עורקי זהב וצהוב. משלב חמימות וטבעיות עם עומק — מתאים לקירות, לרצפות ולשולחנות מרשימים.',
      look:'אוקר, צהוב וזהב'},
-    {id:'onyx-bookmatch', name:'אוניקס ספר פתוח', latin:'BOOKMATCH ONYX', imgs:[],
+    {id:'onyx-bookmatch', name:'אוניקס ספר פתוח', latin:'BOOKMATCH ONYX', imgs:['onyx-bookmatch-1.webp'],
      text:'שני לוחות סמוכים מאותו גוש, שנפתחים כמו ספר — והעורקים משתקפים זה בזה בתבנית סימטרית של פרפר. כך הופך קיר שלם ליצירת אמנות אחת רציפה.',
      look:'תבנית סימטרית (מראה), עורקים אדמדמים, נחושת וזהב', forms:'לוחות בתבנית ספר פתוח (Bookmatch) וחיתוכים מיוחדים'},
   ],
   marble: [
-    {id:'marble-white', name:'שיש לבן', latin:'WHITE MARBLE', imgs:[],
+    {id:'marble-white', name:'שיש לבן', latin:'WHITE MARBLE', imgs:['marble-white-1.webp','marble-white-2.webp','marble-white-3.webp','marble-white-4.webp'],
      text:'שיש בהיר ואלגנטי שמכניס לחלל אור ומרחב. מתאים לרצפות, לקירות, לאמבטיות ולמטבחים — קלאסיקה שלא יוצאת מהאופנה.',
      look:'לבן טבעי, מרקם אלגנטי ומואר', forms:'לוחות, אריחים, משטחים וחיתוכים מיוחדים',
      finish:'פוליש מבריק, מט, סאטן וגימורים נוספים לפי הזמנה', thick:'1, 2 ו-3 ס"מ, ומידות לפי הפרויקט'},
-    {id:'marble-crema-lisboa', name:'שיש קרמה ליסבון', latin:'CREMA LISBOA', imgs:[],
+    {id:'marble-crema-lisboa', name:'שיש קרמה ליסבון', latin:'CREMA LISBOA', imgs:['marble-crema-lisboa-1.webp'],
      text:'שיש ממקור טורקי, בבסיס בז\' בהיר עם עורקים עדינים בחום. מרקם אחיד ונוכחות רגועה ויוקרתית — לרצפות, חיפויים, מטבחים ומדרגות.',
      look:'בז\' בהיר, עורקים עדינים בחום', forms:'לוחות, אריחים, פרקט, רצועות וחיתוכים מיוחדים',
      finish:'פוליש, מט, סאטן, מוברש, חול (סנדבלאסט) ועוד',
      thick:'1, 1.5, 2 ו-3 ס"מ · אריחים 30×30, 40×40, 60×60 ס"מ', extra:'עמידות גבוהה לתנועה (4 מתוך 5)'},
-    {id:'marble-gray', name:'שיש אפור', latin:'GREY MARBLE', imgs:[],
+    {id:'marble-gray', name:'שיש אפור', latin:'GREY MARBLE', imgs:['marble-gray-1.webp','marble-gray-2.webp','marble-gray-3.webp','marble-gray-4.webp'],
      text:'שיש בגוון אפור עכשווי ואחיד. נראה מודרני ונקי, ומשתלב בכל סגנון — מרצפות ועד משטחי מטבח.',
      look:'אפור עכשווי בגוון אחיד', forms:'לוחות, אריחים, משטחים וחיתוכים מיוחדים',
      finish:'פוליש, מט (Honed), מוברש, חול וגימורים נוספים', thick:'2, 3 ו-4 ס"מ, ומידות לפי הפרויקט'},
-    {id:'marble-crema-ojinaga', name:'שיש קרמה אוחינגה', latin:'CREMA OJINAGA', imgs:[],
+    {id:'marble-crema-ojinaga', name:'שיש קרמה אוחינגה', latin:'CREMA OJINAGA', imgs:['marble-crema-ojinaga-1.webp','marble-crema-ojinaga-2.webp'],
      text:'שיש מקסיקני בגוון קרם חם, עם עורקים עדינים בבז\', אפור בהיר וזהב. מוסיף חום ואור — בפנים ובחוץ.',
      look:'קרם חם, עורקים בבז\', אפור בהיר וזהב', forms:'לוחות, אריחים, פרקט, רצועות, פסיפס וחיתוכים מיוחדים',
      finish:'פוליש, מט, סאטן, חומצה וגימורים נוספים',
      thick:'1, 1.5, 2 ו-3 ס"מ · אריחים 30×30, 40×40, 47×47 ס"מ'},
-    {id:'marble-travertine', name:'טרוורטין פיוריטו', latin:'TRAVERTINO FIORITO', imgs:[],
+    {id:'marble-travertine', name:'טרוורטין פיוריטו', latin:'TRAVERTINO FIORITO', imgs:['marble-travertine-1.webp'],
      text:'אבן טרוורטין בגווני בז\' וקרם, עם עורקים טבעיים והמרקם הנקבובי האופייני. חמה, טבעית ואלגנטית — לרצפות, קירות ומדרגות.',
      look:'בז\' וקרם, מרקם נקבובי אופייני', forms:'לוחות, אריחים, משטחים וחיתוכים מיוחדים',
      finish:'פוליש, מט, סאטן, רוסטיקלי וגימורים נוספים', thick:'1, 2 ו-3 ס"מ, ומידות לפי הפרויקט'},
   ],
 };
 
+
+const WHY = {
+  onyx: [
+    ['בחירה אישית של הלוח','באוניקס בוחרים את הלוח עצמו — מה שרואים הוא בדיוק מה שמותקן אצלכם.'],
+    ['ייצור לפי מידה','לוחות, שולחנות, ברים, גופי תאורה וחלקים מיוחדים לפי צורכי הפרויקט.'],
+    ['ליווי מקצועי','עוזרים לבחור עובי, גימור ומערכת תאורה אחורית שמתאימה לפרויקט.'],
+    ['הצעת מחיר מותאמת','מחיר לפי לוח או לפי פרויקט — לפי מידות, כמות, גימור וסוג העבודה.'],
+  ],
+  marble: [
+    ['איכות נבחרת','לוחות עם מרקם אחיד ועורקים טבעיים, מתאימים לבתים ולפרויקטים מסחריים.'],
+    ['חיתוך לפי מידה','אריחים, לוחות, משטחים, מדרגות וחלקים מיוחדים לפי התוכנית.'],
+    ['ליווי מקצועי','עוזרים לבחור פורמט, עובי וגימור שמתאימים לשימוש ולסגנון.'],
+    ['הצעת מחיר מותאמת','מחיר למ"ר או לפי פרויקט — לפי מידות, כמות וגימור.'],
+  ],
+};
+const APPS = {
+  onyx: [
+    ['🪵 שולחנות ופינות אוכל','שולחנות אוכל, שולחנות סלון ושולחנות צד — יוקרה וגימור מרהיב.','לוחות, חיתוך לפי מידה'],
+    ['💡 קירות מוארים','קירות עם תאורת LED מאחור. השקיפות של האוניקס יוצרת אפקט אור דרמטי.','לוחות'],
+    ['🍸 ברים ומשטחים','ברים במטבח, ברי אירוח ומשטחים דקורטיביים עם נוכחות חזקה.','לוחות, משטחים לפי מידה'],
+    ['💧 כיורים ואמבטיות','כיורים, קירות אמבטיה ומקלחות — נגיעה של יוקרה.','לוחות, חיתוכים מיוחדים'],
+    ['🔦 גופי תאורה','מנורות וגופי תאורה דקורטיביים — אור חם ועוטף.','חיתוך אישי'],
+    ['🎨 אלמנטים דקורטיביים','קמינים, נישות, מדפים ופרטים אדריכליים.','לפי מידה'],
+  ],
+  marble: [
+    ['🏠 רצפות','ריצוף לסלון, למבואה ולחללים מסחריים — עמיד ואלגנטי.','אריחים, פרקט, רצועות'],
+    ['🧱 חיפוי קירות','קירות פנים וחוץ, חזיתות וקירות מבטא.','לוחות, אריחים'],
+    ['🍳 מטבחים','משטחי עבודה, איים וחיפויים.','משטחים לפי מידה'],
+    ['🛁 אמבטיות','קירות, משטחים, כיורים ומקלחות.','לוחות, חיתוכים מיוחדים'],
+    ['🪜 מדרגות','מדרגות, פודסטים ומעקות.','חיתוך לפי מידה'],
+    ['🏛️ אלמנטים דקורטיביים','עמודים, מעקות, אדני חלון ופרטים מיוחדים.','לפי מידה'],
+  ],
+};
 const WA = 'https://wa.me/19093443250?text=';
-const lbItems = [];
+const ALL = [...STONES.onyx.map(s => ({...s, type:'onyx'})), ...STONES.marble.map(s => ({...s, type:'marble'}))];
+const app = document.getElementById('app');
+let lbItems = [];
+
 function el(tag, attrs, ...kids){
   const n = document.createElement(tag);
   for(const [k, v] of Object.entries(attrs || {})){
@@ -244,42 +271,105 @@ function el(tag, attrs, ...kids){
     else if(k.startsWith('on')) n.addEventListener(k.slice(2), v);
     else n.setAttribute(k, v);
   }
-  for(const c of kids.flat(Infinity)) if(c) n.append(c);
+  for(const c of kids.flat(Infinity)) if(c !== null && c !== undefined && c !== false) n.append(c);
   return n;
 }
-function imgBtn(cls, stone, i){
-  const idx = lbItems.length;
-  lbItems.push({src:'images/collection/' + stone.imgs[i], caption:stone.name});
-  return el('button', {class:cls, type:'button', 'aria-label':'הגדלת תמונה — ' + stone.name, onclick:() => openLb(idx)},
-    el('img', {src:'images/collection/' + stone.imgs[i], alt:stone.name + (i ? ' — יישום' : ''), loading:'lazy'}));
+const src = f => 'images/collection/' + f;
+const mount = (...kids) => app.replaceChildren(...kids.flat(Infinity).filter(Boolean));
+
+function card(s){
+  return el('a', {class:'card', href:'#/' + s.id},
+    el('div', {class:'ph'}, el('img', {src:src(s.imgs[0]), alt:s.name, loading:'lazy'})),
+    el('div', {class:'t', text:s.name.toUpperCase()}),
+    el('div', {class:'go', text:'לקטלוג המלא ←'}));
 }
-function renderStone(s, isOnyx){
-  const gallery = el('div', {class:'gallery'},
-    s.imgs.length ? imgBtn('main', s, 0) : el('div', {class:'main'}, el('div', {class:'placeholder', text:'תמונות בקרוב'})),
-    s.imgs.length > 1 ? el('div', {class:'thumbs'}, s.imgs.slice(1, 5).map((_, k) => imgBtn('', s, k + 1))) : null);
+
+function renderCatalog(){
+  document.title = 'קטלוג אוניקס ושיש | ROCCA רוקה';
+  mount(
+    el('div', {class:'crumbs'}, el('a', {href:'index.html', text:'דף הבית'}), ' › קטלוג'),
+    el('h1', {text:'קטלוג אוניקס ושיש'}),
+    el('p', {class:'lead', text:'הכירו את גווני האוניקס השקוף ואת סוגי השיש שלנו. כל סוג מוביל לדף מלא עם תמונות, מפרט טכני, יישומים ואפשרות לבקש הצעת מחיר.'}),
+    el('div', {class:'note'}, el('strong', {text:'חשוב לדעת: '}), 'באוניקס לא בוחרים מדוגמה — בוחרים את הלוח עצמו. כל לוח יחיד במינו, ואין עוד אחד כמוהו.'),
+    el('div', {class:'group', text:'אוניקס'}),
+    el('div', {class:'cards'}, STONES.onyx.map(card)),
+    el('div', {class:'group', text:'שיש'}),
+    el('div', {class:'cards'}, STONES.marble.map(card)),
+    el('div', {class:'ctabox', style:'margin-top:30px'},
+      el('p', {text:'מחפשים גוון שלא מופיע כאן, או צריכים בלוקים שלמים לפרויקט גדול? דברו איתנו.'}),
+      el('a', {class:'btn wa', target:'_blank', rel:'noopener', href:WA + encodeURIComponent('היי, אשמח לפרטים על הקטלוג של ROCCA'), text:'הצעת מחיר בוואטסאפ'})));
+  lbItems = [];
+  document.getElementById('waFloat').href = WA + encodeURIComponent('היי, ראיתי את הקטלוג של ROCCA ואשמח לפרטים');
+}
+
+function zoomBtn(file, caption, inner){
+  const idx = lbItems.length;
+  lbItems.push({src:src(file), caption});
+  return el('button', {type:'button', 'aria-label':'הגדלה — ' + caption, onclick:() => openLb(idx)}, inner);
+}
+
+function renderStone(s){
+  const isOnyx = s.type === 'onyx';
+  lbItems = [];
+  document.title = s.name + ' | ROCCA רוקה';
+  const ask = isOnyx ? 'היי, אשמח לראות לוחות זמינים של ' + s.name : 'היי, אשמח להצעת מחיר על ' + s.name;
+  document.getElementById('waFloat').href = WA + encodeURIComponent(ask);
   const specs = [
+    ['שם החומר', s.name + ' (' + s.latin + ')'],
     ['מראה', s.look],
     ['צורות', s.forms || ONYX_SPECS.forms],
     ['גימורים', s.finish || ONYX_SPECS.finish],
     ['עוביים', s.thick || ONYX_SPECS.thick],
   ];
   if(s.extra) specs.push(['עמידות', s.extra]);
-  const msg = isOnyx ? 'היי, אשמח לראות לוחות זמינים של ' + s.name : 'היי, אשמח להצעת מחיר על ' + s.name;
-  return el('article', {class:'stone', id:s.id},
-    gallery,
-    el('div', null,
-      el('h3', {text:s.name}),
-      el('div', {class:'latin', text:s.latin}),
-      el('p', {text:s.text}),
-      el('dl', {class:'specs'}, specs.map(([k, v]) => [el('dt', {text:k}), el('dd', {text:v})])),
-      el('ul', {class:'uses'}, (isOnyx ? ONYX_USES : MARBLE_USES).map(u => el('li', {text:u}))),
-      el('a', {class:'cta', target:'_blank', rel:'noopener', href:WA + encodeURIComponent(msg), text:isOnyx ? 'לראות לוחות זמינים' : 'לקבלת הצעת מחיר'})));
+  specs.push(['שימושים מומלצים', (isOnyx ? ONYX_USES : MARBLE_USES).join(', ')]);
+  specs.push(['סוג פרויקט', 'פרטי, מסחרי, אדריכלי ודקורטיבי']);
+  specs.push(['הצעת מחיר', 'לפי מידות, גימור וכמות']);
+  const others = ALL.filter(o => o.type === s.type && o.id !== s.id);
+
+  mount(
+    el('div', {class:'crumbs'}, el('a', {href:'index.html', text:'דף הבית'}), ' › ', el('a', {href:'#/', text:'קטלוג'}), ' › ' + s.name),
+    el('div', {class:'hero'},
+      el('div', null,
+        el('h1', {text:s.name}),
+        el('p', null, el('strong', {text:s.name}), ' — ' + s.text),
+        el('p', {text: isOnyx
+          ? 'ב-ROCCA אנחנו מספקים ' + s.name + ' בלוחות ובחלקים מיוחדים לשולחנות, ברים, קירות מוארים, פינות אוכל, גופי תאורה, כיורים ומשטחים — ומלווים עד ההתקנה והתאורה.'
+          : 'ב-ROCCA אנחנו מספקים ' + s.name + ' בלוחות, אריחים וחלקים מיוחדים לרצפות, קירות, מטבחים, אמבטיות ומדרגות — ומלווים עד ההתקנה.'}),
+        isOnyx ? el('p', null, el('strong', {text:'בוחרים לוח, לא דוגמה: '}), 'כל לוח אוניקס יחיד במינו. נציג לכם את הלוחות הזמינים כדי שתבחרו בדיוק את מה שיותקן.') : null),
+      el('div', null,
+        el('div', {class:'frame'}, zoomBtn(s.imgs[0], s.name, el('img', {src:src(s.imgs[0]), alt:s.name, fetchpriority:'high'}))),
+        el('div', {class:'caption', text:s.name}))),
+    el('div', {class:'box'},
+      el('h2', {text:'למה לבחור ' + s.name + '?'}),
+      el('p', {style:'margin:0', text: isOnyx
+        ? s.name + ' מוערך בזכות היופי הטבעי, הגוונים והיכולת להאיר אותו מאחור — מה שהופך אותו לפריט פיסולי בכל חלל. הוא אחת הבחירות היוקרתיות ביותר לעיצוב פנים: שולחנות, קירות מוארים, ברים וגופי תאורה.'
+        : s.name + ' הוא אבן טבעית עמידה ואלגנטית, שמתאימה לבתים פרטיים ולפרויקטים מסחריים — מרצפות וקירות ועד מטבחים ואמבטיות.'})),
+    el('h2', {class:'center', text:'למה לבחור ב-ROCCA?'}),
+    el('div', {class:'why'}, WHY[s.type].map(([t, d]) => el('div', null, el('b', {text:t}), el('span', {text:d})))),
+    el('h2', {class:'center', text:'מפרט ' + s.name}),
+    el('table', {class:'spec'}, el('tbody', null, specs.map(([k, v]) => el('tr', null, el('th', {scope:'row', text:k}), el('td', {text:v}))))),
+    el('h2', {class:'center', text:'יישומים של ' + s.name}),
+    el('div', {class:'apps'}, APPS[s.type].map(([t, d, f]) => el('div', null, el('b', {text:t}), el('span', {text:d}), el('span', {style:'display:block;margin-top:6px;color:var(--accent);font-weight:700', text:'פורמט מומלץ: ' + f})))),
+    s.imgs.length > 1 ? [el('h2', {class:'center', text:'גלריה'}),
+      el('div', {class:'gal'}, s.imgs.slice(1).map(f => zoomBtn(f, s.name, el('img', {src:src(f), alt:s.name + ' — יישום', loading:'lazy'}))))] : null,
+    el('div', {class:'ctabox'},
+      el('p', null, el('strong', {text:'רוצים הצעת מחיר על ' + s.name + '? '}), 'שלחו לנו את מידות הפרויקט ונחזור אליכם עם הצעה מותאמת.'),
+      el('a', {class:'btn wa', target:'_blank', rel:'noopener', href:WA + encodeURIComponent(ask), text: isOnyx ? 'לראות לוחות זמינים בוואטסאפ' : 'הצעת מחיר בוואטסאפ'}),
+      el('a', {class:'btn ghost', href:'tel:0528792023', text:'חייגו 052-879-2023'})),
+    el('div', {class:'more'},
+      el('div', {class:'group', text: isOnyx ? 'גוונים נוספים של אוניקס' : 'סוגי שיש נוספים'}),
+      el('div', {class:'cards'}, others.map(card))));
 }
-document.getElementById('onyxList').append(...STONES.onyx.map(s => renderStone(s, true)));
-document.getElementById('marbleList').append(...STONES.marble.map(s => renderStone(s, false)));
-const jump = document.getElementById('jump');
-jump.append(el('span', {class:'grp', text:'אוניקס'}), ...STONES.onyx.map(s => el('a', {href:'#' + s.id, text:s.name})));
-jump.append(el('span', {class:'grp', text:'שיש'}), ...STONES.marble.map(s => el('a', {href:'#' + s.id, text:s.name})));
+
+function route(){
+  const id = location.hash.replace(/^#\/?/, '');
+  const s = ALL.find(x => x.id === id);
+  if(s) renderStone(s); else renderCatalog();
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', route);
+route();
 
 const lb = document.getElementById('lightbox');
 const lbImg = document.getElementById('lbImg');
@@ -287,9 +377,7 @@ const lbCap = document.getElementById('lbCaption');
 let cur = 0, lastFocus = null;
 function showLb(i){
   cur = (i + lbItems.length) % lbItems.length;
-  lbImg.src = lbItems[cur].src;
-  lbImg.alt = lbItems[cur].caption;
-  lbCap.textContent = lbItems[cur].caption;
+  lbImg.src = lbItems[cur].src; lbImg.alt = lbItems[cur].caption; lbCap.textContent = lbItems[cur].caption;
 }
 function openLb(i){ lastFocus = document.activeElement; showLb(i); lb.classList.add('open'); document.getElementById('lbClose').focus(); }
 function closeLb(){ lb.classList.remove('open'); if(lastFocus) lastFocus.focus(); }
