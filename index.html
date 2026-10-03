@@ -159,6 +159,15 @@
   .phone-nav{font-family:var(--sans);font-weight:700;font-size:15px;color:var(--ink);direction:ltr;}
 
   @media (max-width:900px){.section{padding:64px 0;}.usp-grid{grid-template-columns:1fr;}.contact-grid{grid-template-columns:1fr;}}
+  .mx-banner{position:relative;display:block;border-radius:4px;overflow:hidden;margin-bottom:28px;aspect-ratio:21/7;background:#0f0c09;}
+  .mx-banner img{width:100%;height:100%;object-fit:cover;transition:transform .6s ease;}
+  .mx-banner:hover img{transform:scale(1.03);}
+  .mx-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(270deg, rgba(15,12,9,.85) 0%, rgba(15,12,9,.35) 60%, rgba(15,12,9,.1) 100%);}
+  .mx-text{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:center;padding:0 32px;color:#fff;gap:4px;}
+  .mx-kicker{font-family:var(--serif);font-style:italic;color:#E8B54A;font-size:17px;}
+  .mx-text strong{font-family:var(--serif);font-size:clamp(22px,3vw,34px);font-weight:900;line-height:1.2;}
+  .mx-sub{font-size:15px;color:#E9E3D6;font-weight:600;}
+  @media (max-width:700px){.mx-banner{aspect-ratio:4/3;}.mx-text{padding:0 18px;}}
 </style>
 </head>
 <body>
@@ -169,6 +178,8 @@
     <nav class="nav-links">
       <a href="#about">אודות</a>
       <a href="#catalog">קטלוג</a>
+      <a href="onyx-mexico.html">אוניקס ממקסיקו</a>
+      <a href="collection.html">קטלוג אבנים</a>
       <a href="#projects">פרויקטים</a>
       <a href="#b2b">לאנשי מקצוע</a>
       <a href="#contact">צור קשר</a>
@@ -231,6 +242,10 @@
     <div class="kicker">הקטלוג שלנו</div>
     <h2 class="title">כל סוגי האבן הטבעית, במקום אחד</h2>
     <p class="lede">מבחר רחב מתוך המלאי הבלעדי שלנו — כל אבן ניתנת לבדיקה ולבחירה אישית באולם התצוגה.</p>
+    <a class="mx-banner" href="onyx-mexico.html">
+      <img src="images/onyx-mexico/slab-04.webp" alt="לוח אוניקס פרימיום ממקסיקו" loading="lazy" width="1600" height="900">
+      <span class="mx-text"><span class="mx-kicker">חדש באוסף</span><strong>לוחות אוניקס פרימיום ממקסיקו</strong><span class="mx-sub">כל לוח יחיד במינו · לצפייה בלוחות ובסרטון ←</span></span>
+    </a>
     <div class="prod-grid">
       <div class="prod-card"><span class="kind">אוניקס</span><img src="images/catalog/onyx-green.webp" alt="אוניקס ירוק, דוגמת אבן טבעית" loading="lazy" width="1000" height="1000"><div class="label">אוניקס ירוק</div></div>
       <div class="prod-card"><span class="kind">אוניקס</span><img src="images/catalog/onyx-white.webp" alt="אוניקס לבן, דוגמת אבן טבעית" loading="lazy" width="1000" height="1000"><div class="label">אוניקס לבן</div></div>
@@ -358,6 +373,8 @@
         <h4>ניווט</h4>
         <a href="#about">אודות</a>
         <a href="#catalog">קטלוג</a>
+        <a href="onyx-mexico.html">אוניקס ממקסיקו</a>
+        <a href="collection.html">קטלוג אבנים</a>
         <a href="#projects">פרויקטים</a>
         <a href="#b2b">לאנשי מקצוע</a>
       </div>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>אוניקס פרימיום ממקסיקו | ROCCA רוקה</title>
+<meta name="description" content="לוחות אוניקס פרימיום ממכרה במקסיקו — כל לוח יחיד במינו, באיכות הגבוהה ביותר. אוניקס מואר לקירות, קמינים, איי מטבח ופרויקטים יוקרתיים. ROCCA.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ROCCA">
+<meta property="og:title" content="אוניקס פרימיום ממקסיקו | ROCCA">
+<meta property="og:description" content="כל לוח יחיד במינו — אין שניים זהים. אוניקס ממכרה במקסיקו, באיכות הגבוהה ביותר.">
+<meta property="og:image" content="images/onyx-mexico/slab-01.webp">
+<meta property="og:locale" content="he_IL">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@700;900&family=Frank+Ruhl+Libre:wght@500;700;900&family=Assistant:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFFFFF;
+    --bg-alt:#F5F3EF;
+    --panel:#FFFFFF;
+    --ink:#14110D;
+    --ink-soft:#5B5650;
+    --gold:#D4970C;
+    --gold-deep:#8C5F26;
+    --wine:#7A1F2B;
+    --line:#E4E0D8;
+    --serif:'Frank Ruhl Libre', serif;
+    --display:'Bodoni Moda', serif;
+    --sans:'Assistant', sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#171410; --bg-alt:#1F1B15; --panel:#221D17; --ink:#F2EDE2; --ink-soft:#C9C0AE; --line:#3A3327;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#171410; --bg-alt:#1F1B15; --panel:#221D17; --ink:#F2EDE2; --ink-soft:#C9C0AE; --line:#3A3327;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.7;overflow-x:hidden;}
+  img,video{max-width:100%;display:block;}
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px;}
+  @media (max-width:600px){.wrap{padding:0 16px;}}
+
+  header.site{position:sticky;top:0;z-index:50;background:color-mix(in srgb, var(--bg) 90%, transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;max-width:1180px;margin:0 auto;gap:12px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-word{font-family:var(--display);font-weight:900;font-size:22px;letter-spacing:2px;color:var(--ink);}
+  .brand-heb{font-family:var(--serif);font-weight:900;font-size:15px;color:var(--wine);}
+  .back{font-size:15px;font-weight:700;color:var(--ink-soft);}
+  .back:hover{color:var(--gold-deep);}
+
+  .hero{position:relative;min-height:78vh;display:flex;align-items:flex-end;background:#0f0c09;overflow:hidden;}
+  .hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg, rgba(15,12,9,.15) 0%, rgba(15,12,9,.55) 55%, rgba(15,12,9,.92) 100%);}
+  .hero-inner{position:relative;z-index:2;padding:0 28px 64px;max-width:1180px;margin:0 auto;width:100%;}
+  .hero-kicker{color:#E8B54A;font-family:var(--serif);font-style:italic;font-size:20px;margin:0 0 8px;}
+  .hero h1{font-family:var(--serif);font-weight:900;color:#fff;font-size:clamp(34px,6vw,68px);line-height:1.1;margin:0 0 14px;max-width:16ch;}
+  .hero p{color:#E9E3D6;font-size:clamp(17px,2vw,20px);max-width:52ch;margin:0 0 28px;}
+  .actions{display:flex;gap:14px;flex-wrap:wrap;}
+  .btn-primary{background:var(--gold);color:#1c1710;border:none;padding:15px 28px;font-family:var(--sans);font-weight:700;font-size:16px;border-radius:2px;cursor:pointer;display:inline-block;}
+  .btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.55);padding:15px 28px;font-family:var(--sans);font-weight:600;font-size:16px;border-radius:2px;cursor:pointer;display:inline-block;}
+  @media (max-width:600px){.hero-inner{padding:0 16px 44px;}}
+
+  .section{padding:90px 0;}
+  .section-alt{background:var(--bg-alt);}
+  @media (max-width:900px){.section{padding:60px 0;}}
+  .kicker{font-family:var(--serif);font-style:italic;color:var(--wine);font-size:19px;margin:0 0 10px;}
+  h2.title{font-family:var(--serif);font-size:clamp(28px,3.6vw,42px);font-weight:900;margin:0 0 18px;max-width:20ch;}
+  .lede{color:var(--ink-soft);font-size:18px;max-width:64ch;margin:0 0 44px;}
+
+  .points{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--line);border:1px solid var(--line);}
+  .point{background:var(--panel);padding:34px 28px;}
+  .point-num{font-family:var(--display);font-size:15px;color:var(--gold-deep);margin-bottom:12px;letter-spacing:1px;}
+  .point h3{font-family:var(--serif);font-size:22px;margin:0 0 10px;font-weight:800;}
+  .point p{color:var(--ink-soft);font-size:15.5px;margin:0;}
+  @media (max-width:900px){.points{grid-template-columns:1fr;}}
+
+  .slabs{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;}
+  @media (max-width:760px){.slabs{grid-template-columns:1fr;}}
+  .slab{background:var(--panel);border:1px solid var(--line);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;}
+  .slab button.zoom{all:unset;cursor:zoom-in;display:block;aspect-ratio:16/11;overflow:hidden;background:#0f0c09;}
+  .slab button.zoom img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease;}
+  .slab button.zoom:hover img{transform:scale(1.04);}
+  .slab button.zoom:focus-visible{outline:3px solid var(--gold);outline-offset:-3px;}
+  .slab-body{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;flex-wrap:wrap;}
+  .slab-name{font-family:var(--serif);font-weight:800;font-size:19px;}
+  .slab-tag{font-size:13px;color:var(--gold-deep);font-weight:700;letter-spacing:.5px;}
+  .slab-cta{font-size:14.5px;font-weight:700;border:1px solid var(--ink);padding:8px 14px;border-radius:2px;white-space:nowrap;}
+  .slab-cta:hover{background:var(--ink);color:var(--bg);}
+
+  .video-wrap{display:grid;grid-template-columns:1.2fr 1fr;gap:44px;align-items:center;}
+  @media (max-width:900px){.video-wrap{grid-template-columns:1fr;}}
+  .video-wrap video{width:100%;border-radius:4px;border:1px solid var(--line);background:#0f0c09;max-height:80vh;}
+  .checks{list-style:none;padding:0;margin:20px 0 28px;}
+  .checks li{padding-right:26px;position:relative;margin-bottom:12px;color:var(--ink-soft);}
+  .checks li::before{content:"";position:absolute;right:0;top:10px;width:8px;height:8px;background:var(--gold);border-radius:1px;}
+  .btn-dark{background:var(--ink);color:var(--bg);border:none;padding:15px 28px;font-weight:700;font-size:16px;border-radius:2px;display:inline-block;}
+
+  .cta-band{background:#14110D;color:#F2EDE2;text-align:center;padding:80px 0;}
+  .cta-band h2{font-family:var(--serif);font-size:clamp(26px,3.4vw,38px);margin:0 0 12px;}
+  .cta-band p{color:#C9C0AE;margin:0 auto 28px;max-width:52ch;}
+  .cta-band .actions{justify-content:center;}
+
+  footer{padding:36px 0;border-top:1px solid var(--line);background:var(--bg-alt);font-size:14px;color:var(--ink-soft);}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+
+  .lightbox{position:fixed;inset:0;z-index:100;background:rgba(10,8,6,.94);display:none;align-items:center;justify-content:center;padding:16px;}
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%;max-height:86vh;object-fit:contain;}
+  .lb-btn{position:absolute;background:rgba(255,255,255,.12);color:#fff;border:none;width:48px;height:48px;border-radius:50%;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .lb-btn:hover{background:rgba(255,255,255,.22);}
+  .lb-close{top:16px;left:16px;}
+  .lb-prev{right:16px;top:50%;transform:translateY(-50%);}
+  .lb-next{left:16px;top:50%;transform:translateY(-50%);}
+  .lb-caption{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#E9E3D6;font-size:15px;}
+
+  .whatsapp-float{position:fixed;bottom:calc(22px + env(safe-area-inset-bottom, 0px));left:22px;z-index:80;width:58px;height:58px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.3);}
+  .whatsapp-float svg{width:30px;height:30px;}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="nav">
+    <a class="brand" href="index.html"><span class="brand-word">ROCCA</span><span class="brand-heb">רוקה</span></a>
+    <a class="back" href="index.html">→ חזרה לאתר</a>
+  </div>
+</header>
+
+<a class="whatsapp-float" href="https://wa.me/19093443250?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A0%D7%99%20%D7%9E%D7%AA%D7%A2%D7%A0%D7%99%D7%99%D7%9F%20%D7%91%D7%9C%D7%95%D7%97%D7%95%D7%AA%20%D7%94%D7%90%D7%95%D7%A0%D7%99%D7%A7%D7%A1%20%D7%9E%D7%9E%D7%A7%D7%A1%D7%99%D7%A7%D7%95" target="_blank" rel="noopener" aria-label="וואטסאפ">
+  <svg viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.6-.92-2.2-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.27.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.27-.2-.57-.35zM12.05 21.5h-.01a9.4 9.4 0 0 1-4.8-1.32l-.34-.2-3.57.94.95-3.48-.22-.36a9.4 9.4 0 0 1-1.44-5.02c0-5.2 4.24-9.43 9.44-9.43 2.52 0 4.89.98 6.67 2.77a9.37 9.37 0 0 1 2.76 6.67c0 5.2-4.23 9.43-9.44 9.43zm8.03-17.46A11.32 11.32 0 0 0 12.05.72C5.8.72.7 5.8.7 12.07c0 2 .52 3.95 1.52 5.67L.6 23.28l5.67-1.49a11.3 11.3 0 0 0 5.77 1.47h.01c6.26 0 11.35-5.09 11.35-11.35 0-3.03-1.18-5.88-3.32-8.02z"/></svg>
+</a>
+
+<section class="hero">
+  <img src="images/onyx-mexico/slab-01.webp" alt="לוח אוניקס פרימיום מואר, בגווני זהב ושחור" width="1600" height="1260" fetchpriority="high">
+  <div class="hero-inner">
+    <div class="hero-kicker">אוסף מקסיקו</div>
+    <h1>לוחות אוניקס פרימיום — אין שניים זהים</h1>
+    <p>אוניקס נדיר ממכרה במקסיקו, באיכות הגבוהה ביותר שיש. כל לוח הוא יצירה אחת ויחידה של הטבע — וכשהאור עובר דרכו, הוא פשוט מתעורר לחיים.</p>
+    <div class="actions">
+      <a class="btn-primary" href="#slabs">לצפייה בלוחות</a>
+      <a class="btn-ghost" href="#video">לסרטון מהמכרה</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="about">
+  <div class="wrap">
+    <div class="kicker">למה האוסף הזה מיוחד</div>
+    <h2 class="title">אבן שמספרת סיפור של מיליוני שנים</h2>
+    <p class="lede">האוניקס המקסיקני ידוע בעולם בעורקים העמוקים, בצבעים החמים ובשקיפות שלו. כשמאירים אותו מאחור — כקיר מואר, קמין, בר או אי מטבח — הוא הופך למוקד של כל החלל.</p>
+    <div class="points">
+      <div class="point">
+        <div class="point-num">01</div>
+        <h3>כל לוח יחיד במינו</h3>
+        <p>הדוגמה, העורקים והצבעים לא חוזרים על עצמם. הלוח שתבחרו לא יופיע באף בית אחר.</p>
+      </div>
+      <div class="point">
+        <div class="point-num">02</div>
+        <h3>ישירות מהמכרה במקסיקו</h3>
+        <p>הלוחות נבחרים בקפידה במקור — רק החומר באיכות הגבוהה ביותר מגיע אלינו.</p>
+      </div>
+      <div class="point">
+        <div class="point-num">03</div>
+        <h3>מוכן לתאורה</h3>
+        <p>שקיפות גבוהה שמאפשרת תאורה אחורית מרהיבה. אנחנו מלווים מהבחירה, דרך החיתוך ועד ההתקנה והתאורה.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt" id="slabs">
+  <div class="wrap">
+    <div class="kicker">הלוחות הזמינים</div>
+    <h2 class="title">בחרו את הלוח שלכם</h2>
+    <p class="lede"><strong>באוניקס הזה לא בוחרים מדוגמה — בוחרים את הלוח עצמו.</strong> מה שרואים בתמונה הוא בדיוק הלוח שתקבלו, ואין עוד אחד כמוהו. לחצו על לוח כדי לראות אותו בגדול, ושלחו לנו הודעה עם מספר הלוח כדי לשריין אותו.</p>
+    <div class="slabs" id="slabGrid"></div>
+  </div>
+</section>
+
+<section class="section" id="video">
+  <div class="wrap video-wrap">
+    <video src="videos/onyx-mexico.mp4" poster="images/onyx-mexico/slab-04.webp" controls playsinline preload="metadata"></video>
+    <div>
+      <div class="kicker">מהמכרה אליכם</div>
+      <h2 class="title">לראות את האבן בתנועה</h2>
+      <p class="lede" style="margin-bottom:0;">תמונה אחת לא מספיקה כדי להבין אוניקס. בסרטון רואים את העומק, הברק ואת המשחק של האור בתוך הלוחות.</p>
+      <ul class="checks">
+        <li>איכות פרימיום — הדרגה הגבוהה ביותר</li>
+        <li>לוחות גדולים, מתאימים לקירות ולמשטחים</li>
+        <li>אפשר לתאם צפייה בלוחות ולבחור באופן אישי</li>
+      </ul>
+      <a class="btn-dark" href="https://wa.me/19093443250?text=%D7%94%D7%99%D7%99%2C%20%D7%A8%D7%90%D7%99%D7%AA%D7%99%20%D7%90%D7%AA%20%D7%94%D7%A1%D7%A8%D7%98%D7%95%D7%9F%20%D7%A9%D7%9C%20%D7%94%D7%90%D7%95%D7%A0%D7%99%D7%A7%D7%A1%20%D7%9E%D7%9E%D7%A7%D7%A1%D7%99%D7%A7%D7%95%20%D7%95%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A4%D7%A8%D7%98%D7%99%D7%9D" target="_blank" rel="noopener">לפרטים בוואטסאפ</a>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="wrap">
+    <h2>הלוחות האלה לא יחכו הרבה זמן</h2>
+    <p>כל לוח קיים בעותק אחד בלבד. דברו איתנו עכשיו כדי לשריין את הלוח שאהבתם.</p>
+    <div class="actions">
+      <a class="btn-primary" href="https://wa.me/19093443250?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A0%D7%99%20%D7%9E%D7%AA%D7%A2%D7%A0%D7%99%D7%99%D7%9F%20%D7%91%D7%9C%D7%95%D7%97%D7%95%D7%AA%20%D7%94%D7%90%D7%95%D7%A0%D7%99%D7%A7%D7%A1%20%D7%9E%D7%9E%D7%A7%D7%A1%D7%99%D7%A7%D7%95" target="_blank" rel="noopener">שלחו הודעה בוואטסאפ</a>
+      <a class="btn-ghost" href="tel:0528792023">חייגו 052-879-2023</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>© 2026 ROCCA — כל הזכויות שמורות</div>
+    <a href="index.html">אבן טבעית &middot; חדשנות ללא פשרות</a>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="תצוגת לוח">
+  <button class="lb-btn lb-close" id="lbClose" aria-label="סגירה">✕</button>
+  <button class="lb-btn lb-prev" id="lbPrev" aria-label="הלוח הקודם">›</button>
+  <img id="lbImg" alt="">
+  <button class="lb-btn lb-next" id="lbNext" aria-label="הלוח הבא">‹</button>
+  <div class="lb-caption" id="lbCaption"></div>
+</div>
+
+<script>
+const SLABS = [
+  {file:'slab-01.webp', w:1600, h:1260, tag:'מואר', alt:'לוח אוניקס מואר בגלים של זהב ושחור'},
+  {file:'slab-02.webp', w:1600, h:1287, tag:'מואר', alt:'לוח אוניקס מואר בכתמי זהב ואפור'},
+  {file:'slab-03.webp', w:1600, h:1110, tag:'מואר', alt:'לוח אוניקס בגווני זהב, חום ושחור עם מעגלים טבעיים'},
+  {file:'slab-04.webp', w:1600, h:900,  tag:'מואר', alt:'לוח אוניקס בעורקים אלכסוניים של שחור, כתום ונחושת'},
+  {file:'slab-05.webp', w:1600, h:1138, tag:'פרימיום', alt:'לוח אוניקס בגווני חום, נחושת ואפור עם שוליים כתומים שקופים'},
+  {file:'slab-06.webp', w:1600, h:931,  tag:'פרימיום', alt:'לוח אוניקס בפסים אופקיים של אדום, לבן וחום'},
+];
+const WA = 'https://wa.me/19093443250?text=';
+const grid = document.getElementById('slabGrid');
+SLABS.forEach((s, i) => {
+  const num = String(i + 1).padStart(2, '0');
+  const card = document.createElement('article');
+  card.className = 'slab';
+  card.innerHTML =
+    '<button class="zoom" type="button" aria-label="הגדלת לוח ' + num + '">' +
+      '<img src="images/onyx-mexico/' + s.file + '" alt="' + s.alt + '" width="' + s.w + '" height="' + s.h + '" loading="lazy">' +
+    '</button>' +
+    '<div class="slab-body">' +
+      '<div><div class="slab-name">לוח ' + num + '</div><div class="slab-tag">אוניקס מקסיקני · ' + s.tag + '</div></div>' +
+      '<a class="slab-cta" target="_blank" rel="noopener" href="' + WA + encodeURIComponent('היי, אני מתעניין בלוח אוניקס ' + num + ' מאוסף מקסיקו') + '">מתעניין בלוח הזה</a>' +
+    '</div>';
+  card.querySelector('.zoom').addEventListener('click', () => openLb(i));
+  grid.appendChild(card);
+});
+
+const lb = document.getElementById('lightbox');
+const lbImg = document.getElementById('lbImg');
+const lbCap = document.getElementById('lbCaption');
+let cur = 0, lastFocus = null;
+function showLb(i){
+  cur = (i + SLABS.length) % SLABS.length;
+  const s = SLABS[cur];
+  lbImg.src = 'images/onyx-mexico/' + s.file;
+  lbImg.alt = s.alt;
+  lbCap.textContent = 'לוח ' + String(cur + 1).padStart(2, '0') + ' מתוך ' + SLABS.length;
+}
+function openLb(i){ lastFocus = document.activeElement; showLb(i); lb.classList.add('open'); document.getElementById('lbClose').focus(); }
+function closeLb(){ lb.classList.remove('open'); if(lastFocus) lastFocus.focus(); }
+document.getElementById('lbClose').onclick = closeLb;
+document.getElementById('lbPrev').onclick = () => showLb(cur - 1);
+document.getElementById('lbNext').onclick = () => showLb(cur + 1);
+lb.addEventListener('click', e => { if(e.target === lb) closeLb(); });
+document.addEventListener('keydown', e => {
+  if(!lb.classList.contains('open')) return;
+  if(e.key === 'Escape') closeLb();
+  if(e.key === 'ArrowLeft') showLb(cur + 1);
+  if(e.key === 'ArrowRight') showLb(cur - 1);
+});
+</script>
+</body>
+</html>

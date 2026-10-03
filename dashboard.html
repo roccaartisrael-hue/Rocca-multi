@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ROCCA Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@700;900&family=Frank+Ruhl+Libre:wght@500;700;900&family=Assistant:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFFFFF;
+    --bg-alt:#F5F3EF;
+    --panel:#FFFFFF;
+    --ink:#14110D;
+    --ink-soft:#5B5650;
+    --gold:#D4970C;
+    --gold-deep:#8C5F26;
+    --wine:#7A1F2B;
+    --good:#2E6B3A;
+    --line:#E4E0D8;
+    --serif:'Frank Ruhl Libre', serif;
+    --display:'Bodoni Moda', serif;
+    --sans:'Assistant', sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#171410; --bg-alt:#1F1B15; --panel:#221D17; --ink:#F2EDE2; --ink-soft:#C9C0AE; --line:#3A3327; --good:#7FC08C;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#171410; --bg-alt:#1F1B15; --panel:#221D17; --ink:#F2EDE2; --ink-soft:#C9C0AE; --line:#3A3327; --good:#7FC08C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg-alt);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;overflow-x:hidden;}
+  button,input,select,textarea{font-family:var(--sans);font-size:15px;color:var(--ink);}
+  a{color:var(--gold-deep);}
+
+  header.top{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);}
+  .top-inner{max-width:1180px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand-word{font-family:var(--display);font-weight:900;font-size:20px;letter-spacing:2px;}
+  .brand-sub{font-family:var(--serif);color:var(--wine);font-weight:700;}
+  nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-inline-start:auto;}
+  nav.tabs button{background:transparent;border:1px solid var(--line);padding:8px 14px;border-radius:20px;font-weight:700;color:var(--ink-soft);cursor:pointer;}
+  nav.tabs button.active{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+
+  main{max-width:1180px;margin:0 auto;padding:24px 16px 80px;}
+  section.view{display:none;}
+  section.view.active{display:block;}
+  h1{font-family:var(--serif);font-size:clamp(24px,3vw,32px);margin:0 0 6px;}
+  .lede{color:var(--ink-soft);margin:0 0 22px;max-width:70ch;}
+  h2{font-family:var(--serif);font-size:20px;margin:0 0 12px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:20px;margin-bottom:18px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:860px){.grid2{grid-template-columns:1fr;}}
+  label{display:block;font-size:14px;color:var(--ink-soft);margin:0 0 5px;font-weight:600;}
+  input[type=text],input[type=password],input[type=url],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--bg);border-radius:2px;margin-bottom:12px;}
+  textarea{min-height:110px;resize:vertical;line-height:1.5;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .btn{background:var(--ink);color:var(--bg);border:none;padding:10px 18px;border-radius:2px;font-weight:700;cursor:pointer;}
+  .btn.gold{background:var(--gold);color:#1c1710;}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .muted{color:var(--ink-soft);font-size:14px;}
+  .status{font-size:14px;color:var(--wine);font-weight:600;min-height:20px;margin-top:8px;}
+  .status.ok{color:var(--good);}
+  details summary{cursor:pointer;font-weight:700;margin-bottom:10px;}
+  .pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:12px;background:var(--bg-alt);border:1px solid var(--line);color:var(--ink-soft);}
+  .pill.good{color:var(--good);border-color:currentColor;}
+  .pill.bad{color:var(--wine);border-color:currentColor;}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+  @media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr);}}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px 16px;}
+  .stat .v{font-family:var(--serif);font-size:26px;font-weight:900;}
+  .stat .k{font-size:13px;color:var(--ink-soft);}
+
+  .insights{margin:0;padding:0;list-style:none;}
+  .insights li{padding:10px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline;}
+  .insights li:last-child{border-bottom:none;}
+
+  table{width:100%;border-collapse:collapse;font-size:14.5px;}
+  th,td{text-align:right;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{color:var(--ink-soft);font-weight:700;font-size:13px;}
+  .bar{height:8px;background:var(--gold);border-radius:4px;min-width:2px;}
+  .table-wrap{overflow-x:auto;}
+  .caption-cell{max-width:420px;white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;}
+
+  .insp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+  .insp{background:var(--panel);border:1px solid var(--line);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;}
+  .insp.off{opacity:.55;}
+  .insp img{width:100%;max-height:220px;object-fit:cover;background:var(--bg-alt);}
+  .insp .body{padding:12px 14px;flex:1;display:flex;flex-direction:column;gap:8px;}
+  .insp .txt{white-space:pre-wrap;font-size:14px;max-height:120px;overflow:auto;}
+  .insp .style{font-size:13px;color:var(--ink-soft);background:var(--bg-alt);padding:8px 10px;border-radius:3px;white-space:pre-wrap;}
+  .insp .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;}
+  .insp .actions button{font-size:13px;padding:6px 10px;}
+
+  .output{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);padding:16px;border-radius:3px;min-height:120px;}
+  .src{border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-bottom:12px;background:var(--bg);}
+  .src-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .switch{display:flex;align-items:center;gap:6px;font-weight:700;font-size:14px;margin:0;color:var(--ink);}
+  .trend-list{margin:10px 0 0;padding:0;list-style:none;}
+  .trend-list li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14.5px;}
+  .x{background:none;border:none;color:var(--wine);cursor:pointer;font-weight:700;}
+  .empty{color:var(--ink-soft);font-size:14.5px;padding:18px;text-align:center;border:1px dashed var(--line);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand"><span class="brand-word">ROCCA</span><span class="brand-sub">דשבורד תוכן</span></div>
+    <nav class="tabs" id="tabs">
+      <button data-view="perf" class="active">מה עובד אצלנו</button>
+      <button data-view="insp">דוגמאות השראה</button>
+      <button data-view="gen">ניסוח פוסט</button>
+      <button data-view="trends">מקורות טרנדים</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- ===================== PERFORMANCE ===================== -->
+<section class="view active" id="view-perf">
+  <h1>למידה מהביצועים שלנו</h1>
+  <p class="lede">המערכת מושכת את הפוסטים של הדף שלנו בפייסבוק ובאינסטגרם עם הנתונים שלהם (לייקים, תגובות, שיתופים, שמירות, reach), מחשבת ציון מעורבות לכל פוסט ומזהה אילו מאפיינים חוזרים בפוסטים שעבדו הכי טוב. התובנות נכנסות אוטומטית לניסוח הפוסטים הבאים.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>משיכה אוטומטית מ-Meta</h2>
+      <p class="muted">דרך פונקציית השרת <code>meta-insights</code> (הטוקן של Meta שמור בשרת בלבד). מזינים כאן רק את מפתח הדשבורד.</p>
+      <label for="metaKey">מפתח דשבורד</label>
+      <input type="password" id="metaKey" autocomplete="off" placeholder="DASHBOARD_KEY">
+      <details>
+        <summary>הגדרות מתקדמות</summary>
+        <label for="metaEndpoint">כתובת הפונקציה</label>
+        <input type="text" id="metaEndpoint" value="/.netlify/functions/meta-insights" dir="ltr">
+      </details>
+      <button class="btn gold" id="btnFetchMeta">משיכת נתונים</button>
+      <div class="status" id="metaStatus"></div>
+    </div>
+    <div class="card">
+      <h2>ייבוא ידני (CSV)</h2>
+      <p class="muted">אפשרות גיבוי: ייצוא מ-Meta Business Suite ← Insights ← Content ← Export. המערכת מזהה עמודות באנגלית ובעברית.</p>
+      <label for="csvPlatform">פלטפורמה (אם לא מזוהה מהקישור)</label>
+      <select id="csvPlatform">
+        <option value="instagram">אינסטגרם</option>
+        <option value="facebook">פייסבוק</option>
+      </select>
+      <input type="file" id="csvFile" accept=".csv,text/csv">
+      <div class="status" id="csvStatus"></div>
+    </div>
+  </div>
+
+  <div id="perfEmpty" class="empty">עדיין אין נתוני ביצועים. משכו נתונים מ-Meta או ייבאו קובץ CSV.</div>
+  <div id="perfBody" hidden>
+    <div class="stats" id="perfStats"></div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>מה עובד הכי טוב אצלנו</h2>
+        <ul class="insights" id="perfInsights"></ul>
+      </div>
+      <div class="card">
+        <h2>סיכום AI</h2>
+        <p class="muted">ניתוח איכותני של הניסוחים בפוסטים המובילים לעומת החלשים (טון, פתיחה, מבנה). נשמר ומשמש בניסוח.</p>
+        <div class="output" id="aiSummary"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" id="btnAiSummary">ניתוח מחדש</button>
+          <span class="muted" id="aiSummaryMeta"></span>
+        </div>
+        <div class="status" id="aiSummaryStatus"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>השפעת מאפיינים על המעורבות</h2>
+      <p class="muted">1.00 = פוסט טיפוסי. מעל 1 — מאפיין שמופיע בפוסטים שעבדו טוב מהממוצע. מוצגות רק קבוצות עם 2 פוסטים ומעלה.</p>
+      <div class="table-wrap"><table id="liftTable"></table></div>
+    </div>
+
+    <div class="card">
+      <h2>כל הפוסטים לפי ציון</h2>
+      <div class="table-wrap"><table id="postTable"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== INSPIRATION ===================== -->
+<section class="view" id="view-insp">
+  <h1>דוגמאות השראה</h1>
+  <p class="lede">העלו צילומי מסך או טקסט של פוסטים — שלנו או כאלה שראיתם ברשת — וסמנו אותם כ"עבד טוב". ה-AI מחלץ מכל דוגמה את הטקסט ואת מאפייני הסגנון, ומשתמש בדוגמאות המסומנות כהשראה לניסוח (סגנון בלבד — לא העתקה).</p>
+
+  <div class="card">
+    <h2>הוספת דוגמה</h2>
+    <div class="grid2">
+      <div>
+        <label for="inspText">טקסט הפוסט (לא חובה אם יש צילום מסך)</label>
+        <textarea id="inspText" placeholder="הדביקו כאן את טקסט הפוסט..."></textarea>
+        <label for="inspImage">צילום מסך (לא חובה)</label>
+        <input type="file" id="inspImage" accept="image/png,image/jpeg,image/webp,image/gif">
+        <div class="muted" id="inspImageNote"></div>
+      </div>
+      <div>
+        <label for="inspSource">מקור</label>
+        <select id="inspSource">
+          <option value="mine">פוסט שלנו</option>
+          <option value="web">ראיתי ברשת</option>
+        </select>
+        <label for="inspPlatform">פלטפורמה</label>
+        <select id="inspPlatform">
+          <option value="instagram">אינסטגרם</option>
+          <option value="facebook">פייסבוק</option>
+          <option value="tiktok">טיקטוק</option>
+          <option value="other">אחר</option>
+        </select>
+        <label for="inspNote">למה זה עבד? (לא חובה)</label>
+        <input type="text" id="inspNote" placeholder="למשל: פתיחה עם שאלה, הרבה שמירות">
+        <label class="switch"><input type="checkbox" id="inspWorked" checked> עבד טוב — להשתמש כהשראה</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <button class="btn gold" id="btnInspSave">שמירה וניתוח סגנון</button>
+    </div>
+    <div class="status" id="inspStatus"></div>
+  </div>
+
+  <div class="row" style="justify-content:space-between;margin-bottom:12px;">
+    <h2 style="margin:0;">הספרייה</h2>
+    <span class="muted" id="inspCount"></span>
+  </div>
+  <div class="insp-grid" id="inspGrid"></div>
+</section>
+
+<!-- ===================== GENERATOR ===================== -->
+<section class="view" id="view-gen">
+  <h1>ניסוח פוסט</h1>
+  <p class="lede">הניסוח משלב שלושה מקורות: מה שעבד אצלנו בפועל, דוגמאות ההשראה המסומנות, ואותות טרנדים מהמקורות המופעלים.</p>
+  <div class="grid2">
+    <div class="card">
+      <label for="genTopic">על מה הפוסט?</label>
+      <textarea id="genTopic" placeholder="למשל: קיר אוניקס ירוק מואר שהתקנו בסלון בהרצליה"></textarea>
+      <div class="grid2" style="gap:12px;">
+        <div>
+          <label for="genPlatform">פלטפורמה</label>
+          <select id="genPlatform">
+            <option value="instagram">אינסטגרם</option>
+            <option value="facebook">פייסבוק</option>
+          </select>
+        </div>
+        <div>
+          <label for="genGoal">מטרה</label>
+          <select id="genGoal">
+            <option value="leads">לידים מלקוחות פרטיים</option>
+            <option value="b2b">אנשי מקצוע (מעצבים/אדריכלים/קבלנים)</option>
+            <option value="awareness">חשיפה ומודעות למותג</option>
+          </select>
+        </div>
+      </div>
+      <div class="muted" id="genContext" style="margin-bottom:12px;"></div>
+      <div class="row">
+        <button class="btn gold" id="btnGenerate">ניסוח 3 גרסאות</button>
+        <button class="btn ghost" id="btnStop" hidden>עצירה</button>
+        <button class="btn ghost" id="btnCopyPrompt">העתקת הפרומפט</button>
+      </div>
+      <div class="status" id="genStatus"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <h2 style="margin:0;">תוצאה</h2>
+        <button class="btn ghost" id="btnCopyOut">העתקה</button>
+      </div>
+      <div class="output" id="genOut" style="margin-top:12px;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TREND SOURCES ===================== -->
+<section class="view" id="view-trends">
+  <h1>מקורות טרנדים</h1>
+  <p class="lede">שכבה גמישה לאותות טרנדים בתעשייה. כל מקור מחזיר רשימה של <code>{topic, note, weight}</code>, והמקורות המופעלים נכנסים לניסוח. כשנמצא כלי חיצוני מתאים — מחברים אותו דרך פונקציית השרת <code>trends</code> (או כתובת JSON אחרת) בלי לשנות את שאר המערכת.</p>
+  <div id="trendSources"></div>
+  <div class="card">
+    <h2>תצוגה מקדימה</h2>
+    <p class="muted">האותות שייכנסו לפרומפט הבא.</p>
+    <button class="btn ghost" id="btnPreviewTrends">טעינת אותות</button>
+    <ul class="trend-list" id="trendPreview"></ul>
+    <div class="status" id="trendStatus"></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ============================================================
+   Runtime (Claude artifact viewer) — optional everywhere.
+   On a plain host (e.g. Netlify) window.claude is absent: storage
+   falls back to localStorage and AI falls back to "copy prompt".
+   ============================================================ */
+const runtime = (typeof window !== 'undefined' && window.claude && window.claude.use) ? window.claude : null;
+let sampleFn = null;
+let sampleImages = false;
+
+const BRAND_FACTS = `ROCCA (רוקה) — בית אבן טבעית פרימיום בנתניה: אוניקס, שיש, גרניט וקוורציט.
+- בלעדיות על עורקי אוניקס נדירים ממכרה בבעלותנו — חומר שאין לאף ספק אחר בישראל.
+- יבוא, חיתוך פרימיום, התקנה ותאורה תחת קורת גג אחת.
+- לאנשי מקצוע: מחירון סיטונאי ואפשרות לבלעדיות אזורית.
+- טלפון/וואטסאפ: 052-879-2023.`;
+
+/* ============================================================
+   Storage — db capability when available, else localStorage.
+   Collections: perf_posts, inspiration, settings.
+   ============================================================ */
+const Store = {
+  db: null,
+  async init(){
+    if(!runtime) return;
+    try{ this.db = await runtime.use('db'); }catch(e){ this.db = null; }
+  },
+  _lsKey(col){ return 'rocca_dash:' + col; },
+  _lsRead(col){
+    try{ return JSON.parse(localStorage.getItem(this._lsKey(col)) || '{}'); }catch(e){ return {}; }
+  },
+  _lsWrite(col, map){
+    try{ localStorage.setItem(this._lsKey(col), JSON.stringify(map)); return true; }catch(e){ return false; }
+  },
+  async list(col){
+    if(this.db){
+      const snap = await this.db.collection(col).get();
+      return snap.docs.map(d => Object.assign({id:d.id}, d.data()));
+    }
+    const map = this._lsRead(col);
+    return Object.keys(map).map(id => Object.assign({id}, map[id]));
+  },
+  async get(col, id){
+    if(this.db){
+      const s = await this.db.collection(col).doc(id).get();
+      return s.exists ? Object.assign({id}, s.data()) : null;
+    }
+    const map = this._lsRead(col);
+    return map[id] ? Object.assign({id}, map[id]) : null;
+  },
+  async put(col, id, data){
+    const body = Object.assign({}, data); delete body.id;
+    if(this.db){ await this.db.collection(col).doc(id).set(body); return; }
+    const map = this._lsRead(col); map[id] = body;
+    if(!this._lsWrite(col, map)) throw new Error('storage_full');
+  },
+  async del(col, id){
+    if(this.db){ await this.db.collection(col).doc(id).delete(); return; }
+    const map = this._lsRead(col); delete map[id]; this._lsWrite(col, map);
+  },
+};
+
+function lsGet(k, d){ try{ const v = localStorage.getItem('rocca_dash_pref:' + k); return v === null ? d : v; }catch(e){ return d; } }
+function lsSet(k, v){ try{ localStorage.setItem('rocca_dash_pref:' + k, v); }catch(e){} }
+
+function newId(prefix){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function $(id){ return document.getElementById(id); }
+function el(tag, props, ...kids){
+  const n = document.createElement(tag);
+  if(props) for(const [k, v] of Object.entries(props)){
+    if(k === 'class') n.className = v;
+    else if(k === 'text') n.textContent = v;
+    else if(k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else if(v !== undefined && v !== null && v !== false) n.setAttribute(k, v === true ? '' : v);
+  }
+  for(const c of kids.flat()) if(c !== null && c !== undefined) n.append(c.nodeType ? c : String(c));
+  return n;
+}
+function setStatus(id, text, ok){ const s = $(id); s.textContent = text || ''; s.classList.toggle('ok', !!ok); }
+function aiErrorText(e){
+  const code = e && e.code;
+  if(code === 'not_granted' || code === 'sampling_disabled') return 'ה-AI לא אושר בתצוגה הזו — אפשר להשתמש ב"העתקת הפרומפט".';
+  if(code === 'rate_limited') return 'יותר מדי בקשות כרגע — נסו שוב בעוד כמה דקות.';
+  if(code === 'cancelled') return '';
+  if(code === 'image_rejected') return 'התמונה לא התקבלה (סוג/גודל). נסו קובץ אחר.';
+  return 'הייתה תקלה בפנייה ל-AI. אפשר לנסות שוב.';
+}
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+$('tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-view]'); if(!b) return;
+  showView(b.dataset.view);
+});
+function showView(v){
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  document.querySelectorAll('section.view').forEach(s => s.classList.toggle('active', s.id === 'view-' + v));
+  lsSet('tab', v);
+  if(v === 'gen') renderGenContext();
+}
+
+/* ============================================================
+   1. PERFORMANCE — normalize, score, feature lift
+   ============================================================ */
+let posts = [];
+
+const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const MEDIA_LABEL = {
+  REELS:'רילס / וידאו', VIDEO:'רילס / וידאו', video:'רילס / וידאו', video_inline:'רילס / וידאו', added_video:'רילס / וידאו',
+  CAROUSEL_ALBUM:'קרוסלה', album:'קרוסלה', carousel:'קרוסלה',
+  IMAGE:'תמונה', photo:'תמונה', added_photos:'תמונה',
+  status:'טקסט בלבד', mobile_status_update:'טקסט בלבד', link:'קישור', share:'קישור',
+};
+const STONES = [['אוניקס', /אוניקס|onyx/i], ['שיש', /שיש|marble/i], ['גרניט', /גרניט|granite/i], ['קוורציט', /קוורציט|quartzite/i]];
+const CTA_RE = /052|וואטסאפ|whatsapp|התקשרו|צרו קשר|השאירו|לינק בביו|link in bio|שלחו|הודעה|DM|לפרטים|תאמו/i;
+
+function mediaLabel(t){
+  if(!t) return 'לא ידוע';
+  if(MEDIA_LABEL[t]) return MEDIA_LABEL[t];
+  const s = String(t).toLowerCase();
+  if(/reel|video/.test(s)) return 'רילס / וידאו';
+  if(/carousel|album/.test(s)) return 'קרוסלה';
+  if(/photo|image|תמונה/.test(s)) return 'תמונה';
+  return String(t);
+}
+function hourBucket(h){
+  if(h < 6) return 'לילה (00–06)';
+  if(h < 12) return 'בוקר (06–12)';
+  if(h < 17) return 'צהריים (12–17)';
+  if(h < 21) return 'ערב (17–21)';
+  return 'לילה מאוחר (21–24)';
+}
+function features(p){
+  const t = p.text || '';
+  const d = new Date(p.createdAt);
+  const valid = !isNaN(d);
+  const tags = (t.match(/#[\p{L}\p{N}_]+/gu) || []).length;
+  const emo = (t.match(/\p{Extended_Pictographic}/gu) || []).length;
+  const stone = STONES.find(([, re]) => re.test(t));
+  return {
+    'פלטפורמה': p.platform === 'instagram' ? 'אינסטגרם' : 'פייסבוק',
+    'סוג תוכן': mediaLabel(p.mediaType),
+    'יום בשבוע': valid ? 'יום ' + DAYS[d.getDay()] : null,
+    'שעת פרסום': valid ? hourBucket(d.getHours()) : null,
+    'אורך טקסט': t.length < 80 ? 'קצר (עד 80 תווים)' : t.length < 250 ? 'בינוני (80–250)' : 'ארוך (250+)',
+    'שאלה לקהל': /\?/.test(t) ? 'עם שאלה' : 'בלי שאלה',
+    'קריאה לפעולה': CTA_RE.test(t) ? 'עם קריאה לפעולה' : 'בלי קריאה לפעולה',
+    'האשטגים': tags === 0 ? 'ללא' : tags <= 5 ? '1–5' : '6 ומעלה',
+    'אימוג׳י': emo === 0 ? 'ללא' : emo <= 3 ? '1–3' : '4 ומעלה',
+    'סוג אבן': stone ? stone[0] : 'כללי / לא צוין',
+  };
+}
+function num(v){ return (typeof v === 'number' && isFinite(v)) ? v : 0; }
+function engagement(p){ return num(p.likes) + 2 * num(p.comments) + 3 * num(p.shares) + 3 * num(p.saves); }
+function median(arr){
+  if(!arr.length) return 0;
+  const s = [...arr].sort((a, b) => a - b); const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// Score = engagement per reach when reach is known, otherwise raw engagement;
+// then divided by the platform median so 1.0 means "a typical post for us"
+// and FB/IG are comparable.
+function scorePosts(list){
+  const byPlat = {};
+  for(const p of list){
+    p._raw = (num(p.reach) > 0) ? engagement(p) / p.reach : engagement(p);
+    p._basis = num(p.reach) > 0 ? 'rate' : 'abs';
+    (byPlat[p.platform + p._basis] = byPlat[p.platform + p._basis] || []).push(p._raw);
+  }
+  const med = {};
+  for(const k in byPlat) med[k] = median(byPlat[k]) || 1;
+  for(const p of list){
+    p._score = p._raw / med[p.platform + p._basis];
+    p._f = features(p);
+  }
+  return list.sort((a, b) => b._score - a._score);
+}
+function computeLift(list){
+  const groups = {};
+  for(const p of list){
+    for(const [k, v] of Object.entries(p._f)){
+      if(v === null) continue;
+      const key = k + '||' + v;
+      (groups[key] = groups[key] || {feature:k, value:v, scores:[]}).scores.push(p._score);
+    }
+  }
+  const overall = list.reduce((s, p) => s + p._score, 0) / (list.length || 1);
+  return Object.values(groups)
+    .map(g => ({feature:g.feature, value:g.value, n:g.scores.length, avg:g.scores.reduce((a, b) => a + b, 0) / g.scores.length / (overall || 1)}))
+    .filter(g => g.n >= 2);
+}
+// Takeaways: the best and worst value per feature, only where the gap is real.
+function takeaways(lift, total){
+  const minN = total >= 20 ? 3 : 2;
+  const byF = {};
+  for(const g of lift) if(g.n >= minN) (byF[g.feature] = byF[g.feature] || []).push(g);
+  const out = [];
+  for(const [f, gs] of Object.entries(byF)){
+    if(gs.length < 2) continue;
+    gs.sort((a, b) => b.avg - a.avg);
+    const best = gs[0], worst = gs[gs.length - 1];
+    if(best.avg - worst.avg < 0.2) continue;
+    out.push({feature:f, best, worst, gap:best.avg - worst.avg});
+  }
+  return out.sort((a, b) => b.gap - a.gap);
+}
+
+async function loadPosts(){
+  try{ posts = scorePosts(await Store.list('perf_posts')); }
+  catch(e){ posts = []; }
+  renderPerf();
+}
+async function savePosts(incoming){
+  let saved = 0;
+  for(const p of incoming){
+    const clean = {
+      platform:p.platform, text:String(p.text || '').slice(0, 1500), createdAt:p.createdAt || '',
+      permalink:p.permalink || '', mediaType:p.mediaType || '',
+      likes:p.likes ?? null, comments:p.comments ?? null, shares:p.shares ?? null,
+      saves:p.saves ?? null, reach:p.reach ?? null, clicks:p.clicks ?? null,
+      importedAt:new Date().toISOString(),
+    };
+    const id = String(p.id).replace(/[^A-Za-z0-9_\-.~:@+]/g, '_').slice(0, 180);
+    await Store.put('perf_posts', id, clean);
+    saved++;
+  }
+  return saved;
+}
+
+$('metaKey').value = lsGet('metaKey', '');
+$('metaEndpoint').value = lsGet('metaEndpoint', $('metaEndpoint').value);
+$('btnFetchMeta').addEventListener('click', async () => {
+  const key = $('metaKey').value.trim();
+  const endpoint = $('metaEndpoint').value.trim();
+  lsSet('metaKey', key); lsSet('metaEndpoint', endpoint);
+  if(!key){ setStatus('metaStatus', 'צריך להזין את מפתח הדשבורד.'); return; }
+  const btn = $('btnFetchMeta'); btn.disabled = true;
+  setStatus('metaStatus', 'מושך נתונים מ-Meta...', true);
+  try{
+    const res = await fetch(endpoint + '?limit=50', {headers:{'x-dashboard-key':key}});
+    const body = await res.json().catch(() => ({}));
+    if(res.status === 401) throw new Error('מפתח הדשבורד שגוי.');
+    if(res.status === 503) throw new Error('הפונקציה עוד לא מוגדרת בשרת (חסרים משתני סביבה).');
+    if(!res.ok) throw new Error('השרת החזיר שגיאה ' + res.status);
+    const n = await savePosts(body.posts || []);
+    const warn = (body.errors || []).length ? ' (אזהרות: ' + body.errors.join(' | ') + ')' : '';
+    setStatus('metaStatus', 'נשמרו ' + n + ' פוסטים.' + warn, !warn);
+    await loadPosts();
+  }catch(e){
+    const msg = (e instanceof TypeError)
+      ? 'אין גישה לרשת מהתצוגה הזו. פתחו את הדשבורד מהאתר עצמו, או השתמשו בייבוא CSV.'
+      : e.message;
+    setStatus('metaStatus', msg);
+  }finally{ btn.disabled = false; }
+});
+
+/* ---------- CSV import (Meta Business Suite export) ---------- */
+function parseCSV(text){
+  text = text.replace(/^﻿/, '');
+  const rows = []; let row = [], field = '', q = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(q){
+      if(c === '"'){ if(text[i + 1] === '"'){ field += '"'; i++; } else q = false; }
+      else field += c;
+    }
+    else if(c === '"') q = true;
+    else if(c === ','){ row.push(field); field = ''; }
+    else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+    else if(c !== '\r') field += c;
+  }
+  if(field || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+const CSV_COLS = {
+  id:['post id','media id','id','מזהה פוסט','מזהה'],
+  text:['description','caption','message','title','תיאור','כיתוב','כותרת'],
+  createdAt:['publish time','created time','date','זמן פרסום','מועד פרסום','תאריך'],
+  permalink:['permalink','link','קישור קבוע','קישור'],
+  mediaType:['post type','media type','type','סוג פוסט','סוג'],
+  reach:['reach','accounts reached','טווח הגעה','הגעה','חשבונות שהגיעו אליהם'],
+  likes:['likes','reactions','לייקים','תגובות רגשיות'],
+  comments:['comments','תגובות'],
+  shares:['shares','שיתופים'],
+  saves:['saves','שמירות'],
+  clicks:['total clicks','clicks','קליקים'],
+};
+function mapHeaders(header){
+  const h = header.map(x => x.trim().toLowerCase());
+  const idx = {};
+  for(const [field, aliases] of Object.entries(CSV_COLS)){
+    let i = h.findIndex(x => aliases.includes(x));
+    if(i < 0) i = h.findIndex(x => aliases.some(a => a.length > 3 && x.startsWith(a)));
+    if(i >= 0 && !Object.values(idx).includes(i)) idx[field] = i;
+  }
+  return idx;
+}
+function toNum(v){
+  if(v === undefined || v === null) return null;
+  const s = String(v).replace(/[,\s]/g, '');
+  if(s === '') return null;
+  const n = Number(s); return isFinite(n) ? n : null;
+}
+$('csvFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if(!file) return;
+  setStatus('csvStatus', 'קורא קובץ...', true);
+  try{
+    const rows = parseCSV(await file.text());
+    if(rows.length < 2) throw new Error('הקובץ ריק.');
+    const idx = mapHeaders(rows[0]);
+    if(idx.text === undefined && idx.likes === undefined) throw new Error('לא זוהו עמודות מוכרות (תיאור / לייקים). בדקו שזה ייצוא תוכן מ-Meta.');
+    const fallbackPlat = $('csvPlatform').value;
+    const get = (r, f) => idx[f] === undefined ? undefined : r[idx[f]];
+    const incoming = rows.slice(1).map((r, i) => {
+      const link = get(r, 'permalink') || '';
+      const platform = /instagram\.com/.test(link) ? 'instagram' : /facebook\.com|fb\.com/.test(link) ? 'facebook' : fallbackPlat;
+      const rawId = get(r, 'id') || link || (file.name + '_' + i);
+      const d = new Date(get(r, 'createdAt'));
+      return {
+        id:(platform === 'instagram' ? 'ig_' : 'fb_') + rawId,
+        platform, text:get(r, 'text') || '', permalink:link,
+        createdAt:isNaN(d) ? '' : d.toISOString(),
+        mediaType:get(r, 'mediaType') || '',
+        likes:toNum(get(r, 'likes')), comments:toNum(get(r, 'comments')), shares:toNum(get(r, 'shares')),
+        saves:toNum(get(r, 'saves')), reach:toNum(get(r, 'reach')), clicks:toNum(get(r, 'clicks')),
+      };
+    });
+    const n = await savePosts(incoming);
+    setStatus('csvStatus', 'יובאו ' + n + ' פוסטים.', true);
+    await loadPosts();
+  }catch(err){
+    setStatus('csvStatus', err.message === 'storage_full' ? 'האחסון המקומי מלא.' : err.message);
+  }finally{ e.target.value = ''; }
+});
+
+function fmt(n, d){ return (n === null || n === undefined) ? '—' : Number(n).toLocaleString('he-IL', {maximumFractionDigits:d ?? 0}); }
+
+function renderPerf(){
+  $('perfEmpty').hidden = posts.length > 0;
+  $('perfBody').hidden = posts.length === 0;
+  if(!posts.length) return;
+
+  const fb = posts.filter(p => p.platform === 'facebook').length;
+  const withReach = posts.filter(p => num(p.reach) > 0);
+  const avgRate = withReach.length ? withReach.reduce((s, p) => s + engagement(p) / p.reach, 0) / withReach.length : null;
+  const stats = [
+    ['פוסטים שנותחו', fmt(posts.length)],
+    ['פייסבוק / אינסטגרם', fb + ' / ' + (posts.length - fb)],
+    ['מעורבות ממוצעת ל-reach', avgRate === null ? '—' : (avgRate * 100).toFixed(1) + '%'],
+    ['ציון הפוסט המוביל', posts[0]._score.toFixed(2) + '×'],
+  ];
+  $('perfStats').replaceChildren(...stats.map(([k, v]) => el('div', {class:'stat'}, el('div', {class:'v', text:v}), el('div', {class:'k', text:k}))));
+
+  const lift = computeLift(posts);
+  const tk = takeaways(lift, posts.length);
+  const ul = $('perfInsights');
+  if(posts.length < 5){
+    ul.replaceChildren(el('li', {class:'muted', text:'צריך לפחות 5 פוסטים כדי לזהות דפוסים. כרגע יש ' + posts.length + '.'}));
+  }else if(!tk.length){
+    ul.replaceChildren(el('li', {class:'muted', text:'עוד אין הבדלים מובהקים בין המאפיינים. ככל שיצטברו פוסטים — התמונה תתחדד.'}));
+  }else{
+    ul.replaceChildren(...tk.slice(0, 7).map(t => el('li', null,
+      el('span', {class:'pill good', text:t.best.avg.toFixed(2) + '×'}),
+      el('span', null,
+        el('strong', {text:t.feature + ': ' + t.best.value}),
+        ' — עדיף על "' + t.worst.value + '" (' + t.worst.avg.toFixed(2) + '×). ',
+        el('span', {class:'muted', text:'n=' + t.best.n + ' מול ' + t.worst.n})))));
+  }
+
+  const maxAvg = Math.max(...lift.map(g => g.avg), 1);
+  const sorted = [...lift].sort((a, b) => a.feature.localeCompare(b.feature, 'he') || b.avg - a.avg);
+  $('liftTable').replaceChildren(
+    el('tr', null, el('th', {text:'מאפיין'}), el('th', {text:'ערך'}), el('th', {text:'פוסטים'}), el('th', {text:'ציון יחסי'}), el('th', {text:''})),
+    ...sorted.map(g => el('tr', null,
+      el('td', {text:g.feature}), el('td', {text:g.value}), el('td', {text:g.n}),
+      el('td', null, el('span', {class:'pill ' + (g.avg >= 1.15 ? 'good' : g.avg <= 0.85 ? 'bad' : ''), text:g.avg.toFixed(2) + '×'})),
+      el('td', {style:'width:30%'}, el('div', {class:'bar', style:'width:' + Math.round(g.avg / maxAvg * 100) + '%'})))));
+
+  $('postTable').replaceChildren(
+    el('tr', null, ...['ציון','פלטפורמה','תאריך','טקסט','לייקים','תגובות','שיתופים','שמירות','Reach'].map(h => el('th', {text:h}))),
+    ...posts.map(p => el('tr', null,
+      el('td', null, el('strong', {text:p._score.toFixed(2) + '×'})),
+      el('td', {text:p.platform === 'instagram' ? 'IG' : 'FB'}),
+      el('td', {text:p.createdAt ? new Date(p.createdAt).toLocaleDateString('he-IL') : '—'}),
+      el('td', null, p.permalink
+        ? el('a', {href:p.permalink, target:'_blank', rel:'noopener', class:'caption-cell', text:p.text || '(ללא טקסט)'})
+        : el('div', {class:'caption-cell', text:p.text || '(ללא טקסט)'})),
+      el('td', {text:fmt(p.likes)}), el('td', {text:fmt(p.comments)}), el('td', {text:fmt(p.shares)}),
+      el('td', {text:fmt(p.saves)}), el('td', {text:fmt(p.reach)}))));
+
+  renderAiSummary();
+}
+
+/* ---------- Learned-patterns text (fed to the generator) ---------- */
+function performanceBrief(){
+  if(posts.length < 5) return '';
+  const tk = takeaways(computeLift(posts), posts.length).slice(0, 6);
+  const lines = tk.map(t => `- ${t.feature}: "${t.best.value}" מקבל ${t.best.avg.toFixed(2)}× מהממוצע, לעומת "${t.worst.value}" (${t.worst.avg.toFixed(2)}×).`);
+  const top = posts.filter(p => p.text && p._score >= 1.1).slice(0, 5).map((p, i) => `${i + 1}. [${p.platform === 'instagram' ? 'IG' : 'FB'}, ${p._score.toFixed(1)}×] ${p.text.slice(0, 400)}`);
+  return [
+    lines.length ? 'דפוסים מהנתונים שלנו (' + posts.length + ' פוסטים):\n' + lines.join('\n') : '',
+    top.length ? 'הפוסטים המובילים שלנו:\n' + top.join('\n\n') : '',
+  ].filter(Boolean).join('\n\n');
+}
+
+/* ---------- AI qualitative summary of what works ---------- */
+let aiSummaryDoc = null;
+async function loadAiSummary(){
+  try{ aiSummaryDoc = await Store.get('settings', 'ai_summary'); }catch(e){ aiSummaryDoc = null; }
+  renderAiSummary();
+}
+function renderAiSummary(){
+  $('aiSummary').textContent = aiSummaryDoc ? aiSummaryDoc.text : (sampleFn ? 'עדיין לא בוצע ניתוח.' : 'ניתוח AI זמין כשהדשבורד פתוח בתוך Claude.');
+  $('aiSummaryMeta').textContent = aiSummaryDoc ? 'עודכן ' + new Date(aiSummaryDoc.at).toLocaleString('he-IL') + ' על ' + aiSummaryDoc.n + ' פוסטים' : '';
+  $('btnAiSummary').hidden = !sampleFn;
+}
+$('btnAiSummary').addEventListener('click', async () => {
+  if(!sampleFn || posts.length < 5){ setStatus('aiSummaryStatus', 'צריך לפחות 5 פוסטים.'); return; }
+  const btn = $('btnAiSummary'); btn.disabled = true;
+  const out = $('aiSummary'); out.textContent = 'חושב...';
+  setStatus('aiSummaryStatus', '');
+  const top = posts.slice(0, 8), bottom = posts.slice(-8).reverse();
+  const fmtP = p => `[${p.platform === 'instagram' ? 'IG' : 'FB'} | ${mediaLabel(p.mediaType)} | ${p._score.toFixed(2)}×] ${(p.text || '(ללא טקסט)').slice(0, 500)}`;
+  const prompt = `את/ה אנליסט/ית תוכן לרשתות חברתיות של ${BRAND_FACTS}
+
+לפניך הפוסטים החזקים והחלשים ביותר של החשבון שלנו, לפי ציון מעורבות יחסי (1.0 = פוסט טיפוסי).
+
+פוסטים חזקים:
+${top.map(fmtP).join('\n\n')}
+
+פוסטים חלשים:
+${bottom.map(fmtP).join('\n\n')}
+
+דפוסים סטטיסטיים שזוהו:
+${performanceBrief() || '(אין)'}
+
+כתוב/כתבי בעברית 5–7 תובנות קצרות ומעשיות על מה שמבדיל את הפוסטים החזקים: טון, משפט פתיחה, מבנה, אורך, סוג התוכן, קריאה לפעולה, נושאים. כל תובנה בשורה שמתחילה ב-"• ". בלי הקדמה ובלי סיכום. אם הנתונים דלים, אמור/אמרי זאת בתובנה אחת.`;
+  try{
+    const {text} = await sampleFn(prompt, {onText:({text}) => { out.textContent = text; }, cache:false});
+    aiSummaryDoc = {text, at:new Date().toISOString(), n:posts.length};
+    await Store.put('settings', 'ai_summary', aiSummaryDoc);
+    renderAiSummary();
+  }catch(e){
+    out.textContent = (e && e.text) || (aiSummaryDoc ? aiSummaryDoc.text : '');
+    setStatus('aiSummaryStatus', aiErrorText(e));
+  }finally{ btn.disabled = false; }
+});
+
+/* ============================================================
+   2. INSPIRATION LIBRARY
+   ============================================================ */
+let inspiration = [];
+
+async function loadInspiration(){
+  try{ inspiration = await Store.list('inspiration'); }catch(e){ inspiration = []; }
+  inspiration.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  renderInspiration();
+}
+
+// Downscale a picked image to a small JPEG data URL for the library card.
+// The full-size file is only sent once, to the AI, for text/style extraction.
+function thumbnail(file, max = 520){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad_image')); };
+    img.src = url;
+  });
+}
+function dataUrlToBlob(dataUrl){
+  const [head, b64] = dataUrl.split(',');
+  const bin = atob(b64); const arr = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type:head.match(/:(.*?);/)[1]});
+}
+
+async function analyzeInspiration(item, imageBlob){
+  if(!sampleFn) return null;
+  const useImage = !!(imageBlob && sampleImages);
+  const prompt = `לפניך דוגמה לפוסט ברשתות חברתיות שסומן כ"עבד טוב" — ${item.source === 'mine' ? 'פוסט של העסק שלנו' : 'פוסט שראינו ברשת'} (${item.platform}).
+${useImage ? 'מצורף צילום מסך של הפוסט.' : ''}
+${item.text ? 'טקסט הפוסט:\n' + item.text.slice(0, 3000) : ''}
+${item.note ? 'הערת המשתמש על למה זה עבד: ' + item.note : ''}
+
+נתח/י את הסגנון כדי שנוכל ללמוד ממנו לניסוח פוסטים עתידיים של עסק אבן טבעית פרימיום (בלי להעתיק תוכן).
+החזר/י JSON בלבד בצורה:
+{"text": "טקסט הפוסט כפי שמופיע (מצילום המסך אם יש), או מחרוזת ריקה",
+ "hook": "איך נפתח הפוסט ולמה זה תופס",
+ "tone": "הטון בכמה מילים",
+ "structure": "מבנה הפוסט בקצרה",
+ "cta": "קריאה לפעולה, אם יש",
+ "visual": "מה רואים בתמונה ולמה זה עובד, אם יש תמונה, אחרת מחרוזת ריקה",
+ "lesson": "משפט אחד: מה כדאי לאמץ מהדוגמה"}
+כל הערכים בעברית.`;
+  const opts = {modelTier:'default'};
+  if(useImage) opts.images = imageBlob;
+  const r = await sampleFn.json(prompt, opts);
+  if(!r || typeof r !== 'object') return null;
+  const pick = k => typeof r[k] === 'string' ? r[k].slice(0, 1500) : '';
+  return {text:pick('text'), hook:pick('hook'), tone:pick('tone'), structure:pick('structure'), cta:pick('cta'), visual:pick('visual'), lesson:pick('lesson')};
+}
+
+$('inspImage').addEventListener('change', () => {
+  const f = $('inspImage').files[0];
+  $('inspImageNote').textContent = (f && sampleFn && !sampleImages) ? 'בתצוגה הזו ה-AI לא יכול לקרוא תמונות — כדאי להדביק גם את הטקסט.' : '';
+});
+
+$('btnInspSave').addEventListener('click', async () => {
+  const text = $('inspText').value.trim();
+  const file = $('inspImage').files[0];
+  if(!text && !file){ setStatus('inspStatus', 'צריך טקסט או צילום מסך.'); return; }
+  const btn = $('btnInspSave'); btn.disabled = true;
+  try{
+    const item = {
+      id:newId('insp'),
+      text, source:$('inspSource').value, platform:$('inspPlatform').value,
+      note:$('inspNote').value.trim(), workedWell:$('inspWorked').checked,
+      createdAt:new Date().toISOString(), image:null, analysis:null,
+    };
+    if(file){
+      setStatus('inspStatus', 'מכין תמונה...', true);
+      item.image = await thumbnail(file);
+    }
+    if(sampleFn){
+      setStatus('inspStatus', 'מנתח סגנון עם AI...', true);
+      try{
+        item.analysis = await analyzeInspiration(item, file);
+        if(!item.text && item.analysis && item.analysis.text) item.text = item.analysis.text;
+      }catch(e){
+        const m = aiErrorText(e);
+        if(m) setStatus('inspStatus', 'הניתוח לא הצליח (' + m + ') — הדוגמה נשמרת בלעדיו.');
+      }
+    }
+    await Store.put('inspiration', item.id, item);
+    $('inspText').value = ''; $('inspNote').value = ''; $('inspImage').value = ''; $('inspImageNote').textContent = '';
+    setStatus('inspStatus', 'נשמר.', true);
+    await loadInspiration();
+  }catch(e){
+    setStatus('inspStatus', e.message === 'storage_full' ? 'האחסון המקומי מלא — מחקו דוגמאות ישנות.' : e.message === 'bad_image' ? 'לא ניתן לקרוא את התמונה.' : 'השמירה נכשלה.');
+  }finally{ btn.disabled = false; }
+});
+
+function styleText(a){
+  if(!a) return '';
+  return [['פתיחה', a.hook], ['טון', a.tone], ['מבנה', a.structure], ['קריאה לפעולה', a.cta], ['ויזואל', a.visual], ['לקח', a.lesson]]
+    .filter(([, v]) => v).map(([k, v]) => k + ': ' + v).join('\n');
+}
+
+function renderInspiration(){
+  const on = inspiration.filter(i => i.workedWell).length;
+  $('inspCount').textContent = inspiration.length ? on + ' מתוך ' + inspiration.length + ' מסומנות כ"עבד טוב"' : '';
+  if(!inspiration.length){ $('inspGrid').replaceChildren(el('div', {class:'empty', text:'הספרייה ריקה. הוסיפו דוגמה ראשונה למעלה.'})); return; }
+  $('inspGrid').replaceChildren(...inspiration.map(item => {
+    const st = styleText(item.analysis);
+    return el('div', {class:'insp' + (item.workedWell ? '' : ' off')},
+      item.image ? el('img', {src:item.image, alt:'צילום מסך של פוסט השראה'}) : null,
+      el('div', {class:'body'},
+        el('div', {class:'row'},
+          el('span', {class:'pill' + (item.workedWell ? ' good' : ''), text:item.workedWell ? 'עבד טוב' : 'לא בשימוש'}),
+          el('span', {class:'pill', text:item.source === 'mine' ? 'שלנו' : 'מהרשת'}),
+          el('span', {class:'pill', text:item.platform})),
+        item.text ? el('div', {class:'txt', text:item.text}) : null,
+        item.note ? el('div', {class:'muted', text:'למה עבד: ' + item.note}) : null,
+        st ? el('div', {class:'style', text:st}) : null,
+        el('div', {class:'actions'},
+          el('button', {class:'btn ghost', text:item.workedWell ? 'הסרת סימון' : 'סימון "עבד טוב"', onclick:() => toggleWorked(item)}),
+          sampleFn ? el('button', {class:'btn ghost', text:'ניתוח מחדש', onclick:(e) => reanalyze(item, e.target)}) : null,
+          el('button', {class:'btn ghost', text:'מחיקה', onclick:() => deleteInsp(item)}))));
+  }));
+}
+async function toggleWorked(item){
+  item.workedWell = !item.workedWell;
+  try{ await Store.put('inspiration', item.id, item); }catch(e){ item.workedWell = !item.workedWell; }
+  renderInspiration();
+}
+async function reanalyze(item, btn){
+  btn.disabled = true; btn.textContent = 'מנתח...';
+  try{
+    const blob = item.image ? dataUrlToBlob(item.image) : null;
+    const a = await analyzeInspiration(item, blob);
+    if(a){ item.analysis = a; if(!item.text && a.text) item.text = a.text; await Store.put('inspiration', item.id, item); }
+  }catch(e){ setStatus('inspStatus', aiErrorText(e)); }
+  renderInspiration();
+}
+async function deleteInsp(item){
+  if(!confirm('למחוק את הדוגמה?')) return;
+  await Store.del('inspiration', item.id);
+  await loadInspiration();
+}
+
+function inspirationBrief(){
+  const chosen = inspiration.filter(i => i.workedWell).slice(0, 8);
+  if(!chosen.length) return '';
+  return 'דוגמאות השראה שסומנו כ"עבד טוב" (ללמוד מהסגנון — לא להעתיק):\n' + chosen.map((i, n) => {
+    const parts = [`${n + 1}. [${i.source === 'mine' ? 'שלנו' : 'מהרשת'}, ${i.platform}]`];
+    if(i.text) parts.push('טקסט: ' + i.text.slice(0, 600));
+    if(i.note) parts.push('למה עבד: ' + i.note);
+    const st = styleText(i.analysis); if(st) parts.push(st);
+    return parts.join('\n');
+  }).join('\n\n');
+}
+
+/* ============================================================
+   3. TREND SOURCES — pluggable registry
+   A source: {id, name, description, defaults, configUI(cfg, save), fetch(cfg)}
+   fetch() resolves to [{topic, note?, weight?}]. Add a new provider with
+   registerTrendSource({...}); no other code needs to change.
+   ============================================================ */
+const TREND_SOURCES = [];
+function registerTrendSource(src){ TREND_SOURCES.push(src); }
+window.registerTrendSource = registerTrendSource;
+
+registerTrendSource({
+  id:'manual',
+  name:'טרנדים ידניים',
+  description:'טרנדים שאתם מזינים בעצמכם — מה שראיתם בתערוכות, אצל מעצבים, בפינטרסט וכו׳.',
+  defaults:{enabled:true, items:[]},
+  configUI(cfg, save){
+    const topic = el('input', {type:'text', placeholder:'טרנד (למשל: אוניקס מואר בחדרי רחצה)'});
+    const note = el('input', {type:'text', placeholder:'הערה (לא חובה)'});
+    const list = el('ul', {class:'trend-list'});
+    const draw = () => list.replaceChildren(...(cfg.items || []).map((t, i) => el('li', null,
+      el('span', null, el('strong', {text:t.topic}), t.note ? ' — ' + t.note : ''),
+      el('button', {class:'x', text:'✕', 'aria-label':'הסרה', onclick:async () => { cfg.items.splice(i, 1); await save(); draw(); }}))));
+    draw();
+    return el('div', null,
+      el('div', {class:'grid2', style:'gap:10px;margin-top:10px;'}, topic, note),
+      el('button', {class:'btn ghost', text:'הוספה', onclick:async () => {
+        if(!topic.value.trim()) return;
+        cfg.items = cfg.items || [];
+        cfg.items.push({topic:topic.value.trim(), note:note.value.trim()});
+        topic.value = ''; note.value = '';
+        await save(); draw();
+      }}),
+      list);
+  },
+  async fetch(cfg){ return (cfg.items || []).map(t => ({topic:t.topic, note:t.note, weight:0.7})); },
+});
+
+registerTrendSource({
+  id:'http_json',
+  name:'מקור חיצוני (JSON)',
+  description:'כתובת שמחזירה מערך JSON של {topic, note, weight}. ברירת המחדל היא פונקציית השרת trends — שם מחברים ספק נתוני טרנדים כשנמצא כלי מתאים (מפתח ה-API נשמר בשרת).',
+  defaults:{enabled:false, url:'/.netlify/functions/trends'},
+  configUI(cfg, save){
+    const url = el('input', {type:'text', dir:'ltr', value:cfg.url || ''});
+    url.addEventListener('change', async () => { cfg.url = url.value.trim(); await save(); });
+    return el('div', {style:'margin-top:10px;'}, el('label', {text:'כתובת'}), url);
+  },
+  async fetch(cfg){
+    if(!cfg.url) return [];
+    const res = await fetch(cfg.url, {headers:{accept:'application/json'}});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data.trends || []);
+  },
+});
+
+let trendCfg = {};
+async function loadTrendCfg(){
+  let doc = null;
+  try{ doc = await Store.get('settings', 'trend_sources'); }catch(e){}
+  trendCfg = (doc && doc.sources) || {};
+  for(const s of TREND_SOURCES) trendCfg[s.id] = Object.assign({}, s.defaults, trendCfg[s.id] || {});
+  renderTrendSources();
+}
+async function saveTrendCfg(){
+  try{ await Store.put('settings', 'trend_sources', {sources:trendCfg}); }
+  catch(e){ setStatus('trendStatus', 'השמירה נכשלה.'); }
+}
+function renderTrendSources(){
+  $('trendSources').replaceChildren(...TREND_SOURCES.map(s => {
+    const cfg = trendCfg[s.id];
+    const toggle = el('input', {type:'checkbox'}); toggle.checked = !!cfg.enabled;
+    toggle.addEventListener('change', async () => { cfg.enabled = toggle.checked; await saveTrendCfg(); });
+    return el('div', {class:'src'},
+      el('div', {class:'src-head'}, el('h2', {style:'margin:0;', text:s.name}), el('label', {class:'switch'}, toggle, 'פעיל')),
+      el('div', {class:'muted', text:s.description}),
+      s.configUI ? s.configUI(cfg, saveTrendCfg) : null);
+  }));
+}
+function normalizeSignal(x, sourceId){
+  if(!x || typeof x.topic !== 'string' || !x.topic.trim()) return null;
+  const w = Number(x.weight);
+  return {topic:x.topic.trim().slice(0, 200), note:typeof x.note === 'string' ? x.note.slice(0, 300) : '', weight:isFinite(w) ? Math.max(0, Math.min(1, w)) : 0.5, source:sourceId};
+}
+async function collectTrends(){
+  const signals = [], errors = [];
+  await Promise.all(TREND_SOURCES.filter(s => trendCfg[s.id] && trendCfg[s.id].enabled).map(async s => {
+    try{ for(const x of (await s.fetch(trendCfg[s.id])) || []){ const n = normalizeSignal(x, s.id); if(n) signals.push(n); } }
+    catch(e){ errors.push(s.name + ': ' + (e instanceof TypeError ? 'אין גישה לרשת' : e.message)); }
+  }));
+  signals.sort((a, b) => b.weight - a.weight);
+  return {signals:signals.slice(0, 12), errors};
+}
+function trendsBrief(signals){
+  if(!signals.length) return '';
+  return 'אותות טרנדים בתעשייה (לשלב רק אם רלוונטי ובאופן טבעי):\n' + signals.map(s => `- ${s.topic}${s.note ? ' — ' + s.note : ''}`).join('\n');
+}
+$('btnPreviewTrends').addEventListener('click', async () => {
+  setStatus('trendStatus', 'טוען...', true);
+  const {signals, errors} = await collectTrends();
+  $('trendPreview').replaceChildren(...(signals.length ? signals.map(s => el('li', null,
+    el('span', null, el('strong', {text:s.topic}), s.note ? ' — ' + s.note : ''),
+    el('span', {class:'pill', text:s.source + ' · ' + s.weight.toFixed(1)})))
+    : [el('li', {class:'muted', text:'אין אותות מהמקורות הפעילים.'})]));
+  setStatus('trendStatus', errors.join(' | '), !errors.length);
+});
+
+/* ============================================================
+   4. GENERATOR — combines all three learning sources
+   ============================================================ */
+const GOALS = {
+  leads:'להביא פניות מלקוחות פרטיים (שם + טלפון / וואטסאפ).',
+  b2b:'לפנות למעצבי פנים, אדריכלים וקבלנים ולהזמין אותם לשיתוף פעולה.',
+  awareness:'לבנות מודעות למותג ולבלעדיות על האוניקס.',
+};
+function renderGenContext(){
+  const parts = [];
+  parts.push(posts.length >= 5 ? '✓ ' + posts.length + ' פוסטים שלנו' : '— אין מספיק נתוני ביצועים');
+  const on = inspiration.filter(i => i.workedWell).length;
+  parts.push(on ? '✓ ' + on + ' דוגמאות השראה' : '— אין דוגמאות השראה');
+  const active = TREND_SOURCES.filter(s => trendCfg[s.id] && trendCfg[s.id].enabled).length;
+  parts.push(active ? '✓ ' + active + ' מקורות טרנדים פעילים' : '— אין מקורות טרנדים פעילים');
+  $('genContext').textContent = 'הקשר לניסוח: ' + parts.join(' · ');
+}
+async function buildPrompt(){
+  const topic = $('genTopic').value.trim();
+  const platform = $('genPlatform').value === 'instagram' ? 'אינסטגרם' : 'פייסבוק';
+  const {signals} = await collectTrends();
+  const sections = [
+    `את/ה קופירייטר/ית לרשתות חברתיות של:\n${BRAND_FACTS}`,
+    `משימה: לנסח 3 גרסאות שונות לפוסט ב${platform}.\nנושא: ${topic}\nמטרה: ${GOALS[$('genGoal').value]}`,
+    performanceBrief(),
+    aiSummaryDoc ? 'תובנות ניתוח קודם של הפוסטים שלנו:\n' + aiSummaryDoc.text : '',
+    inspirationBrief(),
+    trendsBrief(signals),
+    `הנחיות:
+- עברית טבעית, חמה ויוקרתית — לא שיווקית מדי.
+- ליישם את מה שעבד אצלנו לפי הנתונים ואת סגנון דוגמאות ההשראה, בלי להעתיק מהן משפטים.
+- כל גרסה עם זווית פתיחה אחרת.
+- ${platform === 'אינסטגרם' ? 'בסוף: שורת האשטגים רלוונטיים בעברית ובאנגלית, בכמות שמתאימה לדפוסים שלנו.' : 'בפייסבוק — מעט האשטגים או בלי.'}
+- אחרי כל גרסה, שורה אחת שמתחילה ב-"למה:" שמסבירה על איזה דפוס/דוגמה היא נשענת.
+פורמט: "גרסה 1", "גרסה 2", "גרסה 3" ככותרות, בלי הקדמה.`,
+  ];
+  return sections.filter(Boolean).join('\n\n---\n\n');
+}
+
+let genCtl = null;
+$('btnGenerate').addEventListener('click', async () => {
+  if(!$('genTopic').value.trim()){ setStatus('genStatus', 'כתבו על מה הפוסט.'); return; }
+  if(!sampleFn){ setStatus('genStatus', 'ה-AI זמין כשהדשבורד פתוח בתוך Claude. אפשר להשתמש ב"העתקת הפרומפט" ולהדביק ב-Claude.'); return; }
+  const btn = $('btnGenerate'); btn.disabled = true; $('btnStop').hidden = false;
+  const out = $('genOut'); out.textContent = 'חושב...';
+  setStatus('genStatus', '');
+  genCtl = new AbortController();
+  try{
+    const prompt = await buildPrompt();
+    const {truncated} = await sampleFn(prompt, {signal:genCtl.signal, cache:false, onText:({text}) => { out.textContent = text; }});
+    if(truncated) setStatus('genStatus', 'התשובה נקטעה — נסו נושא ממוקד יותר.');
+  }catch(e){
+    out.textContent = (e && e.text) || '';
+    setStatus('genStatus', aiErrorText(e));
+  }finally{ btn.disabled = false; $('btnStop').hidden = true; genCtl = null; }
+});
+$('btnStop').addEventListener('click', () => { if(genCtl) genCtl.abort(); });
+async function copyText(text, statusId){
+  try{ await navigator.clipboard.writeText(text); setStatus(statusId, 'הועתק.', true); }
+  catch(e){ setStatus(statusId, 'ההעתקה נחסמה בדפדפן.'); }
+}
+$('btnCopyPrompt').addEventListener('click', async () => {
+  if(!$('genTopic').value.trim()){ setStatus('genStatus', 'כתבו על מה הפוסט.'); return; }
+  copyText(await buildPrompt(), 'genStatus');
+});
+$('btnCopyOut').addEventListener('click', () => copyText($('genOut').textContent, 'genStatus'));
+
+/* ============================================================
+   Boot
+   ============================================================ */
+(async function boot(){
+  showView(lsGet('tab', 'perf'));
+  await Store.init();
+  if(runtime){
+    try{
+      sampleFn = await runtime.use('sample');
+      if(sampleFn){ const lim = await sampleFn.limits().catch(() => null); sampleImages = !!(lim && lim.images); }
+    }catch(e){ sampleFn = null; }
+  }
+  await Promise.all([loadPosts(), loadInspiration(), loadTrendCfg(), loadAiSummary()]);
+  renderGenContext();
+})();
+</script>
+</body>
+</html>
