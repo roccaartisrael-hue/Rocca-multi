@@ -12,6 +12,7 @@ import {
 } from "../connectors/meta";
 import { replyToTweet } from "../connectors/x";
 import { fetchInsights } from "../connectors/insights";
+import { currentUsage } from "../lib/usage";
 
 export const api = Router();
 
@@ -30,6 +31,11 @@ api.get("/api/health", (_req, res) => {
 });
 
 api.use("/api", requireAuth);
+
+// Claude usage this month (calls + tokens) vs. AI_MONTHLY_LIMIT — for tracking real cost per business.
+api.get("/api/usage", (_req, res) => {
+  res.json(currentUsage());
+});
 
 // ---- Posts ----
 

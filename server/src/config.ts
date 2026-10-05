@@ -10,6 +10,13 @@ export const config = {
   dashboardToken: process.env.DASHBOARD_TOKEN || "",
 
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
+  /** Max Claude calls (post drafts + reply drafts) per calendar month. 0 = unlimited. */
+  aiMonthlyLimit: Number(process.env.AI_MONTHLY_LIMIT || 0),
+  /**
+   * Brand voice / business description injected into every Claude prompt.
+   * Leave empty to use the built-in ROCCA voice; set it to run the bot for another business.
+   */
+  brandVoice: (process.env.BRAND_VOICE || "").trim(),
 
   meta: {
     pageId: process.env.META_PAGE_ID || "",

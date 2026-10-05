@@ -1,13 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { config, Platform } from "../config";
+import { assertWithinLimit, recordUsage } from "./usage";
 
 const client = new Anthropic({ apiKey: config.anthropicApiKey });
 
 const MODEL = "claude-sonnet-5";
 
 // Draft brand voice, pending owner approval — see docs/BRAND_VOICE.md (source of truth; update both together).
-const BRAND_VOICE = `
-את/ה כותב/ת תוכן שיווקי בעברית עבור ROCCA — בית אבן טבעית פרימיום (אוניקס, שיש, גרניט, קוורציט) בנתניה, ישראל.
+const DEFAULT_BRAND_VOICE = `
+את/ה כותב/ת תוכן שיווקי בעברית עבור ROCCA — בית אבן טבעית פרימיום (אוניקס, שיש, גרניט, קוורציט) בקריית ביאליק, ישראל.
 
 קהל יעד ראשי: מעצבים/ות (פנים, אדריכלות) — אלה שמשפיעים על בחירת החומר. איתם מדברים חומר: גוון, עורק, גימור, זמינות, איך זה מתנהג באור. קהל משני: לקוח פרטי (תוצאה וחוויה) ולקוח עסקי (תהליך ואמינות, עמידה בלו"ז). כשלא ברור מי הקהל — ברירת מחדל היא מעצבים.
 
@@ -16,6 +17,9 @@ const BRAND_VOICE = `
 
 אף פעם לא: מחירים, הנחות או "מבצע" (גם לא בתגובות ציבוריות); הבטחות זמנים קונקרטיות שלא נמסרו; קריאות "!!!" או יותר מאימוג'י אחד; ניסוחים כמו "המבחר הכי גדול בישראל" בלי גיבוי עובדתי. אם חסר מידע — כותב/ת באופן כללי ומזמין/ה ליצירת קשר.
 `.trim();
+
+// Per-deployment override: set BRAND_VOICE to run the bot for a different business.
+const BRAND_VOICE = config.brandVoice || DEFAULT_BRAND_VOICE;
 
 const PLATFORM_RULES: Record<Platform, string> = {
   facebook: "פוסט פייסבוק: 2-4 משפטים, טון חם ואישי, אפשר אימוג'י בודד אם מתאים, קריאה לפעולה בסוף (הודעה בפרטי / קישור לאתר).",
@@ -59,6 +63,7 @@ export async function generatePostForPlatforms(
     );
   }
 
+  assertWithinLimit();
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 1500,
@@ -77,6 +82,7 @@ ${contextBlocks.length ? "\n" + contextBlocks.join("\n\n") + "\n" : ""}
     ],
   });
 
+  recordUsage(msg.usage);
   const text = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
   return extractJson(text);
 }
@@ -86,6 +92,7 @@ export async function generateReplyDraft(params: {
   incomingAuthor?: string;
   channel: string;
 }): Promise<string> {
+  assertWithinLimit();
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 400,
@@ -104,6 +111,7 @@ export async function generateReplyDraft(params: {
     ],
   });
 
+  recordUsage(msg.usage);
   return msg.content
     .map((b) => (b.type === "text" ? b.text : ""))
     .join("")
