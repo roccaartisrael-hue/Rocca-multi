@@ -32,15 +32,24 @@ function write(data: UsageByMonth) {
   fs.writeFileSync(USAGE_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
+// Estimated Claude price in USD per million tokens and the USD→ILS rate; override via env if pricing changes.
+const PRICE_IN = Number(process.env.CLAUDE_PRICE_IN_PER_MTOK || 3);
+const PRICE_OUT = Number(process.env.CLAUDE_PRICE_OUT_PER_MTOK || 15);
+const USD_ILS = Number(process.env.USD_ILS || 3.7);
+
+function costIls(u: MonthUsage): number {
+  return ((u.inputTokens * PRICE_IN + u.outputTokens * PRICE_OUT) / 1e6) * USD_ILS;
+}
+
 /** AI_MONTHLY_LIMIT, when set, overrides the tier's call allowance. */
 function callLimit(): number {
   return config.aiMonthlyLimit > 0 ? config.aiMonthlyLimit : getTier().aiCalls;
 }
 
-export function currentUsage(): MonthUsage & { month: string; limit: number; tier: ReturnType<typeof getTier> } {
+export function currentUsage(): MonthUsage & { month: string; limit: number; costIls: number; tier: ReturnType<typeof getTier> } {
   const month = monthKey();
   const u = read()[month] || { calls: 0, inputTokens: 0, outputTokens: 0 };
-  return { month, limit: callLimit(), tier: getTier(), ...u, plans: u.plans || 0 };
+  return { month, limit: callLimit(), tier: getTier(), ...u, plans: u.plans || 0, costIls: Math.round(costIls(u) * 100) / 100 };
 }
 
 /** Throws if this month's marketing-plan allowance for the tier is used up; otherwise counts one plan. */
@@ -59,7 +68,10 @@ export function consumePlan(): void {
 
 /** Throws if this month's Claude call budget (AI_MONTHLY_LIMIT) is used up. */
 export function assertWithinLimit(): void {
-  const { calls, limit } = currentUsage();
+  const { calls, limit, costIls: spent, tier } = currentUsage();
+  if (spent >= tier.costCapIls) {
+    throw new Error(`הגעת למכסת השימוש החודשית של מסלול ${tier.label}. היא מתאפסת בתחילת החודש הבא, או שאפשר לשדרג מסלול.`);
+  }
   if (limit > 0 && calls >= limit) {
     throw new Error(`הגעת למכסה החודשית של ${limit} פניות ל-Claude. המכסה מתאפסת בתחילת החודש הבא.`);
   }
