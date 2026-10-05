@@ -140,6 +140,8 @@
           <div class="chip active" data-f="open">טיוטות ומתוזמנים</div>
           <div class="chip" data-f="published">פורסמו</div>
         </div>
+        <button id="autoAllBtn" style="width:100%;margin-top:10px">⚡ תזמן את כל הטיוטות אוטומטית</button>
+        <p class="muted-small">המערכת בוחרת ימים ושעות: מפזרת את הפוסטים, ומעדיפה את השעות שעבדו הכי טוב אצלכם. אפשר לשנות כל פוסט ידנית אחר כך.</p>
       </div>
       <div id="postsContainer"></div>
     </section>
@@ -342,6 +344,21 @@ document.getElementById("postFilter").addEventListener("click", (e) => {
   chip.classList.add("active");
   postFilter = chip.dataset.f;
   loadPosts();
+});
+
+document.getElementById("autoAllBtn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const r = await api("/api/posts/auto-schedule-all", { method: "POST" });
+    const note = r.skipped.length ? ` · ${r.skipped.length} לא תוזמנו (${r.skipped[0].reason})` : "";
+    toast(`⚡ ${r.scheduled} פוסטים תוזמנו${note}`);
+    loadPosts();
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 async function loadPosts() {
@@ -669,7 +686,8 @@ function renderDraft(post, container = document.getElementById("draftContainer")
       <label class="muted-small">או תאריך ושעה מדויקים:</label>
       <input type="datetime-local" class="scheduleInput" min="${toLocalInputValue(new Date().toISOString())}" value="${post.scheduledFor ? toLocalInputValue(post.scheduledFor) : ""}" />
       <div class="row-actions">
-        <button class="secondary confirmScheduleBtn">קבע תזמון</button>
+        <button class="autoScheduleBtn">⚡ תזמן אוטומטית</button>
+        <button class="secondary confirmScheduleBtn">קבע תזמון ידני</button>
         ${post.status === "scheduled" ? `<button class="danger cancelScheduleBtn">בטל תזמון</button>` : ""}
       </div>
     </div>
@@ -714,6 +732,22 @@ function renderDraft(post, container = document.getElementById("draftContainer")
     if (!scheduleRow.classList.contains("hidden")) {
       await refreshTierInfo();
       setupSchedulePicker(scheduleRow);
+    }
+  });
+  scheduleRow.querySelector(".autoScheduleBtn").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const updated = await api(`/api/posts/${post.id}/auto-schedule`, { method: "POST" });
+      post.status = updated.status;
+      post.scheduledFor = updated.scheduledFor;
+      updatePostHeaderStatus(card, post);
+      toast(`⚡ תוזמן אוטומטית ל-${new Date(updated.scheduledFor).toLocaleString("he-IL", { weekday: "long", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+      scheduleRow.classList.add("hidden");
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      btn.disabled = false;
     }
   });
   scheduleRow.querySelector(".confirmScheduleBtn").addEventListener("click", async () => {

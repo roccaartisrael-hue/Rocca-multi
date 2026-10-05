@@ -14,6 +14,7 @@ import { replyToTweet } from "../connectors/x";
 import { fetchInsights } from "../connectors/insights";
 import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
 import { getTier } from "../lib/plans";
+import { israelTime, pickSlot } from "../lib/autoschedule";
 import { getProfile, saveProfile } from "../lib/profile";
 import { storageStatus } from "../lib/persist";
 import { PACKS, packLink, grantPack } from "../lib/credits";
@@ -56,65 +57,6 @@ api.get("/api/packs", (_req, res) => {
 // Claude usage this month (calls + tokens) vs. AI_MONTHLY_LIMIT — for tracking real cost per business.
 api.get("/api/usage", (_req, res) => {
   res.json({ ...currentUsage(), scheduledCount: store.listPosts().filter((p) => p.status === "scheduled").length });
-});
-
-/** Wall-clock time in Israel (Asia/Jerusalem) N days from now, as a UTC Date — the server itself runs in UTC. */
-function israelTime(dayOffset: number, hour: number, minute: number): Date {
-  const target = new Date(Date.now() + dayOffset * 86400000);
-  const ymd = target.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
-  const guess = new Date(`${ymd}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`);
-  const il = new Date(guess.toLocaleString("en-US", { timeZone: "Asia/Jerusalem" }));
-  const offset = il.getTime() - new Date(guess.toLocaleString("en-US", { timeZone: "UTC" })).getTime();
-  return new Date(guess.getTime() - offset);
-}
-
-api.get("/api/storage", (_req, res) => res.json(storageStatus()));
-
-// ---- Business setup ----
-// REQUIRE_PROFILE=true (customer deployments): no content is generated until the business is set up,
-// so a new customer never gets posts written in someone else's voice.
-function requireProfile(_req: Request, res: Response, next: NextFunction) {
-  if (process.env.REQUIRE_PROFILE === "true" && !getProfile()) {
-    return res.status(400).json({ error: "קודם צריך להגדיר את העסק בלשונית 'הגדרות'." });
-  }
-  next();
-}
-api.use(["/api/posts/generate", "/api/plan/generate", "/api/plan/review"], requireProfile);
-
-api.get("/api/profile", (_req, res) => {
-  const p = getProfile();
-  res.json({
-    configured: !!p,
-    required: process.env.REQUIRE_PROFILE === "true",
-    profile: p,
-  });
-});
-
-const profileFields = (b: any) => ({
-  businessName: String(b?.businessName || "").trim().slice(0, 120),
-  whatYouSell: String(b?.whatYouSell || "").trim().slice(0, 600),
-  audience: String(b?.audience || "").trim().slice(0, 400),
-  location: String(b?.location || "").trim().slice(0, 120),
-  tone: String(b?.tone || "").trim().slice(0, 200),
-  neverSay: String(b?.neverSay || "").trim().slice(0, 400),
-});
-
-// Preview: Claude drafts the brand voice from the form; nothing is saved yet.
-api.post("/api/profile/generate", async (req, res) => {
-  try {
-    const f = profileFields(req.body);
-    if (!f.businessName || !f.whatYouSell) return res.status(400).json({ error: "חובה למלא שם עסק ומה אתם מוכרים" });
-    res.json({ brandVoice: await generateBrandVoice(f) });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-api.post("/api/profile", (req, res) => {
-  const f = profileFields(req.body);
-  const brandVoice = String(req.body?.brandVoice || "").trim().slice(0, 6000);
-  if (!f.businessName || !brandVoice) return res.status(400).json({ error: "חסר שם עסק או קול מותג" });
-  res.json(saveProfile({ ...f, brandVoice }));
 });
 
 // ---- Marketing plan ----
@@ -270,6 +212,51 @@ function scheduleProblem(whenIso: string, excludePostId: string | null, checkSlo
   }
   return null;
 }
+
+function takenSlots(excludeId?: string): string[] {
+  return store.listPosts().filter((p) => p.status === "scheduled" && p.scheduledFor && p.id !== excludeId).map((p) => p.scheduledFor!);
+}
+
+const needsImage = (p: { platforms: PlatformContent[] }) =>
+  p.platforms.some((c) => (c.platform === "instagram" || c.platform === "tiktok") && !c.imageUrl);
+
+// Automatic scheduling of one post: the system picks the next best free time inside the tier's limits.
+api.post("/api/posts/:id/auto-schedule", (req, res) => {
+  const post = store.getPost(req.params.id);
+  if (!post) return res.status(404).json({ error: "Not found" });
+  if (post.status === "published") return res.status(400).json({ error: "הפוסט כבר פורסם" });
+  if (needsImage(post)) return res.status(400).json({ error: "חסרה תמונה לאינסטגרם/טיקטוק. הוסיפו תמונה לפני התזמון." });
+  const tier = getTier();
+  const when = pickSlot(takenSlots(post.id), tier, store.listPosts().filter((p) => p.status === "published"));
+  if (!when) return res.status(400).json({ error: "אין זמן פנוי בטווח של המסלול" });
+  const problem = scheduleProblem(when.toISOString(), post.id, false);
+  if (problem) return res.status(400).json({ error: problem });
+  res.json(store.updatePost(post.id, { scheduledFor: when.toISOString(), status: "scheduled" }));
+});
+
+// Automatic scheduling of every draft (oldest first) until the tier's limits are reached.
+api.post("/api/posts/auto-schedule-all", (_req, res) => {
+  const tier = getTier();
+  const published = store.listPosts().filter((p) => p.status === "published");
+  const drafts = store.listPosts().filter((p) => p.status === "draft").reverse();
+  let scheduled = 0;
+  const skipped: { topic: string; reason: string }[] = [];
+  for (const post of drafts) {
+    if (needsImage(post)) {
+      skipped.push({ topic: post.topic, reason: "חסרה תמונה" });
+      continue;
+    }
+    const when = pickSlot(takenSlots(), tier, published);
+    const problem = when ? scheduleProblem(when.toISOString(), post.id, false) : "אין זמן פנוי בטווח של המסלול";
+    if (!when || problem) {
+      skipped.push({ topic: post.topic, reason: problem || "אין זמן פנוי" });
+      break; // limit reached: remaining drafts would fail the same way
+    }
+    store.updatePost(post.id, { scheduledFor: when.toISOString(), status: "scheduled" });
+    scheduled++;
+  }
+  res.json({ scheduled, skipped });
+});
 
 api.patch("/api/posts/:id", (req, res) => {
   const post = store.getPost(req.params.id);
