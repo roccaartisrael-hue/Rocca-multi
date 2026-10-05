@@ -46,7 +46,7 @@
   }
   .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent); }
   label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
-  input[type=text], textarea, input[type=url], input[type=password], input[type=datetime-local] {
+  input[type=text], textarea, select, input[type=number], input[type=url], input[type=password], input[type=datetime-local] {
     width: 100%;
     background: var(--panel-2);
     border: 1px solid #3a342b;
@@ -154,6 +154,32 @@
       <div id="performanceContainer"></div>
     </section>
 
+    <section id="tab-plan" class="tab hidden">
+      <div class="card">
+        <h2>תוכנית פרסום</h2>
+        <p class="muted-small">ענו על 3 שאלות קצרות — ה-AI בונה לכם תוכנית מלאה עם פוסטים מוכנים ותזמון. אתם רק מאשרים.</p>
+        <label for="planGoal">מה המטרה?</label>
+        <select id="planGoal">
+          <option>יותר פניות ממעצבים ואדריכלים</option>
+          <option>יותר לקוחות פרטיים</option>
+          <option>חשיפה למוצר/אבן חדשה</option>
+          <option>חיזוק המותג והאמון</option>
+        </select>
+        <label for="planWeeks">לכמה זמן?</label>
+        <select id="planWeeks"><option value="1">שבוע</option><option value="2" selected>שבועיים</option><option value="4">חודש</option></select>
+        <label for="planPer">כמה פוסטים בשבוע?</label>
+        <select id="planPer"><option value="2">2</option><option value="3" selected>3</option><option value="5">5</option></select>
+        <label>איפה לפרסם?</label>
+        <div class="platforms" id="planPlatforms"></div>
+        <label for="planBudget">תקציב פרסום ממומן בחודש (₪, אופציונלי)</label>
+        <input type="number" id="planBudget" placeholder="0 = אורגני בלבד" />
+        <label for="planNotes">משהו שחשוב שנדע? (אופציונלי)</label>
+        <input type="text" id="planNotes" placeholder="למשל: הגיעה סחורה חדשה, יש כנס בחודש הבא" />
+        <button id="planBtn" style="width:100%">✨ בנה לי תוכנית</button>
+      </div>
+      <div id="planContainer"></div>
+    </section>
+
     <section id="tab-inspiration" class="tab hidden">
       <div class="card">
         <h2>הוסיפו השראה</h2>
@@ -175,6 +201,7 @@
 
   <nav class="tabs">
     <button data-tab="tab-new" class="active">פוסט חדש</button>
+    <button data-tab="tab-plan">תוכנית</button>
     <button data-tab="tab-replies">תגובות</button>
     <button data-tab="tab-performance">ביצועים</button>
     <button data-tab="tab-inspiration">השראה</button>
@@ -247,6 +274,91 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     if (btn.dataset.tab === "tab-performance") loadPerformance();
   });
 });
+
+
+// ---- Marketing plan ----
+let planSelected = new Set(["facebook", "instagram"]);
+function renderPlanChips() {
+  const wrap = document.getElementById("planPlatforms");
+  wrap.innerHTML = "";
+  Object.entries(PLATFORM_LABELS).forEach(([key, label]) => {
+    const chip = el(`<div class="chip ${planSelected.has(key) ? "active" : ""}">${label}</div>`);
+    chip.addEventListener("click", () => {
+      planSelected.has(key) ? planSelected.delete(key) : planSelected.add(key);
+      renderPlanChips();
+    });
+    wrap.appendChild(chip);
+  });
+}
+renderPlanChips();
+
+const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+document.getElementById("planBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("planBtn");
+  const box = document.getElementById("planContainer");
+  btn.disabled = true;
+  btn.textContent = "בונה תוכנית… (עד דקה)";
+  box.innerHTML = "";
+  try {
+    const plan = await api("/api/plan/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        goal: document.getElementById("planGoal").value,
+        weeks: Number(document.getElementById("planWeeks").value),
+        postsPerWeek: Number(document.getElementById("planPer").value),
+        platforms: [...planSelected],
+        adBudget: Number(document.getElementById("planBudget").value) || 0,
+        notes: document.getElementById("planNotes").value,
+      }),
+    });
+    renderPlan(plan, box);
+  } catch (e) {
+    box.appendChild(el(`<div class="card"><p>⚠️ ${esc(e.message)}</p></div>`));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ בנה לי תוכנית";
+  }
+});
+
+function renderPlan(plan, box) {
+  const dateOf = (d) => new Date(Date.now() + d * 86400000).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "numeric" });
+  const head = el(`<div class="card"><h2>התוכנית שלכם</h2>
+    <p>${esc(plan.summary)}</p>
+    <p class="muted-small"><b>קהל יעד:</b> ${esc(plan.audience)}</p>
+    <p class="muted-small"><b>נושאים מרכזיים:</b> ${(plan.pillars || []).map(esc).join(" · ")}</p>
+    ${plan.adAdvice ? `<p class="muted-small"><b>המלצת פרסום:</b> ${esc(plan.adAdvice)}</p>` : ""}
+    <p class="muted-small">אפשר לערוך כל טקסט, להוסיף קישור לתמונה, או להסיר פוסט. פוסט עם אינסטגרם בלי תמונה יישמר כטיוטה.</p></div>`);
+  box.appendChild(head);
+  const cards = [];
+  (plan.items || []).forEach((it) => {
+    const card = el(`<div class="card"><h2>${esc(dateOf(it.dayOffset))} · ${esc(it.time)} — ${esc(it.topic)}</h2>
+      <p class="muted-small">💡 תמונה מומלצת: ${esc(it.imageIdea)}</p>
+      <input type="url" class="pimg" placeholder="קישור לתמונה (אופציונלי)" />
+      ${Object.entries(it.texts || {}).map(([p, t]) => `<label>${esc(PLATFORM_LABELS[p] || p)}</label><textarea data-p="${esc(p)}" rows="4">${esc(t)}</textarea>`).join("")}
+      <button class="secondary prm">הסר מהתוכנית</button></div>`);
+    card.querySelector(".prm").addEventListener("click", () => { card.remove(); cards.splice(cards.findIndex((c) => c.card === card), 1); });
+    cards.push({ card, it });
+    box.appendChild(card);
+  });
+  const ok = el(`<button style="width:100%;margin:12px 0">✅ אשר ותזמן את כל הפוסטים</button>`);
+  ok.addEventListener("click", async () => {
+    ok.disabled = true;
+    try {
+      const items = cards.map(({ card, it }) => ({
+        ...it,
+        imageUrl: card.querySelector(".pimg").value.trim(),
+        texts: Object.fromEntries([...card.querySelectorAll("textarea")].map((t) => [t.dataset.p, t.value])),
+      }));
+      const r = await api("/api/plan/approve", { method: "POST", body: JSON.stringify({ items }) });
+      box.innerHTML = `<div class="card"><h2>🎉 מוכן!</h2><p>${r.scheduled} פוסטים תוזמנו ויעלו אוטומטית. ${r.drafts ? r.drafts + " נשמרו כטיוטות (חסרה תמונה) — תמצאו אותם בלשונית 'השראה' תחת 'מה כבר פורסם'." : ""}</p></div>`;
+    } catch (e) {
+      alert(e.message);
+      ok.disabled = false;
+    }
+  });
+  box.appendChild(ok);
+}
 
 // ---- New post ----
 function renderPlatformChips() {
