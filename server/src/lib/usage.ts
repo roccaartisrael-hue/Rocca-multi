@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { config } from "../config";
 import { getTier } from "./plans";
+import { totalPurchased } from "./credits";
 
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const USAGE_FILE = path.join(DATA_DIR, "usage.json");
@@ -46,34 +47,68 @@ function callLimit(): number {
   return config.aiMonthlyLimit > 0 ? config.aiMonthlyLimit : getTier().aiCalls;
 }
 
-export function currentUsage(): MonthUsage & { month: string; limit: number; costIls: number; tier: ReturnType<typeof getTier> } {
-  const month = monthKey();
-  const u = read()[month] || { calls: 0, inputTokens: 0, outputTokens: 0 };
-  return { month, limit: callLimit(), tier: getTier(), ...u, plans: u.plans || 0, costIls: Math.round(costIls(u) * 100) / 100 };
+/**
+ * Purchased top-ups roll over between months, and are only consumed by spend beyond the tier's monthly allowance.
+ * Remaining top-up = purchased − overage of previous months; this month's cap = tier cap + that remainder.
+ */
+function allowances(all: UsageByMonth, month: string) {
+  const tier = getTier();
+  const bought = totalPurchased();
+  let prevIls = 0;
+  let prevPlans = 0;
+  for (const [m, u] of Object.entries(all)) {
+    if (m === month) continue;
+    prevIls += Math.max(0, costIls(u) - tier.costCapIls);
+    prevPlans += Math.max(0, (u.plans || 0) - tier.plansPerMonth);
+  }
+  return {
+    costCap: tier.costCapIls + Math.max(0, bought.usageIls - prevIls),
+    plansCap: tier.plansPerMonth + Math.max(0, bought.plans - prevPlans),
+    hasTopUp: bought.usageIls - prevIls > 0,
+  };
 }
 
-/** Throws if this month's marketing-plan allowance for the tier is used up; otherwise counts one plan. */
+export function currentUsage() {
+  const all = read();
+  const month = monthKey();
+  const u = all[month] || { calls: 0, inputTokens: 0, outputTokens: 0 };
+  const a = allowances(all, month);
+  return {
+    month,
+    limit: callLimit(),
+    tier: getTier(),
+    ...u,
+    plans: u.plans || 0,
+    plansCap: a.plansCap,
+    costIls: Math.round(costIls(u) * 100) / 100,
+    costCapIls: Math.round(a.costCap * 100) / 100,
+    hasTopUp: a.hasTopUp,
+  };
+}
+
+/** Throws if this month's marketing-plan allowance (tier + purchased top-ups) is used up; otherwise counts one plan. */
 export function consumePlan(): void {
-  const tier = getTier();
   const all = read();
   const month = monthKey();
   const cur = all[month] || { calls: 0, inputTokens: 0, outputTokens: 0 };
-  if ((cur.plans || 0) >= tier.plansPerMonth) {
-    throw new Error(`במסלול ${tier.label} אפשר לבנות ${tier.plansPerMonth} תוכניות בחודש, וכבר ניצלת אותן. אפשר לשדרג מסלול.`);
+  const { plansCap } = allowances(all, month);
+  if ((cur.plans || 0) >= plansCap) {
+    throw new Error(`ניצלת את כל התוכניות של החודש (${plansCap}). אפשר לרכוש חבילת תוספת או לשדרג מסלול.`);
   }
   cur.plans = (cur.plans || 0) + 1;
   all[month] = cur;
   write(all);
 }
 
-/** Throws if this month's Claude call budget (AI_MONTHLY_LIMIT) is used up. */
+/** Throws if this month's Claude spend allowance (tier + purchased top-ups) is used up. */
 export function assertWithinLimit(): void {
-  const { calls, limit, costIls: spent, tier } = currentUsage();
-  if (spent >= tier.costCapIls) {
-    throw new Error(`הגעת למכסת השימוש החודשית של מסלול ${tier.label}. היא מתאפסת בתחילת החודש הבא, או שאפשר לשדרג מסלול.`);
+  const { calls, limit, costIls: spent, costCapIls, hasTopUp, tier } = currentUsage();
+  if (spent >= costCapIls) {
+    throw new Error(`הגעת למכסת השימוש של מסלול ${tier.label}. אפשר לרכוש חבילת תוספת, לשדרג מסלול, או לחכות לתחילת החודש הבא.`);
   }
-  if (limit > 0 && calls >= limit) {
-    throw new Error(`הגעת למכסה החודשית של ${limit} פניות ל-Claude. המכסה מתאפסת בתחילת החודש הבא.`);
+  // The call-count limit only applies while no top-up is active; with a top-up, the spend cap governs.
+  if (limit > 0 && calls >= limit && !hasTopUp) {
+    throw new Error(`הגעת למכסה החודשית של ${limit} פניות ל-Claude. אפשר לרכוש חבילת תוספת או לחכות לתחילת החודש הבא.`);
   }
 }
 

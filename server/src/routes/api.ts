@@ -14,6 +14,7 @@ import { replyToTweet } from "../connectors/x";
 import { fetchInsights } from "../connectors/insights";
 import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
 import { getTier } from "../lib/plans";
+import { PACKS, packLink, grantPack } from "../lib/credits";
 
 export const api = Router();
 
@@ -31,7 +32,24 @@ api.get("/api/health", (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
+// Payment provider calls this after a successful payment: POST {packId, paymentRef} with header x-webhook-secret.
+// Idempotent per paymentRef. Disabled unless PAYMENT_WEBHOOK_SECRET is set.
+api.post("/api/payments/webhook", (req, res) => {
+  const secret = process.env.PAYMENT_WEBHOOK_SECRET || "";
+  if (!secret || req.header("x-webhook-secret") !== secret) return res.status(401).json({ error: "Unauthorized" });
+  const { packId, paymentRef } = req.body || {};
+  if (!packId || !paymentRef) return res.status(400).json({ error: "packId and paymentRef are required" });
+  const purchase = grantPack(String(packId), String(paymentRef));
+  if (!purchase) return res.status(400).json({ error: "Unknown pack" });
+  res.json({ ok: true });
+});
+
 api.use("/api", requireAuth);
+
+// Top-up packs the customer can buy when the monthly allowance runs out (any tier, VIP included).
+api.get("/api/packs", (_req, res) => {
+  res.json(PACKS.map((p) => ({ ...p, link: packLink(p.id) })));
+});
 
 // Claude usage this month (calls + tokens) vs. AI_MONTHLY_LIMIT — for tracking real cost per business.
 api.get("/api/usage", (_req, res) => {

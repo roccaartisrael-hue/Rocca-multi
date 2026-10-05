@@ -301,7 +301,7 @@ async function loadTier() {
     const u = await api("/api/usage");
     const t = u.tier;
     document.getElementById("tierInfo").textContent =
-      `מסלול ${t.label} · תוכניות החודש: ${u.plans}/${t.plansPerMonth} · פניות ל-AI: ${u.calls}/${u.limit}`;
+      `מסלול ${t.label} · תוכניות החודש: ${u.plans}/${u.plansCap} · שימוש: ${u.costIls}/${u.costCapIls} ₪`;
     const weeks = document.getElementById("planWeeks");
     [...weeks.options].forEach((o) => { o.disabled = Number(o.value) > t.maxWeeks; });
     if (weeks.selectedOptions[0].disabled) weeks.value = "1";
@@ -338,11 +338,27 @@ document.getElementById("planBtn").addEventListener("click", async () => {
     renderPlan(plan, box);
   } catch (e) {
     box.appendChild(el(`<div class="card"><p>⚠️ ${esc(e.message)}</p></div>`));
+    if (/חבילת תוספת/.test(e.message)) showPacks(box);
   } finally {
     btn.disabled = false;
     btn.textContent = "✨ בנה לי תוכנית";
   }
 });
+
+async function showPacks(box) {
+  try {
+    const packs = await api("/api/packs");
+    const card = el(`<div class="card"><h2>חבילות תוספת</h2><p class="muted-small">התוספת נשמרת ומתחילה להיצרך רק אחרי שהמכסה החודשית נגמרת.</p></div>`);
+    packs.forEach((p) => {
+      const row = el(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0"><span>${esc(p.label)} · ${p.priceIls} ₪<br><span class="muted-small">+${p.plans} תוכניות ושימוש נוסף</span></span></div>`);
+      const b = el(`<button>${p.link ? "רכישה" : "בקשת רכישה"}</button>`);
+      b.addEventListener("click", () => { if (p.link) window.open(p.link, "_blank"); else alert("הרכישה תיפתח בקרוב — פנו אלינו ונוסיף לכם את החבילה."); });
+      row.appendChild(b);
+      card.appendChild(row);
+    });
+    box.appendChild(card);
+  } catch {}
+}
 
 document.getElementById("reviewBtn").addEventListener("click", async () => {
   const btn = document.getElementById("reviewBtn");
@@ -355,6 +371,7 @@ document.getElementById("reviewBtn").addEventListener("click", async () => {
     box.appendChild(el(`<div class="card"><h2>ניתוח ואסטרטגיה לשבוע הבא</h2><div style="white-space:pre-wrap;line-height:1.6">${esc(r.review)}</div></div>`));
   } catch (e) {
     box.innerHTML = `<div class="card"><p>⚠️ ${esc(e.message)}</p></div>`;
+    if (/חבילת תוספת/.test(e.message)) showPacks(box);
   } finally { btn.disabled = false; }
 });
 

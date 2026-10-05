@@ -31,6 +31,15 @@ services:
       # Subscription tier: basic | premium | vip (limits in server/src/lib/plans.ts)
       - key: PLAN_TIER
         value: vip
+      # Top-up packs (payment-page URLs from the payment provider) + secret for its webhook
+      - key: PACK_LINK_SMALL
+        sync: false
+      - key: PACK_LINK_MEDIUM
+        sync: false
+      - key: PACK_LINK_LARGE
+        sync: false
+      - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
       - key: AI_MONTHLY_LIMIT
         value: "0"
       # Business description / brand voice for Claude. Leave empty for ROCCA's built-in voice.
