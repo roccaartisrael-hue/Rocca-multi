@@ -1,8 +1,8 @@
-import fs from "fs";
 import path from "path";
 import { config } from "../config";
 import { getTier } from "./plans";
 import { totalPurchased } from "./credits";
+import { readDoc, writeDoc } from "./persist";
 
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const USAGE_FILE = path.join(DATA_DIR, "usage.json");
@@ -22,15 +22,14 @@ function monthKey(d = new Date()): string {
 
 function read(): UsageByMonth {
   try {
-    return JSON.parse(fs.readFileSync(USAGE_FILE, "utf-8")) as UsageByMonth;
+    return JSON.parse(readDoc(USAGE_FILE) || "{}") as UsageByMonth;
   } catch {
     return {};
   }
 }
 
 function write(data: UsageByMonth) {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(USAGE_FILE, JSON.stringify(data, null, 2), "utf-8");
+  writeDoc(USAGE_FILE, JSON.stringify(data, null, 2));
 }
 
 // Estimated Claude price in USD per million tokens and the USD→ILS rate; override via env if pricing changes.

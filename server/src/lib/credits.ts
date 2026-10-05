@@ -1,6 +1,6 @@
-import fs from "fs";
 import path from "path";
 import { v4 as uuid } from "uuid";
+import { readDoc, writeDoc } from "./persist";
 
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const FILE = path.join(DATA_DIR, "credits.json");
@@ -31,7 +31,7 @@ interface Purchase {
 
 function read(): Purchase[] {
   try {
-    return JSON.parse(fs.readFileSync(FILE, "utf-8"));
+    return JSON.parse(readDoc(FILE) || "[]");
   } catch {
     return [];
   }
@@ -51,8 +51,7 @@ export function grantPack(packId: string, paymentRef: string): Purchase | null {
   if (existing) return existing;
   const purchase: Purchase = { id: uuid(), packId, paymentRef, usageIls: pack.usageIls, plans: pack.plans, at: new Date().toISOString() };
   all.push(purchase);
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(all, null, 2), "utf-8");
+  writeDoc(FILE, JSON.stringify(all, null, 2));
   return purchase;
 }
 

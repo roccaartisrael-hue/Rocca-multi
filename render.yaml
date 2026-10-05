@@ -40,6 +40,9 @@ services:
         sync: false
       - key: PAYMENT_WEBHOOK_SECRET
         sync: false
+      # Postgres connection string (free Neon project) so posts, credits and usage survive restarts
+      - key: DATABASE_URL
+        sync: false
       - key: AI_MONTHLY_LIMIT
         value: "0"
       # Business description / brand voice for Claude. Leave empty for ROCCA's built-in voice.

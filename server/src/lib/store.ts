@@ -1,7 +1,7 @@
-import fs from "fs";
 import path from "path";
 import { v4 as uuid } from "uuid";
 import { Platform } from "../config";
+import { readDoc, writeDoc } from "./persist";
 
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const POSTS_FILE = path.join(DATA_DIR, "posts.json");
@@ -61,21 +61,14 @@ export interface Inspiration {
   createdAt: string;
 }
 
-function ensureFile(file: string) {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(file)) fs.writeFileSync(file, "[]", "utf-8");
-}
-
 function readJson<T>(file: string): T[] {
-  ensureFile(file);
-  const raw = fs.readFileSync(file, "utf-8").trim();
+  const raw = (readDoc(file) || "").trim();
   if (!raw) return [];
   return JSON.parse(raw) as T[];
 }
 
 function writeJson<T>(file: string, data: T[]) {
-  ensureFile(file);
-  fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf-8");
+  writeDoc(file, JSON.stringify(data, null, 2));
 }
 
 export const store = {
