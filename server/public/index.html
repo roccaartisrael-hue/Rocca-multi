@@ -495,7 +495,21 @@ function renderDraft(post) {
   `);
   card.appendChild(actions);
 
-  actions.querySelector(".saveBtn").addEventListener("click", () => saveDraftEdits(card, post));
+  actions.querySelector(".saveBtn").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const label = btn.textContent;
+    btn.disabled = true;
+    try {
+      await saveDraftEdits(card, post);
+      toast("✓ נשמר. תמצאו את הפוסט בלשונית 'השראה' תחת 'מה כבר פורסם'");
+      btn.textContent = "✓ נשמר";
+      setTimeout(() => { btn.textContent = label; }, 2000);
+    } catch (err) {
+      toast("השמירה נכשלה: " + err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
   actions.querySelector(".publishBtn").addEventListener("click", async () => {
     await saveDraftEdits(card, post, true);
   });
@@ -520,7 +534,7 @@ function renderDraft(post) {
     post.status = updated.status;
     post.scheduledFor = updated.scheduledFor;
     updatePostHeaderStatus(card, post);
-    alert("הפוסט תוזמן. הוא יפורסם אוטומטית בזמן שנקבע.");
+    toast("✓ הפוסט תוזמן ויפורסם אוטומטית בזמן שנקבע");
   });
   const cancelBtn = scheduleRow.querySelector(".cancelScheduleBtn");
   if (cancelBtn) {
@@ -538,6 +552,12 @@ function renderDraft(post) {
 
   updatePostHeaderStatus(card, post);
   container.prepend(card);
+}
+
+function toast(msg) {
+  const t = el(`<div style="position:fixed;bottom:84px;left:50%;transform:translateX(-50%);background:#f3ead7;color:#1c1a17;padding:12px 18px;border-radius:12px;font-size:14px;z-index:99;max-width:90%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.4)">${escapeHtml(msg)}</div>`);
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
 }
 
 function toLocalInputValue(isoString) {
