@@ -55,7 +55,7 @@ api.get("/api/packs", (_req, res) => {
 
 // Claude usage this month (calls + tokens) vs. AI_MONTHLY_LIMIT — for tracking real cost per business.
 api.get("/api/usage", (_req, res) => {
-  res.json(currentUsage());
+  res.json({ ...currentUsage(), scheduledCount: store.listPosts().filter((p) => p.status === "scheduled").length });
 });
 
 /** Wall-clock time in Israel (Asia/Jerusalem) N days from now, as a UTC Date — the server itself runs in UTC. */
@@ -191,6 +191,11 @@ api.post("/api/plan/approve", (req, res) => {
         const post = store.createPost(`${it.topic} (מתוכנן ל-${when.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })} — חסרה תמונה)`, contents);
         if (it.boost?.budgetIls) store.updatePost(post.id, { boost: it.boost });
         drafts++;
+      } else if (scheduleProblem(when.toISOString(), null, false)) {
+        // over the tier's scheduling limits: keep as a draft instead of dropping it
+        const post = store.createPost(`${it.topic} (מתוכנן ל-${when.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })} — מעל מגבלת התזמון במסלול)`, contents);
+        if (it.boost?.budgetIls) store.updatePost(post.id, { boost: it.boost });
+        drafts++;
       } else {
         const post = store.createPost(it.topic, contents, when.toISOString());
         if (it.boost?.budgetIls) store.updatePost(post.id, { boost: it.boost });
@@ -249,6 +254,23 @@ api.get("/api/posts", (_req, res) => {
   res.json(store.listPosts());
 });
 
+/** Scheduling limits by tier: how many at once, how far ahead, and which times (Israel time). Returns an error message or null. */
+function scheduleProblem(whenIso: string, excludePostId: string | null, checkSlot: boolean): string | null {
+  const tier = getTier();
+  const when = new Date(whenIso);
+  if (isNaN(when.getTime())) return "תאריך לא תקין";
+  const now = Date.now();
+  if (when.getTime() < now + 60 * 1000) return "בחרו זמן עתידי";
+  if (when.getTime() > now + (tier.horizonDays + 1) * 86400000) return `במסלול ${tier.label} אפשר לתזמן עד ${tier.horizonDays} ימים קדימה`;
+  const alreadyScheduled = store.listPosts().filter((p) => p.status === "scheduled" && p.id !== excludePostId).length;
+  if (alreadyScheduled >= tier.maxScheduled) return `במסלול ${tier.label} אפשר לתזמן עד ${tier.maxScheduled} פוסטים במקביל. אפשר לשדרג מסלול.`;
+  if (checkSlot && !tier.exactTime) {
+    const hhmm = when.toLocaleTimeString("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" });
+    if (!tier.slots.includes(hhmm)) return `במסלול ${tier.label} אפשר לבחור אחת מהשעות: ${tier.slots.join(", ")}`;
+  }
+  return null;
+}
+
 api.patch("/api/posts/:id", (req, res) => {
   const post = store.getPost(req.params.id);
   if (!post) return res.status(404).json({ error: "Not found" });
@@ -258,6 +280,10 @@ api.patch("/api/posts/:id", (req, res) => {
   };
   const patch: any = {};
   if (platforms) patch.platforms = platforms;
+  if (scheduledFor) {
+    const problem = scheduleProblem(scheduledFor, post.id, true);
+    if (problem) return res.status(400).json({ error: problem });
+  }
   if (scheduledFor !== undefined) {
     patch.scheduledFor = scheduledFor;
     patch.status = scheduledFor ? "scheduled" : "draft";

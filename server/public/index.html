@@ -348,6 +348,7 @@ async function loadPosts() {
   const box = document.getElementById("postsContainer");
   box.innerHTML = `<p class="empty">טוען...</p>`;
   try {
+    await refreshTierInfo();
     const all = await api("/api/posts");
     const posts = all.filter((p) => (postFilter === "published" ? p.status === "published" : p.status !== "published"));
     box.innerHTML = "";
@@ -633,6 +634,7 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({ topic, platforms, imageUrl: imageUrl || undefined }),
     });
+    await refreshTierInfo();
     renderDraft(post);
     document.getElementById("topicInput").value = "";
   } catch (err) {
@@ -707,8 +709,12 @@ function renderDraft(post, container = document.getElementById("draftContainer")
     await api(`/api/posts/${post.id}`, { method: "DELETE" });
     card.remove();
   });
-  actions.querySelector(".scheduleToggleBtn").addEventListener("click", () => {
+  actions.querySelector(".scheduleToggleBtn").addEventListener("click", async () => {
     scheduleRow.classList.toggle("hidden");
+    if (!scheduleRow.classList.contains("hidden")) {
+      await refreshTierInfo();
+      setupSchedulePicker(scheduleRow);
+    }
   });
   scheduleRow.querySelector(".confirmScheduleBtn").addEventListener("click", async () => {
     const value = scheduleRow.querySelector(".scheduleInput").value;
@@ -721,10 +727,16 @@ function renderDraft(post, container = document.getElementById("draftContainer")
       return;
     }
     const iso = new Date(value).toISOString();
-    const updated = await api(`/api/posts/${post.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ scheduledFor: iso }),
-    });
+    let updated;
+    try {
+      updated = await api(`/api/posts/${post.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ scheduledFor: iso }),
+      });
+    } catch (err) {
+      toast(err.message);
+      return;
+    }
     post.status = updated.status;
     post.scheduledFor = updated.scheduledFor;
     updatePostHeaderStatus(card, post);
@@ -749,22 +761,43 @@ function renderDraft(post, container = document.getElementById("draftContainer")
 }
 
 // Quick scheduling: the next 14 days as chips plus common posting times; both fill the exact date/time field.
+let tierInfo = null; // subscription limits + scheduled count, from /api/usage
+async function refreshTierInfo() {
+  try {
+    const u = await api("/api/usage");
+    tierInfo = { ...u.tier, scheduledCount: u.scheduledCount };
+  } catch {}
+  return tierInfo;
+}
+
 function setupSchedulePicker(row) {
   const input = row.querySelector(".scheduleInput");
   const dayBox = row.querySelector(".dayChips");
   const timeBox = row.querySelector(".timeChips");
-  const times = ["09:00", "12:00", "14:00", "17:00", "19:00", "21:00"];
+  dayBox.innerHTML = "";
+  timeBox.innerHTML = "";
+  const t = tierInfo || { horizonDays: 7, slots: ["12:00", "19:00", "21:00"], exactTime: false, maxScheduled: 7, scheduledCount: 0, label: "" };
+  const times = t.slots;
+  let info = row.querySelector(".scheduleInfo");
+  if (!info) {
+    info = el(`<p class="muted-small scheduleInfo"></p>`);
+    row.querySelector("label").after(info);
+  }
+  info.textContent = `מתוזמנים כרגע: ${t.scheduledCount}/${t.maxScheduled} · עד ${t.horizonDays} ימים קדימה${t.label ? " · מסלול " + t.label : ""}`;
+  input.classList.toggle("hidden", !t.exactTime);
+  row.querySelector("label.muted-small").classList.toggle("hidden", !t.exactTime);
+  input.max = toLocalInputValue(new Date(Date.now() + t.horizonDays * 86400000).toISOString());
   const pad = (n) => String(n).padStart(2, "0");
   const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   let day = input.value ? input.value.slice(0, 10) : "";
-  let time = input.value ? input.value.slice(11, 16) : "19:00";
+  let time = input.value && times.includes(input.value.slice(11, 16)) ? input.value.slice(11, 16) : times.includes("19:00") ? "19:00" : times[0];
 
   function sync() {
     if (day) input.value = `${day}T${time}`;
     dayBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.d === day));
     timeBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.t === time));
   }
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i <= Math.min(t.horizonDays, 30); i++) {
     const d = new Date(Date.now() + i * 86400000);
     const label = i === 0 ? "היום" : i === 1 ? "מחר" : d.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" });
     const chip = el(`<div class="chip" data-d="${dayKey(d)}">${label}</div>`);
