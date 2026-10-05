@@ -5,7 +5,7 @@ export type TierName = "basic" | "premium" | "vip";
 export interface Tier {
   name: TierName;
   label: string;
-  priceIls: number; // monthly price — for display only
+  priceIls: number; // monthly price incl. VAT — for display only
   costCapIls: number; // hard ceiling on estimated Claude spend per month, so margin is guaranteed
   aiCalls: number; // post drafts + reply drafts per month
   plansPerMonth: number; // marketing plans per month

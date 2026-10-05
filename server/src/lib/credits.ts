@@ -13,11 +13,11 @@ export interface Pack {
   plans: number; // extra marketing plans
 }
 
-// Priced at roughly 3x the Claude cost they unlock, so top-ups keep the same margin as subscriptions.
+// Prices include VAT (18%); the Claude spend they unlock is ~30% of the net price.
 export const PACKS: Pack[] = [
-  { id: "small", label: "חבילת תוספת קטנה", priceIls: 50, usageIls: 15, plans: 2 },
-  { id: "medium", label: "חבילת תוספת בינונית", priceIls: 100, usageIls: 35, plans: 5 },
-  { id: "large", label: "חבילת תוספת גדולה", priceIls: 200, usageIls: 80, plans: 12 },
+  { id: "small", label: "חבילת תוספת קטנה", priceIls: 50, usageIls: 12, plans: 2 },
+  { id: "medium", label: "חבילת תוספת בינונית", priceIls: 100, usageIls: 25, plans: 5 },
+  { id: "large", label: "חבילת תוספת גדולה", priceIls: 200, usageIls: 50, plans: 10 },
 ];
 
 interface Purchase {
