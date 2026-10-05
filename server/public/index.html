@@ -230,6 +230,22 @@
         <button id="planBtn" style="width:100%">✨ בנה לי תוכנית</button>
         <button id="reviewBtn" class="secondary" style="width:100%;margin-top:8px">📊 נתח מה עבד והצע איך לתקוף בשבוע הבא</button>
       </div>
+      <div class="card" id="campaignCard">
+        <h2>מסע פרסום מקצועי</h2>
+        <p class="muted-small">אסטרטגיה מלאה כמו ממשרד פרסום: משפך, קהלים, קריאייטיבים לבדיקות A/B, חלוקת תקציב, יעדי מדידה וכללי אופטימיזציה. (המערכת מכינה תוכנית; ההפעלה והתשלום נשארים אצלכם.)</p>
+        <label for="cgOffer">מה מקדמים?</label>
+        <input type="text" id="cgOffer" placeholder="למשל: קולקציית אוניקס חדשה לפרויקטים" />
+        <label for="cgGoal">מה המטרה?</label>
+        <select id="cgGoal"><option>יותר פניות ומכירות</option><option>מודעות למותג</option><option>הרשמות ללידים</option><option>חיזוק לקוחות קיימים</option></select>
+        <label for="cgWeeks">לכמה זמן?</label>
+        <select id="cgWeeks"><option value="1">שבוע</option><option value="2" selected>שבועיים</option><option value="4">חודש</option></select>
+        <label for="cgBudget">תקציב ממומן בשבוע (₪)</label>
+        <input type="number" id="cgBudget" placeholder="למשל 5000" />
+        <label for="cgNotes">הערות (אופציונלי)</label>
+        <input type="text" id="cgNotes" placeholder="למשל: אירוע בחודש הבא, אזור גיאוגרפי מועדף" />
+        <button id="cgBtn" style="width:100%">🎯 בנה מסע פרסום</button>
+      </div>
+      <div id="campaignContainer"></div>
       <div id="planContainer"></div>
     </section>
 
@@ -323,7 +339,7 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     document.getElementById(btn.dataset.tab).classList.remove("hidden");
     if (btn.dataset.tab === "tab-posts") loadPosts();
     if (btn.dataset.tab === "tab-connect") { loadProfile(); loadConnect(); }
-    if (btn.dataset.tab === "tab-plan") loadTier();
+    if (btn.dataset.tab === "tab-plan") { loadTier(); loadCampaigns(); }
     if (btn.dataset.tab === "tab-replies") loadReplies();
     if (btn.dataset.tab === "tab-inspiration") {
       loadInspirations();
@@ -484,6 +500,86 @@ async function loadConnect() {
     box.innerHTML = `<p class="empty">שגיאה: ${esc(e.message)}</p>`;
   }
 }
+
+
+// ---- Professional campaign ----
+function renderCampaign(c, box) {
+  const list = (items, fn) => (items || []).map(fn).join("");
+  const card = el(`<div class="card" data-campaign="${c.id}"><h2>${esc(c.name)}</h2>
+    <p>${esc(c.summary)}</p>
+    <p class="muted-small"><b>מטרה:</b> ${esc(c.objective)}</p>
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">משפך ותקציב</h3>
+    ${list(c.funnel, (f) => `<p class="muted-small"><b>${esc(f.stage)}</b> · ${f.budgetPercent}% (${f.budgetIls} ₪) · ${esc(f.goal)}<br>${(f.platforms || []).map(esc).join(", ")} · ${(f.formats || []).map(esc).join(", ")}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">קהלים</h3>
+    ${list(c.audiences, (a) => `<p class="muted-small"><b>${esc(a.name)}</b> (${esc(a.funnel)})<br>${esc(a.description)}<br>${esc(a.location)} · גילאים ${esc(a.ageRange)} · ${(a.interests || []).map(esc).join(", ")}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">קריאייטיבים (${(c.creatives || []).length})</h3>
+    ${list(c.creatives, (x) => `<div class="post-block"><span class="tag">${esc(x.funnelStage)}</span> <b>${esc(x.name)}</b>${x.budgetIls ? ` · ${x.budgetIls} ₪` : ""}<p style="white-space:pre-wrap;margin:6px 0">${esc(x.hook)}\n${esc(x.text)}\n${esc(x.cta)}</p><p class="muted-small">💡 ${esc(x.imageIdea)}${x.audience ? " · קהל: " + esc(x.audience) : ""}</p></div>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">תוכנית שבועית</h3>
+    ${list(c.schedule, (w) => `<p class="muted-small"><b>שבוע ${w.week}: ${esc(w.focus)}</b><br>${(w.actions || []).map((a) => "• " + esc(a)).join("<br>")}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">יעדי מדידה (השערות התחלתיות)</h3>
+    ${list(c.kpis, (k) => `<p class="muted-small"><b>${esc(k.metric)}</b>: ${esc(k.target)}<br>${esc(k.why)}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">כללי אופטימיזציה</h3>
+    ${list(c.optimizationRules, (r) => `<p class="muted-small">אם ${esc(r.if)} ← ${esc(r.then)}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">בדיקות A/B</h3>
+    ${list(c.abTests, (t) => `<p class="muted-small"><b>${esc(t.hypothesis)}</b><br>A: ${esc(t.variantA)} · B: ${esc(t.variantB)}<br>מדד: ${esc(t.metric)} · ${esc(t.duration)}</p>`)}
+    ${(c.risks || []).length ? `<h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">סיכונים</h3>${list(c.risks, (r) => `<p class="muted-small">• ${esc(r)}</p>`)}` : ""}
+    <p class="muted-small">⚠️ זו תוכנית מוצעת, לא הבטחת תוצאות. הקידום הממומן מופעל ונקבע על ידכם.</p>
+    <div class="row-actions"><button class="cgDrafts">צור טיוטות מהקריאייטיבים</button><button class="danger cgDel">מחק</button></div>
+  </div>`);
+  card.querySelector(".cgDrafts").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const r = await api(`/api/campaign/${c.id}/drafts`, { method: "POST" });
+      toast(`✓ נוצרו ${r.created} טיוטות. תמצאו אותן בלשונית 'פוסטים'`);
+    } catch (err) { toast(err.message); }
+    btn.disabled = false;
+  });
+  card.querySelector(".cgDel").addEventListener("click", async () => {
+    if (!confirm("למחוק את המסע?")) return;
+    await api(`/api/campaign/${c.id}`, { method: "DELETE" });
+    card.remove();
+  });
+  box.appendChild(card);
+}
+
+async function loadCampaigns() {
+  const box = document.getElementById("campaignContainer");
+  try {
+    const all = await api("/api/campaigns");
+    box.innerHTML = "";
+    all.slice(0, 3).forEach((c) => renderCampaign(c, box));
+  } catch {}
+}
+
+document.getElementById("cgBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("cgBtn");
+  btn.disabled = true;
+  btn.textContent = "בונה מסע… (עד דקה-שתיים)";
+  try {
+    const c = await api("/api/campaign/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        offer: document.getElementById("cgOffer").value,
+        goal: document.getElementById("cgGoal").value,
+        weeks: Number(document.getElementById("cgWeeks").value),
+        weeklyBudget: Number(document.getElementById("cgBudget").value) || 0,
+        notes: document.getElementById("cgNotes").value,
+      }),
+    });
+    const box = document.getElementById("campaignContainer");
+    const wrap = document.createElement("div");
+    renderCampaign(c, wrap);
+    box.prepend(wrap.firstChild);
+    loadTier();
+  } catch (e) {
+    toast(e.message);
+    if (/חבילת תוספת/.test(e.message)) showPacks(document.getElementById("campaignContainer"));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🎯 בנה מסע פרסום";
+  }
+});
 
 // ---- Marketing plan ----
 let planSelected = new Set(["facebook", "instagram"]);

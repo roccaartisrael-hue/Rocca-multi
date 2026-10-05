@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { config, ALL_PLATFORMS, Platform } from "../config";
 import { store, PlatformContent } from "../lib/store";
-import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion, generateMarketingPlan, generateStrategyReview, generateBrandVoice, PlanItem } from "../lib/claude";
+import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion, generateMarketingPlan, generateStrategyReview, generateBrandVoice, generateCampaign, PlanItem } from "../lib/claude";
 import { publishPost } from "../lib/publish";
 import {
   verifyWebhookChallenge,
@@ -15,6 +15,7 @@ import { fetchInsights } from "../connectors/insights";
 import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
 import { getTier } from "../lib/plans";
 import { israelTime, pickSlot } from "../lib/autoschedule";
+import { campaigns } from "../lib/campaigns";
 import { getProfile, saveProfile } from "../lib/profile";
 import { storageStatus } from "../lib/persist";
 import { PACKS, packLink, grantPack } from "../lib/credits";
@@ -85,6 +86,50 @@ api.post("/api/plan/generate", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ---- Professional campaign (strategy brief; nothing is launched or paid automatically) ----
+api.get("/api/campaigns", (_req, res) => res.json(campaigns.list()));
+
+api.post("/api/campaign/generate", async (req, res) => {
+  try {
+    const tier = getTier();
+    if (!tier.adAdvice) return res.status(403).json({ error: `מסע פרסום מקצועי זמין מפרימיום ומעלה` });
+    const b = req.body || {};
+    const offer = String(b.offer || "").trim().slice(0, 400);
+    if (!offer) return res.status(400).json({ error: "כתבו מה מקדמים" });
+    const weeks = Math.min(tier.maxWeeks, Math.max(1, Math.round(Number(b.weeks) || 2)));
+    const weeklyBudget = Math.max(0, Math.round(Number(b.weeklyBudget) || 0));
+    assertWithinLimit();
+    consumePlan(); // a campaign counts as one plan of the monthly allowance
+    const topPerformers = tier.learnsFromPerformance ? store.topPerformingPlatformContent("engagement", 3).map((r) => r.content.text).filter(Boolean) : [];
+    const inspirationNotes = tier.learnsFromPerformance ? store.listInspirations().slice(0, 3).map((i) => i.note).filter(Boolean) : [];
+    const request = { goal: String(b.goal || "יותר פניות ומכירות").slice(0, 300), offer, weeks, weeklyBudget, notes: String(b.notes || "").slice(0, 500) };
+    const generated = await generateCampaign(request, { topPerformers, inspirationNotes });
+    res.json(campaigns.save({ request, ...generated }));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Turns the campaign's creatives into drafts (with the recommended boost) — the owner still reviews, schedules and boosts.
+api.post("/api/campaign/:id/drafts", (req, res) => {
+  const c = campaigns.get(req.params.id);
+  if (!c) return res.status(404).json({ error: "Not found" });
+  const platforms: Platform[] = ["facebook", "instagram"];
+  let created = 0;
+  for (const cr of c.creatives) {
+    const text = [cr.hook, cr.text, cr.cta].filter(Boolean).join("\n\n");
+    const post = store.createPost(
+      `${c.name} · ${cr.name}`,
+      platforms.map((p) => ({ platform: p, text, status: "pending" as const })),
+    );
+    if (cr.budgetIls) store.updatePost(post.id, { boost: { budgetIls: cr.budgetIls, days: 5, audience: cr.audience || "", priority: 3 } });
+    created++;
+  }
+  res.json({ created });
+});
+
+api.delete("/api/campaign/:id", (req, res) => res.json({ deleted: campaigns.remove(req.params.id) }));
 
 // Learns from published posts' metrics and recommends how to attack and re-split budget next week.
 api.post("/api/plan/review", async (req, res) => {

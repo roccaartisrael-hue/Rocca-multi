@@ -312,3 +312,67 @@ export async function generateBrandVoice(input: ProfileInput): Promise<string> {
   recordUsage(msg.usage);
   return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
 }
+
+export interface CampaignRequest {
+  goal: string;
+  offer: string; // what is being promoted
+  weeks: number;
+  weeklyBudget: number; // ILS paid promotion per week
+  notes: string;
+}
+
+/**
+ * A full campaign brief — the work an ad agency does: funnel, audiences, creatives for A/B tests,
+ * KPIs, optimisation rules and a week-by-week plan. Strategy text only; nothing is launched or spent.
+ */
+export async function generateCampaign(req: CampaignRequest, context?: GenerationContext): Promise<any> {
+  const ctx: string[] = [];
+  if (context?.topPerformers?.length) ctx.push(`פוסטים שהצליחו בעבר אצל העסק:\n` + context.topPerformers.map((t) => `- "${t}"`).join("\n"));
+  if (context?.inspirationNotes?.length) ctx.push(`מה בעל העסק אוהב:\n` + context.inspirationNotes.map((n) => `- "${n}"`).join("\n"));
+  const total = req.weeklyBudget * req.weeks;
+
+  assertWithinLimit();
+  const msg = await llm.messages.create({
+    max_tokens: 9000,
+    system: brandVoice(),
+    messages: [
+      {
+        role: "user",
+        content: `אתה מנהל/ת קריאייטיב ואסטרטגיית פרסום ממומן בכיר/ה. בנה/י תוכנית מסע פרסום מקצועית ל-${req.weeks} שבועות.
+
+המטרה: ${req.goal}
+מה מקדמים: ${req.offer}
+תקציב ממומן: ${req.weeklyBudget ? `${req.weeklyBudget} ₪ בשבוע (${total} ₪ בסך הכול)` : "אין — אורגני בלבד"}
+${req.notes ? "הערות: " + req.notes : ""}
+${ctx.length ? "\n" + ctx.join("\n\n") + "\n" : ""}
+כללים:
+- פרסום בפייסבוק ובאינסטגרם בלבד. אל תמציא נתונים, אחוזי המרה או מספרים "מהשוק". יעדי KPI הם השערות התחלתיות שמתעדכנות לפי התוצאות בפועל, וציין זאת במפורש בשדה "why".
+- מבנה משפך (פירמידה): מודעות, שיקול, המרה. חלק את התקציב באחוזים (budgetPercent) שמסתכמים ל-100.
+- קהלים: הגדרות טירגוט בטרמינולוגיה של Meta Ads (מיקום, טווח גיל, תחומי עניין), אופן הפעלה (צר/רחב), ושייכות לשלב במשפך.
+- קריאייטיבים: 6-9 מודעות (לפחות 2 לכל שלב), כל אחת עם hook לשורה הראשונה, טקסט מלא בעברית לפי הקול של העסק, CTA, והצעה איזו תמונה/וידאו לצרף. טקסטים בלי מחירים, הנחות או הבטחות שלא נמסרו.
+- בדיקות A/B (2-3), כללי אופטימיזציה בצורת "אם... אז..." (למשל על בסיס עלות לקליק, שיעור הקלקה, תדירות), ותוכנית שבועית מפורטת.
+- risks: סיכונים ומה לא לעשות (למשל מגבלות פרסום, תלות בתמונות).
+
+החזר אך ורק JSON תקין (בלי מרקדאון) במבנה:
+{"name":"...","objective":"...","summary":"...","audiences":[{"name":"","description":"","location":"","ageRange":"","interests":[""],"funnel":"מודעות|שיקול|המרה"}],"funnel":[{"stage":"","goal":"","budgetPercent":0,"platforms":["facebook","instagram"],"formats":[""]}],"creatives":[{"name":"","funnelStage":"","hook":"","text":"","cta":"","imageIdea":"","audience":""}],"schedule":[{"week":1,"focus":"","actions":[""]}],"kpis":[{"metric":"","target":"","why":""}],"optimizationRules":[{"if":"","then":""}],"abTests":[{"hypothesis":"","variantA":"","variantB":"","metric":"","duration":""}],"risks":[""]}`,
+      },
+    ],
+  });
+  recordUsage(msg.usage);
+  const c = extractJson(msg.content.map((b) => (b.type === "text" ? b.text : "")).join(""));
+  if (!Array.isArray(c.creatives) || !Array.isArray(c.funnel)) throw new Error("התוכנית שהתקבלה לא תקינה, נסו שוב");
+
+  // Budget math is done here, not by the model: normalise percentages to 100 and convert to shekels.
+  const sum = c.funnel.reduce((a: number, f: any) => a + (Number(f.budgetPercent) || 0), 0) || 1;
+  c.funnel.forEach((f: any) => {
+    f.budgetPercent = Math.round(((Number(f.budgetPercent) || 0) / sum) * 100);
+    f.budgetIls = Math.round((total * f.budgetPercent) / 100);
+  });
+  // spread each stage's budget equally across that stage's creatives
+  c.creatives.forEach((cr: any) => {
+    const stage = c.funnel.find((f: any) => f.stage === cr.funnelStage);
+    const same = c.creatives.filter((x: any) => x.funnelStage === cr.funnelStage).length || 1;
+    cr.budgetIls = stage ? Math.round(stage.budgetIls / same) : 0;
+  });
+  return c;
+}
