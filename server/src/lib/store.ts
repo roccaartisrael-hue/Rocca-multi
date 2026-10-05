@@ -35,6 +35,8 @@ export interface Post {
   scheduledFor?: string;
   status: PostStatus;
   platforms: PlatformContent[];
+  /** Recommended paid promotion for this post (set by the marketing plan). */
+  boost?: { budgetIls: number; days: number; audience: string; priority: number };
 }
 
 export type ReplySource = "facebook_comment" | "instagram_comment" | "facebook_message" | "x_mention";

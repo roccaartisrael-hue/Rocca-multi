@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { config, ALL_PLATFORMS, Platform } from "../config";
 import { store, PlatformContent } from "../lib/store";
-import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion, generateMarketingPlan, PlanItem } from "../lib/claude";
+import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion, generateMarketingPlan, generateStrategyReview, PlanItem } from "../lib/claude";
 import { publishPost } from "../lib/publish";
 import {
   verifyWebhookChallenge,
@@ -51,24 +51,52 @@ function israelTime(dayOffset: number, hour: number, minute: number): Date {
 // ---- Marketing plan ----
 api.post("/api/plan/generate", async (req, res) => {
   try {
-    const b = req.body as { goal?: string; weeks?: number; postsPerWeek?: number; platforms?: Platform[]; adBudget?: number; notes?: string };
+    const b = req.body as { goal?: string; weeks?: number; postsPerWeek?: number; platforms?: Platform[]; weeklyBudget?: number; aggressive?: boolean; notes?: string };
     const tier = getTier();
     const platforms = (b.platforms || []).filter((p) => ALL_PLATFORMS.includes(p));
     if (!platforms.length) return res.status(400).json({ error: "בחר לפחות פלטפורמה אחת" });
     if (platforms.length > tier.maxPlatforms) {
       return res.status(400).json({ error: `במסלול ${tier.label} אפשר עד ${tier.maxPlatforms} פלטפורמות בתוכנית` });
     }
-    const weeks = Math.min(tier.maxWeeks, Math.max(1, Math.round(Number(b.weeks) || 2)));
     const postsPerWeek = Math.min(tier.maxPostsPerWeek, Math.max(1, Math.round(Number(b.postsPerWeek) || 3)));
+    // one plan = at most 21 posts, so output stays within a single reliable Claude response
+    const weeks = Math.max(1, Math.min(tier.maxWeeks, Math.round(Number(b.weeks) || 2), Math.floor(21 / postsPerWeek)));
     assertWithinLimit(); // check before consuming a plan so a blocked request doesn't burn the allowance
     consumePlan();
     const topPerformers = tier.learnsFromPerformance ? store.topPerformingPlatformContent("engagement", 3).map((r) => r.content.text).filter(Boolean) : [];
     const inspirationNotes = tier.learnsFromPerformance ? store.listInspirations().slice(0, 3).map((i) => i.note).filter(Boolean) : [];
     const plan = await generateMarketingPlan(
-      { goal: (b.goal || "יותר פניות וחשיפה").slice(0, 300), weeks, postsPerWeek, platforms, adBudget: tier.adAdvice ? Number(b.adBudget) || 0 : 0, notes: (b.notes || "").slice(0, 500) },
+      { goal: (b.goal || "יותר פניות וחשיפה").slice(0, 300), weeks, postsPerWeek, platforms, weeklyBudget: tier.adAdvice ? Math.max(0, Number(b.weeklyBudget) || 0) : 0, aggressive: !!b.aggressive && tier.adAdvice, notes: (b.notes || "").slice(0, 500) },
       { topPerformers, inspirationNotes }
     );
     res.json(plan);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Learns from published posts' metrics and recommends how to attack and re-split budget next week.
+api.post("/api/plan/review", async (req, res) => {
+  try {
+    const tier = getTier();
+    if (!tier.learnsFromPerformance) return res.status(403).json({ error: `ניתוח וחידוד אסטרטגיה זמינים מפרימיום ומעלה` });
+    const weeklyBudget = tier.adAdvice ? Math.max(0, Number(req.body?.weeklyBudget) || 0) : 0;
+    const rows = store
+      .listPosts()
+      .filter((p) => p.status === "published")
+      .slice(0, 25)
+      .flatMap((p) =>
+        p.platforms.map((pc) => ({
+          topic: p.topic,
+          text: pc.text.slice(0, 200),
+          platform: pc.platform,
+          reach: pc.metrics?.reach,
+          engagement: pc.metrics?.engagement,
+          clicks: pc.metrics?.clicks,
+          boostIls: p.boost?.budgetIls,
+        }))
+      );
+    res.json({ review: await generateStrategyReview(rows, weeklyBudget) });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -91,10 +119,12 @@ api.post("/api/plan/approve", (req, res) => {
       const needsImage = contents.some((c) => (c.platform === "instagram" || c.platform === "tiktok") && !c.imageUrl);
       if (needsImage) {
         // keep as draft, but remember the intended time in the topic so nothing is lost
-        store.createPost(`${it.topic} (מתוכנן ל-${when.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })} — חסרה תמונה)`, contents);
+        const post = store.createPost(`${it.topic} (מתוכנן ל-${when.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })} — חסרה תמונה)`, contents);
+        if (it.boost?.budgetIls) store.updatePost(post.id, { boost: it.boost });
         drafts++;
       } else {
-        store.createPost(it.topic, contents, when.toISOString());
+        const post = store.createPost(it.topic, contents, when.toISOString());
+        if (it.boost?.budgetIls) store.updatePost(post.id, { boost: it.boost });
         scheduled++;
       }
     }

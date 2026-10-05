@@ -144,7 +144,8 @@ export interface PlanRequest {
   weeks: number; // 1-4
   postsPerWeek: number; // 1-5
   platforms: Platform[];
-  adBudget?: number; // monthly, ILS; 0/undefined = organic only
+  weeklyBudget?: number; // paid promotion budget per week, ILS; 0/undefined = organic only
+  aggressive?: boolean;
   notes?: string;
 }
 
@@ -154,6 +155,8 @@ export interface PlanItem {
   topic: string;
   imageIdea: string;
   texts: Partial<Record<Platform, string>>;
+  priority: number; // 1-5, 5 = strongest candidate for paid promotion
+  boost?: { budgetIls: number; days: number; audience: string; priority: number };
 }
 
 export interface MarketingPlan {
@@ -178,7 +181,7 @@ export async function generateMarketingPlan(req: PlanRequest, context?: Generati
   assertWithinLimit();
   const msg = await client.messages.create({
     model: MODEL,
-    max_tokens: 8000,
+    max_tokens: 12000,
     system: BRAND_VOICE,
     messages: [
       {
@@ -187,17 +190,19 @@ export async function generateMarketingPlan(req: PlanRequest, context?: Generati
 מטרה: ${req.goal}
 מספר פוסטים: בדיוק ${total} (${req.postsPerWeek} בשבוע), מפוזרים בימים ובשעות שונות לאורך התקופה.
 פלטפורמות: ${req.platforms.join(", ")}
-תקציב פרסום ממומן חודשי: ${req.adBudget ? req.adBudget + " ₪" : "אין — אורגני בלבד"}
+תקציב פרסום ממומן: ${req.weeklyBudget ? req.weeklyBudget + " ₪ בשבוע (" + req.weeklyBudget * req.weeks + " ₪ בסך הכול)" : "אין — אורגני בלבד"}
+${req.aggressive ? "מצב: תקיפה אגרסיבית — נוכחות רועשת ועקבית, זוויות מכירה חדות, קריאה ברורה לפעולה, בדיקת וריאציות שונות של אותו מסר. עדיין בלי מחירים, הנחות או הבטחות שלא נמסרו." : ""}
 ${req.notes ? "הערות בעל העסק: " + req.notes : ""}
 ${ctx.length ? "\n" + ctx.join("\n\n") + "\n" : ""}
 כללי הכתיבה לכל פלטפורמה:
 ${rules}
 
 גוון את סוגי התוכן (חומר/אבן, תהליך, פרויקט, טיפ מקצועי, מאחורי הקלעים) ואל תחזור על אותו נושא.
+בכל פריט הוסף "priority" (1-5): כמה הפוסט מתאים לקידום ממומן (5 = הכי חזק). אל תחלק את התקציב בעצמך — המערכת מחלקת לפי priority. בשדה "audience" אל תכתוב; הוא ייקבע בנפרד.
 בשדה adAdvice: אם יש תקציב — המלצה קצרה איך לפצל אותו (אילו פוסטים כדאי לקדם, קהל יעד, משך); אם אין — כתוב המלצה אורגנית בלבד.
 
 החזר אך ורק JSON תקין (בלי מרקדאון) במבנה:
-{"summary":"...","audience":"...","pillars":["..."],"adAdvice":"...","items":[{"dayOffset":1,"time":"19:00","topic":"...","imageIdea":"איזו תמונה/וידאו לצרף","texts":{${req.platforms.map((p) => `"${p}":"..."`).join(",")}}}]}`,
+{"summary":"...","audience":"...","pillars":["..."],"adAdvice":"...","items":[{"dayOffset":1,"time":"19:00","topic":"...","priority":3,"imageIdea":"איזו תמונה/וידאו לצרף","texts":{${req.platforms.map((p) => `"${p}":"..."`).join(",")}}}]}`,
       },
     ],
   });
@@ -206,5 +211,61 @@ ${rules}
   const text = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
   const plan = extractJson(text) as MarketingPlan;
   if (!Array.isArray(plan.items)) throw new Error("התוכנית שהתקבלה לא תקינה, נסה שוב");
+  allocateBudget(plan.items, (req.weeklyBudget || 0) * req.weeks, req.weeks);
   return plan;
+}
+
+/**
+ * Splits the paid budget across posts by priority (weight = priority², so strong posts get most),
+ * keeping the sum exactly equal to the total. Posts below a ₪20 floor are dropped from paid promotion
+ * and their share is redistributed.
+ */
+export function allocateBudget(items: PlanItem[], total: number, weeks: number): void {
+  if (!total || total <= 0) return;
+  let pool = items.map((it) => ({ it, w: Math.pow(Math.min(5, Math.max(1, Number(it.priority) || 3)), 2) }));
+  for (let guard = 0; guard < items.length; guard++) {
+    const sum = pool.reduce((a, x) => a + x.w, 0);
+    const low = pool.filter((x) => (x.w / sum) * total < 20);
+    if (!low.length || low.length === pool.length) break;
+    const drop = pool.reduce((m, x) => (x.w < m.w ? x : m));
+    pool = pool.filter((x) => x !== drop);
+  }
+  const sum = pool.reduce((a, x) => a + x.w, 0);
+  let given = 0;
+  pool.forEach((x, i) => {
+    const amount = i === pool.length - 1 ? Math.round(total - given) : Math.round((x.w / sum) * total);
+    given += amount;
+    x.it.boost = { budgetIls: amount, days: x.it.priority >= 4 ? 5 : 3, audience: "", priority: Number(x.it.priority) || 3 };
+  });
+  void weeks;
+}
+
+export async function generateStrategyReview(
+  rows: { topic: string; text: string; platform: string; reach?: number; engagement?: number; clicks?: number; boostIls?: number }[],
+  weeklyBudget: number
+): Promise<string> {
+  assertWithinLimit();
+  const msg = await client.messages.create({
+    model: MODEL,
+    max_tokens: 2500,
+    system: BRAND_VOICE,
+    messages: [
+      {
+        role: "user",
+        content: `אתה אסטרטג פרסום. להלן ביצועי הפוסטים האחרונים (חשיפה, מעורבות, קליקים וסכום שקודם אם ידוע):
+${JSON.stringify(rows)}
+
+תקציב שבועי לפרסום ממומן: ${weeklyBudget || "לא הוגדר"} ₪.
+
+כתוב ניתוח קצר ומעשי בעברית (בלי מרקדאון כבד), בסעיפים:
+1. מה עובד ולמה (נתונים ספציפיים בלבד — אל תמציא מספרים).
+2. מה להפסיק.
+3. איך "לתקוף" בשבוע הבא: על אילו נושאים/פורמטים להכפיל, ואיך לחלק מחדש את התקציב באחוזים.
+4. 3 רעיונות לבדיקות A/B.
+אם אין מספיק נתונים — אמור זאת במפורש והצע תוכנית איסוף נתונים.`,
+      },
+    ],
+  });
+  recordUsage(msg.usage);
+  return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
 }

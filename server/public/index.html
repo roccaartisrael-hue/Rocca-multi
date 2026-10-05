@@ -168,15 +168,17 @@
         </select>
         <label for="planWeeks">לכמה זמן?</label>
         <select id="planWeeks"><option value="1">שבוע</option><option value="2" selected>שבועיים</option><option value="4">חודש</option></select>
-        <label for="planPer">כמה פוסטים בשבוע?</label>
-        <select id="planPer"><option value="2">2</option><option value="3" selected>3</option><option value="5">5</option></select>
+        <label for="planPer">כמה פוסטים?</label>
+        <select id="planPer"><option value="3" selected>3 בשבוע</option><option value="7">פוסט ביום</option><option value="14">2 ביום</option><option value="21">3 ביום</option></select>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="planAggr" style="width:auto" /> מצב תקיפה אגרסיבי (מסרים חדים, בדיקות A/B)</label>
         <label>איפה לפרסם?</label>
         <div class="platforms" id="planPlatforms"></div>
-        <label for="planBudget">תקציב פרסום ממומן בחודש (₪, אופציונלי)</label>
-        <input type="number" id="planBudget" placeholder="0 = אורגני בלבד" />
+        <label for="planBudget">תקציב פרסום ממומן בשבוע (₪, אופציונלי)</label>
+        <input type="number" id="planBudget" placeholder="למשל 5000 — המערכת תחלק אותו בין הפוסטים לפי עדיפות" />
         <label for="planNotes">משהו שחשוב שנדע? (אופציונלי)</label>
         <input type="text" id="planNotes" placeholder="למשל: הגיעה סחורה חדשה, יש כנס בחודש הבא" />
         <button id="planBtn" style="width:100%">✨ בנה לי תוכנית</button>
+        <button id="reviewBtn" class="secondary" style="width:100%;margin-top:8px">📊 נתח מה עבד והצע איך לתקוף בשבוע הבא</button>
       </div>
       <div id="planContainer"></div>
     </section>
@@ -305,7 +307,8 @@ async function loadTier() {
     if (weeks.selectedOptions[0].disabled) weeks.value = "1";
     const per = document.getElementById("planPer");
     [...per.options].forEach((o) => { o.disabled = Number(o.value) > t.maxPostsPerWeek; });
-    if (per.selectedOptions[0].disabled) per.value = "2";
+    if (per.selectedOptions[0].disabled) per.value = "3";
+    document.getElementById("planAggr").disabled = !t.adAdvice;
     document.getElementById("planBudget").disabled = !t.adAdvice;
     if (!t.adAdvice) document.getElementById("planBudget").placeholder = "זמין במסלול פרימיום ומעלה";
   } catch {}
@@ -327,7 +330,8 @@ document.getElementById("planBtn").addEventListener("click", async () => {
         weeks: Number(document.getElementById("planWeeks").value),
         postsPerWeek: Number(document.getElementById("planPer").value),
         platforms: [...planSelected],
-        adBudget: Number(document.getElementById("planBudget").value) || 0,
+        weeklyBudget: Number(document.getElementById("planBudget").value) || 0,
+        aggressive: document.getElementById("planAggr").checked,
         notes: document.getElementById("planNotes").value,
       }),
     });
@@ -338,6 +342,20 @@ document.getElementById("planBtn").addEventListener("click", async () => {
     btn.disabled = false;
     btn.textContent = "✨ בנה לי תוכנית";
   }
+});
+
+document.getElementById("reviewBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("reviewBtn");
+  const box = document.getElementById("planContainer");
+  btn.disabled = true;
+  box.innerHTML = '<div class="card"><p>מנתח את הביצועים…</p></div>';
+  try {
+    const r = await api("/api/plan/review", { method: "POST", body: JSON.stringify({ weeklyBudget: Number(document.getElementById("planBudget").value) || 0 }) });
+    box.innerHTML = "";
+    box.appendChild(el(`<div class="card"><h2>ניתוח ואסטרטגיה לשבוע הבא</h2><div style="white-space:pre-wrap;line-height:1.6">${esc(r.review)}</div></div>`));
+  } catch (e) {
+    box.innerHTML = `<div class="card"><p>⚠️ ${esc(e.message)}</p></div>`;
+  } finally { btn.disabled = false; }
 });
 
 function renderPlan(plan, box) {
@@ -353,6 +371,7 @@ function renderPlan(plan, box) {
   (plan.items || []).forEach((it) => {
     const card = el(`<div class="card"><h2>${esc(dateOf(it.dayOffset))} · ${esc(it.time)} — ${esc(it.topic)}</h2>
       <p class="muted-small">💡 תמונה מומלצת: ${esc(it.imageIdea)}</p>
+      ${it.boost ? `<p class="muted-small">💰 קידום מומלץ: ${it.boost.budgetIls} ₪ ל-${it.boost.days} ימים · עדיפות ${it.boost.priority}/5</p>` : ""}
       <input type="url" class="pimg" placeholder="קישור לתמונה (אופציונלי)" />
       ${Object.entries(it.texts || {}).map(([p, t]) => `<label>${esc(PLATFORM_LABELS[p] || p)}</label><textarea data-p="${esc(p)}" rows="4">${esc(t)}</textarea>`).join("")}
       <button class="secondary prm">הסר מהתוכנית</button></div>`);
