@@ -52,6 +52,9 @@ services:
         sync: false
       - key: PUBLIC_URL
         value: https://rocca-social-bot.onrender.com
+      # true on customer copies: no content is written until the business is set up in the app (Settings tab)
+      - key: REQUIRE_PROFILE
+        value: "false"
       - key: AI_MONTHLY_LIMIT
         value: "0"
       # Business description / brand voice for Claude. Leave empty for ROCCA's built-in voice.

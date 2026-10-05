@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { config, Platform } from "../config";
 import { assertWithinLimit, recordUsage } from "./usage";
+import { getProfile } from "./profile";
 
 const client = new Anthropic({ apiKey: config.anthropicApiKey });
 
@@ -19,15 +20,28 @@ const DEFAULT_BRAND_VOICE = `
 `.trim();
 
 // Per-deployment override: set BRAND_VOICE to run the bot for a different business.
-const BRAND_VOICE = config.brandVoice || DEFAULT_BRAND_VOICE;
+// A voice saved from the setup screen wins over BRAND_VOICE, which wins over the built-in ROCCA voice.
+function brandVoice(): string {
+  return getProfile()?.brandVoice || config.brandVoice || DEFAULT_BRAND_VOICE;
+}
+function businessName(): string {
+  return getProfile()?.businessName || "ROCCA";
+}
+const IG_EXAMPLE_HASHTAGS = " (למשל #ROCCA #אוניקס #שיש #אבןטבעית #עיצובפנים)";
 
-const PLATFORM_RULES: Record<Platform, string> = {
+const PLATFORM_RULES_BASE: Record<Platform, string> = {
   facebook: "פוסט פייסבוק: 2-4 משפטים, טון חם ואישי, אפשר אימוג'י בודד אם מתאים, קריאה לפעולה בסוף (הודעה בפרטי / קישור לאתר).",
   instagram: "כיתוב לאינסטגרם: פתיח קליט במשפט הראשון, טקסט קצר, ובסיום 5-8 האשטגים רלוונטיים בעברית ואנגלית (למשל #ROCCA #אוניקס #שיש #אבןטבעית #עיצובפנים).",
   x: "פוסט ל-X (טוויטר): עד 260 תווים, ישיר וקולע, בלי האשטגים מוגזמים (מקסימום 1-2).",
   tiktok: "כיתוב לוידאו טיקטוק: משפט פתיחה שעוצר גלילה, טון קליל יותר, 3-5 האשטגים.",
   website: "פסקת 'עדכון' לאתר החברה: 2-3 משפטים בטון מקצועי-יוקרתי, בגוף שלישי, ללא אימוג'ים.",
 };
+
+/** Platform rules; the ROCCA-specific hashtag example is only used when no custom business is set up. */
+function platformRules(): Record<Platform, string> {
+  if (getProfile() || config.brandVoice) return PLATFORM_RULES_BASE;
+  return { ...PLATFORM_RULES_BASE, instagram: PLATFORM_RULES_BASE.instagram.replace(/\.$/, "") + IG_EXAMPLE_HASHTAGS + "." };
+}
 
 function extractJson(text: string): any {
   const match = text.match(/\{[\s\S]*\}/);
@@ -47,7 +61,7 @@ export async function generatePostForPlatforms(
   platforms: Platform[],
   context?: GenerationContext
 ): Promise<Record<Platform, string>> {
-  const rules = platforms.map((p) => `- ${p}: ${PLATFORM_RULES[p]}`).join("\n");
+  const rules = platforms.map((p) => `- ${p}: ${platformRules()[p]}`).join("\n");
 
   const contextBlocks: string[] = [];
   if (context?.topPerformers?.length) {
@@ -67,7 +81,7 @@ export async function generatePostForPlatforms(
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 1500,
-    system: BRAND_VOICE,
+    system: brandVoice(),
     messages: [
       {
         role: "user",
@@ -96,9 +110,9 @@ export async function generateReplyDraft(params: {
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 400,
-    system: `${BRAND_VOICE}
+    system: `${brandVoice()}
 
-את/ה עונה בשם ROCCA להודעה/תגובה של לקוח פוטנציאלי בערוץ ${params.channel}.
+את/ה עונה בשם ${businessName()} להודעה/תגובה של לקוח פוטנציאלי בערוץ ${params.channel}.
 כתוב/כתבי תגובה קצרה, אדיבה ומועילה בעברית.
 כלל קשיח: לעולם אל תציין/י מחיר, טווח מחיר, הנחה או הצעה כספית כלשהי — גם לא באופן כללי — גם אם המחיר "ידוע" או נראה מובן מאליו מההקשר. אם נשאל/ת על מחיר, הצע/י בעדינות לעבור לשיחה פרטית עם הצוות ואל תסבירי שאת נמנעת ממחיר.
 אם נשאלת שאלה אחרת שאין לך עליה מידע (זמינות מדויקת, מלאי וכו'), הזמן/י ליצירת קשר ישיר עם הצוות דרך האתר או הודעה פרטית, ואל תמציא/י עובדות.
@@ -169,7 +183,7 @@ export interface MarketingPlan {
 
 export async function generateMarketingPlan(req: PlanRequest, context?: GenerationContext): Promise<MarketingPlan> {
   const total = req.weeks * req.postsPerWeek;
-  const rules = req.platforms.map((p) => `- ${p}: ${PLATFORM_RULES[p]}`).join("\n");
+  const rules = req.platforms.map((p) => `- ${p}: ${platformRules()[p]}`).join("\n");
   const ctx: string[] = [];
   if (context?.topPerformers?.length) {
     ctx.push(`פוסטים שהצליחו בעבר (למד/י מהם, אל תעתיק/י):\n` + context.topPerformers.map((t) => `- "${t}"`).join("\n"));
@@ -182,7 +196,7 @@ export async function generateMarketingPlan(req: PlanRequest, context?: Generati
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 12000,
-    system: BRAND_VOICE,
+    system: brandVoice(),
     messages: [
       {
         role: "user",
@@ -248,7 +262,7 @@ export async function generateStrategyReview(
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 2500,
-    system: BRAND_VOICE,
+    system: brandVoice(),
     messages: [
       {
         role: "user",
@@ -263,6 +277,43 @@ ${JSON.stringify(rows)}
 3. איך "לתקוף" בשבוע הבא: על אילו נושאים/פורמטים להכפיל, ואיך לחלק מחדש את התקציב באחוזים.
 4. 3 רעיונות לבדיקות A/B.
 אם אין מספיק נתונים — אמור זאת במפורש והצע תוכנית איסוף נתונים.`,
+      },
+    ],
+  });
+  recordUsage(msg.usage);
+  return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
+}
+
+export interface ProfileInput {
+  businessName: string;
+  whatYouSell: string;
+  audience: string;
+  location: string;
+  tone: string;
+  neverSay: string;
+}
+
+/** Turns the setup form into a brand-voice prompt in the same shape as the built-in ROCCA voice. */
+export async function generateBrandVoice(input: ProfileInput): Promise<string> {
+  assertWithinLimit();
+  const msg = await client.messages.create({
+    model: MODEL,
+    max_tokens: 1200,
+    messages: [
+      {
+        role: "user",
+        content: `כתוב הנחיית מערכת (system prompt) בעברית עבור AI שכותב תוכן שיווקי ותגובות ברשתות חברתיות בשם העסק הבא.
+
+שם העסק: ${input.businessName}
+מה מוכרים/מה העסק עושה: ${input.whatYouSell}
+קהל יעד: ${input.audience}
+מיקום: ${input.location || "לא צוין"}
+טון רצוי: ${input.tone}
+דברים שאסור לומר או לעשות: ${input.neverSay || "לא צוין"}
+
+מבנה ההנחיה, בפסקאות קצרות: (1) מי העסק ובאיזו שפה כותבים, (2) קהל יעד ראשי ומשני ואיך מדברים איתם, (3) הטון והסגנון, מה להדגיש, (4) "אף פעם לא": תמיד כולל מחירים, הנחות ומבצעים, הבטחות שלא נמסרו ועובדות שלא ידועות, בנוסף למה שצוין למעלה.
+אל תמציא עובדות על העסק מעבר למה שנמסר. אם חסר מידע — הנחה לכתוב באופן כללי ולהזמין ליצירת קשר.
+החזר אך ורק את טקסט ההנחיה, בלי הסברים ובלי כותרות.`,
       },
     ],
   });

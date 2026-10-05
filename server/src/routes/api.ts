@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { config, ALL_PLATFORMS, Platform } from "../config";
 import { store, PlatformContent } from "../lib/store";
-import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion, generateMarketingPlan, generateStrategyReview, PlanItem } from "../lib/claude";
+import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion, generateMarketingPlan, generateStrategyReview, generateBrandVoice, PlanItem } from "../lib/claude";
 import { publishPost } from "../lib/publish";
 import {
   verifyWebhookChallenge,
@@ -14,6 +14,7 @@ import { replyToTweet } from "../connectors/x";
 import { fetchInsights } from "../connectors/insights";
 import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
 import { getTier } from "../lib/plans";
+import { getProfile, saveProfile } from "../lib/profile";
 import { PACKS, packLink, grantPack } from "../lib/credits";
 
 export const api = Router();
@@ -65,6 +66,53 @@ function israelTime(dayOffset: number, hour: number, minute: number): Date {
   const offset = il.getTime() - new Date(guess.toLocaleString("en-US", { timeZone: "UTC" })).getTime();
   return new Date(guess.getTime() - offset);
 }
+
+// ---- Business setup ----
+// REQUIRE_PROFILE=true (customer deployments): no content is generated until the business is set up,
+// so a new customer never gets posts written in someone else's voice.
+function requireProfile(_req: Request, res: Response, next: NextFunction) {
+  if (process.env.REQUIRE_PROFILE === "true" && !getProfile()) {
+    return res.status(400).json({ error: "קודם צריך להגדיר את העסק בלשונית 'הגדרות'." });
+  }
+  next();
+}
+api.use(["/api/posts/generate", "/api/plan/generate", "/api/plan/review"], requireProfile);
+
+api.get("/api/profile", (_req, res) => {
+  const p = getProfile();
+  res.json({
+    configured: !!p,
+    required: process.env.REQUIRE_PROFILE === "true",
+    profile: p,
+  });
+});
+
+const profileFields = (b: any) => ({
+  businessName: String(b?.businessName || "").trim().slice(0, 120),
+  whatYouSell: String(b?.whatYouSell || "").trim().slice(0, 600),
+  audience: String(b?.audience || "").trim().slice(0, 400),
+  location: String(b?.location || "").trim().slice(0, 120),
+  tone: String(b?.tone || "").trim().slice(0, 200),
+  neverSay: String(b?.neverSay || "").trim().slice(0, 400),
+});
+
+// Preview: Claude drafts the brand voice from the form; nothing is saved yet.
+api.post("/api/profile/generate", async (req, res) => {
+  try {
+    const f = profileFields(req.body);
+    if (!f.businessName || !f.whatYouSell) return res.status(400).json({ error: "חובה למלא שם עסק ומה אתם מוכרים" });
+    res.json({ brandVoice: await generateBrandVoice(f) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.post("/api/profile", (req, res) => {
+  const f = profileFields(req.body);
+  const brandVoice = String(req.body?.brandVoice || "").trim().slice(0, 6000);
+  if (!f.businessName || !brandVoice) return res.status(400).json({ error: "חסר שם עסק או קול מותג" });
+  res.json(saveProfile({ ...f, brandVoice }));
+});
 
 // ---- Marketing plan ----
 api.post("/api/plan/generate", async (req, res) => {

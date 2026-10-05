@@ -145,8 +145,35 @@
     </section>
 
     <section id="tab-connect" class="tab hidden">
+      <div class="card" id="profileCard">
+        <h2>העסק שלי</h2>
+        <p class="muted-small" id="profileStatus"></p>
+        <label for="pfName">שם העסק</label>
+        <input type="text" id="pfName" placeholder="למשל: סטודיו נעמה" />
+        <label for="pfSell">מה אתם מוכרים / מה העסק עושה?</label>
+        <textarea id="pfSell" rows="3" placeholder="למשל: עיצוב פנים לדירות ולמשרדים, ליווי מלא מרעיון ועד מסירה"></textarea>
+        <label for="pfAud">מי הלקוחות שלכם?</label>
+        <input type="text" id="pfAud" placeholder="למשל: זוגות צעירים ובעלי עסקים בגוש דן" />
+        <label for="pfLoc">מיקום (אופציונלי)</label>
+        <input type="text" id="pfLoc" placeholder="למשל: תל אביב" />
+        <label for="pfTone">איך תרצו להישמע?</label>
+        <select id="pfTone">
+          <option>חם ואישי</option>
+          <option>יוקרתי ומדויק</option>
+          <option>מקצועי ועניני</option>
+          <option>קליל וצעיר</option>
+        </select>
+        <label for="pfNever">משהו שאסור לומר או לעשות? (אופציונלי)</label>
+        <input type="text" id="pfNever" placeholder="למשל: לא להזכיר מתחרים" />
+        <button id="pfGen" style="width:100%">✨ צור לי קול מותג</button>
+        <div id="pfPreview" class="hidden">
+          <label for="pfVoice">קול המותג שנוצר (אפשר לערוך)</label>
+          <textarea id="pfVoice" rows="10"></textarea>
+          <button id="pfSave" style="width:100%">שמור</button>
+        </div>
+      </div>
       <div class="card">
-        <h2>חיבורים</h2>
+        <h2>חיבורים לרשתות</h2>
         <p class="muted-small">חברו את הרשתות פעם אחת, והאפליקציה מפרסמת ועונה בשמכם.</p>
         <div id="connectStatus"><p class="empty">טוען...</p></div>
       </div>
@@ -226,7 +253,7 @@
     <button data-tab="tab-new" class="active">פוסט חדש</button>
     <button data-tab="tab-posts">פוסטים</button>
     <button data-tab="tab-plan">תוכנית</button>
-    <button data-tab="tab-connect">חיבורים</button>
+    <button data-tab="tab-connect">הגדרות</button>
     <button data-tab="tab-replies">תגובות</button>
     <button data-tab="tab-performance">ביצועים</button>
     <button data-tab="tab-inspiration">השראה</button>
@@ -292,7 +319,7 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     document.querySelectorAll(".tab").forEach((t) => t.classList.add("hidden"));
     document.getElementById(btn.dataset.tab).classList.remove("hidden");
     if (btn.dataset.tab === "tab-posts") loadPosts();
-    if (btn.dataset.tab === "tab-connect") loadConnect();
+    if (btn.dataset.tab === "tab-connect") { loadProfile(); loadConnect(); }
     if (btn.dataset.tab === "tab-plan") loadTier();
     if (btn.dataset.tab === "tab-replies") loadReplies();
     if (btn.dataset.tab === "tab-inspiration") {
@@ -334,6 +361,63 @@ async function loadPosts() {
   }
 }
 
+
+
+// ---- Business profile ----
+async function loadProfile() {
+  try {
+    const r = await api("/api/profile");
+    const p = r.profile;
+    document.getElementById("profileStatus").textContent = p
+      ? `✓ מוגדר: ${p.businessName}`
+      : r.required ? "⚠️ צריך להגדיר את העסק לפני שאפשר ליצור תוכן." : "כרגע הכתיבה לפי ברירת המחדל. הגדירו את העסק כדי שהתוכן יתאים לכם.";
+    if (p) {
+      document.getElementById("pfName").value = p.businessName;
+      document.getElementById("pfSell").value = p.whatYouSell;
+      document.getElementById("pfAud").value = p.audience;
+      document.getElementById("pfLoc").value = p.location;
+      document.getElementById("pfNever").value = p.neverSay;
+      const tone = document.getElementById("pfTone");
+      if ([...tone.options].some((o) => o.text === p.tone)) tone.value = p.tone;
+      document.getElementById("pfVoice").value = p.brandVoice;
+      document.getElementById("pfPreview").classList.remove("hidden");
+    }
+  } catch {}
+}
+function profileForm() {
+  return {
+    businessName: document.getElementById("pfName").value,
+    whatYouSell: document.getElementById("pfSell").value,
+    audience: document.getElementById("pfAud").value,
+    location: document.getElementById("pfLoc").value,
+    tone: document.getElementById("pfTone").value,
+    neverSay: document.getElementById("pfNever").value,
+  };
+}
+document.getElementById("pfGen").addEventListener("click", async () => {
+  const btn = document.getElementById("pfGen");
+  btn.disabled = true;
+  btn.textContent = "יוצר…";
+  try {
+    const r = await api("/api/profile/generate", { method: "POST", body: JSON.stringify(profileForm()) });
+    document.getElementById("pfVoice").value = r.brandVoice;
+    document.getElementById("pfPreview").classList.remove("hidden");
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ צור לי קול מותג";
+  }
+});
+document.getElementById("pfSave").addEventListener("click", async () => {
+  try {
+    await api("/api/profile", { method: "POST", body: JSON.stringify({ ...profileForm(), brandVoice: document.getElementById("pfVoice").value }) });
+    toast("✓ נשמר. מעכשיו הכתיבה לפי העסק שלכם");
+    loadProfile();
+  } catch (e) {
+    toast(e.message);
+  }
+});
 
 // ---- Connections ----
 async function loadConnect() {
