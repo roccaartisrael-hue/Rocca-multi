@@ -5,6 +5,48 @@ import { saveConnection, getConnection, clearConnection } from "../lib/connectio
 
 export const auth = Router();
 
+// ---- Legal pages (privacy, terms, data deletion) — required by Meta and the app stores ----
+import fs from "fs";
+import path from "path";
+
+function legalPage(file: string, extra: Record<string, string> = {}) {
+  const raw = fs.readFileSync(path.join(__dirname, "..", "..", "public", "legal", file), "utf-8");
+  const vars: Record<string, string> = {
+    OPERATOR: process.env.OPERATOR_NAME || "מפעילת השירות",
+    EMAIL: process.env.CONTACT_EMAIL || "support@example.com",
+    DATE: process.env.LEGAL_DATE || new Date().toISOString().slice(0, 10),
+    STATUS: "",
+    ...extra,
+  };
+  return raw.replace(/\{\{(\w+)\}\}/g, (_m, k) => vars[k] ?? "");
+}
+auth.get("/legal/privacy", (_req, res) => res.send(legalPage("privacy.html")));
+auth.get("/legal/terms", (_req, res) => res.send(legalPage("terms.html")));
+auth.get("/legal/data-deletion", (req, res) => {
+  const code = String(req.query.code || "").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 64);
+  res.send(legalPage("data-deletion.html", { STATUS: code ? `בקשת המחיקה התקבלה (קוד אישור: ${code}). החיבור והאסימון נמחקו.` : "" }));
+});
+
+/**
+ * Meta "data deletion callback": called when a user removes the app in Facebook. We verify the signed request
+ * with the app secret, drop the stored connection (token) and return the status URL + confirmation code Meta requires.
+ */
+auth.post("/auth/facebook/data-deletion", (req, res) => {
+  try {
+    const signed = String(req.body?.signed_request || "");
+    const [sigB64, payloadB64] = signed.split(".");
+    if (!sigB64 || !payloadB64 || !config.meta.appSecret) return res.status(400).json({ error: "invalid request" });
+    const expected = crypto.createHmac("sha256", config.meta.appSecret).update(payloadB64).digest();
+    const given = Buffer.from(sigB64.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+    if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) return res.status(400).json({ error: "bad signature" });
+    clearConnection();
+    const code = crypto.randomBytes(8).toString("hex");
+    res.json({ url: `${publicUrl(req)}/legal/data-deletion?code=${code}`, confirmation_code: code });
+  } catch {
+    res.status(400).json({ error: "invalid request" });
+  }
+});
+
 const GRAPH = "https://graph.facebook.com/v19.0";
 // Pages + Instagram: publish, comments, messages, insights.
 const SCOPES = [

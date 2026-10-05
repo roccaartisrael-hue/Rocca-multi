@@ -63,6 +63,11 @@ services:
         value: ""
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
+      # Shown in the privacy policy / terms pages (/legal/privacy, /legal/terms, /legal/data-deletion)
+      - key: OPERATOR_NAME
+        sync: false
+      - key: CONTACT_EMAIL
+        sync: false
       - key: AI_MONTHLY_LIMIT
         value: "0"
       # Business description / brand voice for Claude. Leave empty for ROCCA's built-in voice.
