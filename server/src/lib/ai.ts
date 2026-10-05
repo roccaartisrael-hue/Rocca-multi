@@ -51,6 +51,22 @@ export async function geminiModel(force = false): Promise<string> {
   return discovered.model;
 }
 
+/** Models to try in order: the explicit override, or the best discovered Flash plus up to two runners-up. */
+async function geminiCandidates(): Promise<string[]> {
+  if (process.env.GEMINI_MODEL) return [process.env.GEMINI_MODEL];
+  const best = await geminiModel();
+  return [best, ...(discovered?.all || []).filter((m) => m !== best).slice(0, 2)];
+}
+
+/** Overload, rate limit and "model gone" errors are worth trying elsewhere; real request errors are not. */
+function isTransient(status: number, message: string): boolean {
+  return status === 429 || status >= 500 || /high demand|overloaded|unavailable|quota|rate.?limit|try again|no longer available|not found|not supported|is not available/i.test(message);
+}
+
+class GeminiError extends Error {
+  constructor(public status: number, message: string) { super(`Gemini: ${message}`); }
+}
+
 /** For diagnostics: which Flash models this key can use, and which one the app picked. */
 export async function geminiStatus() {
   if (!geminiAvailable()) return { available: false };
@@ -127,7 +143,7 @@ async function viaClaude(p: CreateParams): Promise<AiResult> {
   };
 }
 
-async function viaGemini(p: CreateParams): Promise<AiResult> {
+async function viaGemini(p: CreateParams, model: string): Promise<AiResult> {
   const body: any = {
     contents: [{ role: "user", parts: [{ text: p.messages[0].content }] }],
     generationConfig: { maxOutputTokens: p.max_tokens },
@@ -135,7 +151,6 @@ async function viaGemini(p: CreateParams): Promise<AiResult> {
   if (p.system) body.systemInstruction = { parts: [{ text: p.system }] };
   // Gemini 2.5 Flash can skip "thinking" (budget 0), which otherwise eats the output budget. Newer models use a
   // different control, so the budget is only sent to 2.5 models; if a model rejects it we retry once without.
-  let model = await geminiModel();
   const withBudget = /2\.5.*flash/i.test(model);
   if (withBudget) body.generationConfig.thinkingConfig = { thinkingBudget: Number(process.env.GEMINI_THINKING_BUDGET || 0) };
 
@@ -143,24 +158,14 @@ async function viaGemini(p: CreateParams): Promise<AiResult> {
   const call = () => fetch(`${GEMINI_BASE()}/v1beta/models/${model}:generateContent`, { method: "POST", headers, body: JSON.stringify(body) });
   let res = await call();
   let data: any = await res.json().catch(() => ({}));
-  const msg = () => String(data?.error?.message || "");
-  // A model name that is gone or closed to this key: re-discover once and retry with whatever the key can use.
-  if (!res.ok && !process.env.GEMINI_MODEL && /no longer available|not found|not supported|is not available/i.test(msg())) {
-    const next = await geminiModel(true);
-    if (next !== model) {
-      model = next;
-      res = await call();
-      data = await res.json().catch(() => ({}));
-    }
-  }
-  if (!res.ok && withBudget && /thinking/i.test(msg())) {
+  if (!res.ok && withBudget && /thinking/i.test(String(data?.error?.message))) {
     delete body.generationConfig.thinkingConfig;
     res = await call();
     data = await res.json().catch(() => ({}));
   }
-  if (!res.ok) throw new Error(`Gemini: ${data?.error?.message || res.statusText}`);
+  if (!res.ok) throw new GeminiError(res.status, String(data?.error?.message || res.statusText));
   const text = (data.candidates?.[0]?.content?.parts || []).map((x: any) => x.text || "").join("");
-  if (!text) throw new Error("Gemini לא החזיר טקסט (ייתכן שנחסם). נסו שוב או נסחו אחרת.");
+  if (!text) throw new GeminiError(200, "לא הוחזר טקסט (ייתכן שנחסם)");
   const input = data.usageMetadata?.promptTokenCount || 0;
   const output = (data.usageMetadata?.candidatesTokenCount || 0) + (data.usageMetadata?.thoughtsTokenCount || 0);
   return {
@@ -169,10 +174,34 @@ async function viaGemini(p: CreateParams): Promise<AiResult> {
   };
 }
 
+/**
+ * Gemini first (best model, then runners-up, one short retry on overload); if Gemini is busy or unavailable the
+ * request falls back to Claude so the user never sees "high demand". Real request errors are still reported.
+ */
+async function withGeminiFallback(p: CreateParams): Promise<AiResult> {
+  let last: Error | null = null;
+  for (const model of await geminiCandidates()) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await viaGemini(p, model);
+      } catch (err: any) {
+        last = err;
+        const status = err instanceof GeminiError ? err.status : 500;
+        if (!isTransient(status, String(err.message))) throw err;
+        if (attempt === 0 && /high demand|overloaded|unavailable|429|503/i.test(String(err.message) + status)) await new Promise((r) => setTimeout(r, 1500));
+        else break; // model gone / not supported: go to the next model
+      }
+    }
+  }
+  console.warn(`Gemini unavailable (${last?.message}); falling back to Claude`);
+  if (!config.anthropicApiKey) throw last!;
+  return viaClaude(p);
+}
+
 export const llm = {
   messages: {
     create(p: CreateParams): Promise<AiResult> {
-      return activeProvider(p.task) === "gemini" ? viaGemini(p) : viaClaude(p);
+      return activeProvider(p.task) === "gemini" ? withGeminiFallback(p) : viaClaude(p);
     },
   },
 };
