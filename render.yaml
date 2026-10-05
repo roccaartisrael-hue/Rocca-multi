@@ -55,6 +55,14 @@ services:
       # true on customer copies: no content is written until the business is set up in the app (Settings tab)
       - key: REQUIRE_PROFILE
         value: "false"
+      # Optional second model: Gemini. Without GEMINI_API_KEY the app uses Claude only.
+      - key: GEMINI_API_KEY
+        sync: false
+      # Which tiers use Gemini (comma list: basic,premium,vip). Empty = Claude for all. AI_PROVIDER=gemini = Gemini for all.
+      - key: GEMINI_FOR_TIERS
+        value: ""
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
       - key: AI_MONTHLY_LIMIT
         value: "0"
       # Business description / brand voice for Claude. Leave empty for ROCCA's built-in voice.

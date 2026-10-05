@@ -12,6 +12,8 @@ export interface MonthUsage {
   inputTokens: number;
   outputTokens: number;
   plans?: number;
+  /** Accumulated estimated cost in USD across providers (preferred over token counts when present). */
+  costUsd?: number;
 }
 
 type UsageByMonth = Record<string, MonthUsage>;
@@ -37,8 +39,12 @@ const PRICE_IN = Number(process.env.CLAUDE_PRICE_IN_PER_MTOK || 3);
 const PRICE_OUT = Number(process.env.CLAUDE_PRICE_OUT_PER_MTOK || 15);
 const USD_ILS = Number(process.env.USD_ILS || 3.1);
 
+function tokenCostUsd(u: MonthUsage): number {
+  return (u.inputTokens * PRICE_IN + u.outputTokens * PRICE_OUT) / 1e6;
+}
+
 function costIls(u: MonthUsage): number {
-  return ((u.inputTokens * PRICE_IN + u.outputTokens * PRICE_OUT) / 1e6) * USD_ILS;
+  return (u.costUsd ?? tokenCostUsd(u)) * USD_ILS;
 }
 
 /** AI_MONTHLY_LIMIT, when set, overrides the tier's call allowance. */
@@ -112,13 +118,17 @@ export function assertWithinLimit(): void {
 }
 
 /** Counts one Claude call and its token usage against the current month. */
-export function recordUsage(usage?: { input_tokens?: number; output_tokens?: number }): void {
+export function recordUsage(usage?: { input_tokens?: number; output_tokens?: number; cost_usd?: number }): void {
   const all = read();
   const month = monthKey();
   const cur = all[month] || { calls: 0, inputTokens: 0, outputTokens: 0 };
   cur.calls += 1;
   cur.inputTokens += usage?.input_tokens || 0;
   cur.outputTokens += usage?.output_tokens || 0;
+  // Per-call cost (provider-specific). Earlier token-only usage this month is folded in once.
+  const callUsd = usage?.cost_usd ?? ((usage?.input_tokens || 0) * PRICE_IN + (usage?.output_tokens || 0) * PRICE_OUT) / 1e6;
+  const before = cur.costUsd ?? tokenCostUsd({ ...cur, inputTokens: cur.inputTokens - (usage?.input_tokens || 0), outputTokens: cur.outputTokens - (usage?.output_tokens || 0) });
+  cur.costUsd = before + callUsd;
   all[month] = cur;
   write(all);
 }

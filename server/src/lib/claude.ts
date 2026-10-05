@@ -1,11 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { config, Platform } from "../config";
 import { assertWithinLimit, recordUsage } from "./usage";
 import { getProfile } from "./profile";
+import { llm } from "./ai";
 
-const client = new Anthropic({ apiKey: config.anthropicApiKey });
-
-const MODEL = "claude-sonnet-5";
 
 // Draft brand voice, pending owner approval — see docs/BRAND_VOICE.md (source of truth; update both together).
 const DEFAULT_BRAND_VOICE = `
@@ -78,8 +75,7 @@ export async function generatePostForPlatforms(
   }
 
   assertWithinLimit();
-  const msg = await client.messages.create({
-    model: MODEL,
+  const msg = await llm.messages.create({
     max_tokens: 1500,
     system: brandVoice(),
     messages: [
@@ -107,8 +103,7 @@ export async function generateReplyDraft(params: {
   channel: string;
 }): Promise<string> {
   assertWithinLimit();
-  const msg = await client.messages.create({
-    model: MODEL,
+  const msg = await llm.messages.create({
     max_tokens: 400,
     system: `${brandVoice()}
 
@@ -193,8 +188,7 @@ export async function generateMarketingPlan(req: PlanRequest, context?: Generati
   }
 
   assertWithinLimit();
-  const msg = await client.messages.create({
-    model: MODEL,
+  const msg = await llm.messages.create({
     max_tokens: 12000,
     system: brandVoice(),
     messages: [
@@ -259,8 +253,7 @@ export async function generateStrategyReview(
   weeklyBudget: number
 ): Promise<string> {
   assertWithinLimit();
-  const msg = await client.messages.create({
-    model: MODEL,
+  const msg = await llm.messages.create({
     max_tokens: 2500,
     system: brandVoice(),
     messages: [
@@ -296,8 +289,7 @@ export interface ProfileInput {
 /** Turns the setup form into a brand-voice prompt in the same shape as the built-in ROCCA voice. */
 export async function generateBrandVoice(input: ProfileInput): Promise<string> {
   assertWithinLimit();
-  const msg = await client.messages.create({
-    model: MODEL,
+  const msg = await llm.messages.create({
     max_tokens: 1200,
     messages: [
       {
