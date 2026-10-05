@@ -607,16 +607,18 @@ document.getElementById("cgBtn").addEventListener("click", async () => {
 
 
 // ---- Model selector (auto / Claude / Gemini) ----
-const MODEL_CHIPS = [
+function modelChips() {
+  return [
   ["auto", "אוטומטי", "המערכת בוחרת: Gemini למשימות קלות, Claude למשימות מורכבות (מומלץ)"],
   ["claude", "⭐ Claude", "איכות גבוהה: כתיבה, אסטרטגיה וניתוח ברמה הגבוהה ביותר. צורך יותר מהמכסה."],
   ["gemini", "⚡ Gemini", "מהיר וחסכוני: מתאים לפוסטים ולתגובות פשוטים"],
 ];
+}
 function renderModelChips() {
   const wrap = document.getElementById("modelChips");
   const cur = localStorage.getItem("rocca_model") || "auto";
   wrap.innerHTML = "";
-  MODEL_CHIPS.forEach(([key, label, tip]) => {
+  modelChips().forEach(([key, label, tip]) => {
     const chip = el(`<div class="chip ${cur === key ? "active" : ""}" title="${escapeHtml(tip)}">${label}</div>`);
     chip.addEventListener("click", () => {
       localStorage.setItem("rocca_model", key);
