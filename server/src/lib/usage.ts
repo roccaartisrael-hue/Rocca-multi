@@ -35,7 +35,7 @@ function write(data: UsageByMonth) {
 // Estimated Claude price in USD per million tokens and the USD→ILS rate; override via env if pricing changes.
 const PRICE_IN = Number(process.env.CLAUDE_PRICE_IN_PER_MTOK || 3);
 const PRICE_OUT = Number(process.env.CLAUDE_PRICE_OUT_PER_MTOK || 15);
-const USD_ILS = Number(process.env.USD_ILS || 3.7);
+const USD_ILS = Number(process.env.USD_ILS || 3.1);
 
 function costIls(u: MonthUsage): number {
   return ((u.inputTokens * PRICE_IN + u.outputTokens * PRICE_OUT) / 1e6) * USD_ILS;
