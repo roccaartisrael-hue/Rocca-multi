@@ -59,14 +59,17 @@ auth.post("/api/connection/start", (req, res) => {
   if (!config.meta.appId || !config.meta.appSecret) {
     return res.status(400).json({ error: "חסרה הגדרה: META_APP_ID ו-META_APP_SECRET ב-Render" });
   }
-  const url = `https://www.facebook.com/v19.0/dialog/oauth?${new URLSearchParams({
+  // "Facebook Login for Business" apps take permissions from a Configuration (config_id) instead of scope.
+  const configId = process.env.META_LOGIN_CONFIG_ID || "";
+  const params: Record<string, string> = {
     client_id: config.meta.appId,
     redirect_uri: `${publicUrl(req)}/auth/facebook/callback`,
     state: makeState(),
-    scope: SCOPES,
     response_type: "code",
-  })}`;
-  res.json({ url });
+  };
+  if (configId) params.config_id = configId;
+  else params.scope = SCOPES;
+  res.json({ url: `https://www.facebook.com/v19.0/dialog/oauth?${new URLSearchParams(params)}` });
 });
 
 // Step 2: Facebook returns here with ?code. Exchange for a long-lived user token, then read the Page + its Instagram.
