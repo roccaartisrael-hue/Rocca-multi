@@ -3,7 +3,7 @@
 const { spawn } = require("child_process");
 const PORT = 3999;
 const routes = [
-  ["GET", "/api/health"], ["GET", "/api/usage"], ["GET", "/api/storage"], ["GET", "/api/profile"], ["GET", "/api/packs"],
+  ["GET", "/api/health"], ["GET", "/api/media/status"], ["POST", "/api/media/upload"], ["GET", "/api/usage"], ["GET", "/api/storage"], ["GET", "/api/profile"], ["GET", "/api/packs"],
   ["GET", "/api/posts"], ["GET", "/api/campaigns"], ["GET", "/api/connection"], ["GET", "/api/performance"],
   ["POST", "/api/profile/generate"], ["POST", "/api/profile/market"], ["POST", "/api/profile"],
   ["POST", "/api/posts/generate"], ["POST", "/api/posts/auto-schedule-all"], ["POST", "/api/plan/generate"],

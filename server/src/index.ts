@@ -11,6 +11,8 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+// Raw binary body for media uploads only (photos/videos): /api/media/upload
+app.use("/api/media/upload", express.raw({ type: ["image/*", "video/*"], limit: "60mb" }));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "..", "public")));
 

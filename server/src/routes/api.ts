@@ -18,6 +18,7 @@ import { israelTime, pickSlot } from "../lib/autoschedule";
 import { campaigns } from "../lib/campaigns";
 import { getProfile, saveProfile } from "../lib/profile";
 import { storageStatus } from "../lib/persist";
+import { uploadMedia, mediaConfigured } from "../lib/media";
 import { PACKS, packLink, grantPack } from "../lib/credits";
 
 export const api = Router();
@@ -70,6 +71,19 @@ function requireProfile(_req: Request, res: Response, next: NextFunction) {
   next();
 }
 api.use(["/api/posts/generate", "/api/plan/generate", "/api/plan/review", "/api/campaign/generate"], requireProfile);
+
+api.get("/api/media/status", (_req, res) => res.json({ uploadEnabled: mediaConfigured() }));
+
+// Upload a photo/video from the dashboard; returns a public URL to use in a post.
+api.post("/api/media/upload", async (req, res) => {
+  try {
+    const type = String(req.header("content-type") || "");
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: "לא התקבל קובץ, או שסוג הקובץ לא נתמך (JPG, PNG, WEBP, MP4, MOV)" });
+    res.json({ url: await uploadMedia(req.body, type) });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 api.get("/api/storage", (_req, res) => res.json(storageStatus()));
 

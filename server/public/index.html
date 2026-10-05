@@ -124,7 +124,7 @@
         <label>לאילו פלטפורמות?</label>
         <div class="platforms" id="platformChips"></div>
 
-        <label for="imageInput">קישור לתמונה (חובה לאינסטגרם/טיקטוק, אופציונלי לשאר)</label>
+        <label for="imageInput">תמונה או סרטון (קישור ישיר, חובה לאינסטגרם/טיקטוק; סרטון MP4 הופך ל-Reel)</label>
         <input type="url" id="imageInput" placeholder="https://..." />
 
         <button id="generateBtn">✨ צור טיוטה עם Claude</button>
@@ -322,6 +322,7 @@ function showApp() {
   renderPlatformChips();
   loadReplies();
   loadHistory();
+  attachUpload(document.getElementById("imageInput"));
 }
 
 document.getElementById("loginBtn").addEventListener("click", () => {
@@ -710,9 +711,10 @@ function renderPlan(plan, box) {
     const card = el(`<div class="card"><h2>${esc(dateOf(it.dayOffset))} · ${esc(it.time)} — ${esc(it.topic)}</h2>
       <p class="muted-small">💡 תמונה מומלצת: ${esc(it.imageIdea)}</p>
       ${it.boost ? `<p class="muted-small">💰 קידום מומלץ: ${it.boost.budgetIls} ₪ ל-${it.boost.days} ימים · עדיפות ${it.boost.priority}/5</p>` : ""}
-      <input type="url" class="pimg" placeholder="קישור לתמונה (אופציונלי)" />
+      <input type="url" class="pimg" placeholder="קישור לתמונה או סרטון (אופציונלי)" />
       ${Object.entries(it.texts || {}).map(([p, t]) => `<label>${esc(PLATFORM_LABELS[p] || p)}</label><textarea data-p="${esc(p)}" rows="4">${esc(t)}</textarea>`).join("")}
       <button class="secondary prm">הסר מהתוכנית</button></div>`);
+    attachUpload(card.querySelector(".pimg"));
     card.querySelector(".prm").addEventListener("click", () => { card.remove(); cards.splice(cards.findIndex((c) => c.card === card), 1); });
     cards.push({ card, it });
     box.appendChild(card);
@@ -734,6 +736,37 @@ function renderPlan(plan, box) {
     }
   });
   box.appendChild(ok);
+}
+
+
+// ---- Media upload (photo/video) ----
+var mediaUploadEnabled = null; // var: showApp() may run before this line during page load
+async function uploadFileTo(inputEl, file, statusEl) {
+  statusEl.textContent = "מעלה… " + (file.size / 1048576).toFixed(1) + "MB";
+  try {
+    const r = await fetch("/api/media/upload", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": file.type || "application/octet-stream" }, body: file });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error || r.statusText);
+    inputEl.value = body.url;
+    inputEl.dispatchEvent(new Event("input"));
+    statusEl.textContent = "✓ הועלה";
+  } catch (e) {
+    statusEl.textContent = "";
+    toast(e.message);
+  }
+}
+async function attachUpload(inputEl) {
+  if (mediaUploadEnabled == null) {
+    try { mediaUploadEnabled = (await api("/api/media/status")).uploadEnabled; } catch { mediaUploadEnabled = false; }
+  }
+  if (!mediaUploadEnabled || inputEl.dataset.uploadAttached) return;
+  inputEl.dataset.uploadAttached = "1";
+  const wrap = el(`<div class="row-actions" style="margin:6px 0"><button type="button" class="secondary">📎 העלאת תמונה או סרטון</button><span class="muted-small upStatus"></span></div>`);
+  const file = el(`<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime" class="hidden">`);
+  wrap.querySelector("button").addEventListener("click", () => file.click());
+  file.addEventListener("change", () => { if (file.files[0]) uploadFileTo(inputEl, file.files[0], wrap.querySelector(".upStatus")); });
+  wrap.appendChild(file);
+  inputEl.after(wrap);
 }
 
 // ---- New post ----
@@ -793,6 +826,10 @@ function renderDraft(post, container = document.getElementById("draftContainer")
     `);
     card.appendChild(block);
   });
+
+  const mediaRow = el(`<div class="post-block"><label>תמונה או סרטון (קישור)</label><input type="url" class="draftMedia" placeholder="https://..." value="${escapeHtml((post.platforms.find((x) => x.imageUrl) || {}).imageUrl || "")}" /></div>`);
+  card.appendChild(mediaRow);
+  attachUpload(mediaRow.querySelector(".draftMedia"));
 
   const scheduleRow = el(`
     <div class="post-block schedule-row ${post.status === "scheduled" ? "" : "hidden"}">
@@ -992,9 +1029,11 @@ function updatePostHeaderStatus(card, post) {
 
 async function saveDraftEdits(card, post, thenPublish) {
   const textareas = card.querySelectorAll("textarea[data-idx]");
+  const media = card.querySelector(".draftMedia");
   const platforms = post.platforms.map((pc, i) => ({
     ...pc,
     text: textareas[i] ? textareas[i].value : pc.text,
+    imageUrl: media ? media.value.trim() || undefined : pc.imageUrl,
   }));
   const updated = await api(`/api/posts/${post.id}`, {
     method: "PATCH",
