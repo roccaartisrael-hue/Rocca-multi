@@ -30,6 +30,28 @@ export async function postToFacebook(text: string, imageUrl?: string): Promise<s
   return result.id || "unknown";
 }
 
+/**
+ * Instagram processes the uploaded image asynchronously. Publishing before the
+ * container is FINISHED fails with "Media ID is not available", so poll its
+ * status (up to ~60s) before calling media_publish.
+ */
+async function waitForInstagramContainer(containerId: string): Promise<void> {
+  const url = `${GRAPH}/${containerId}?fields=status_code,status&access_token=${encodeURIComponent(
+    config.meta.pageAccessToken,
+  )}`;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const res = await fetch(url);
+    const json = (await res.json()) as { status_code?: string; status?: string; error?: { message: string } };
+    if (json.error) throw new Error(`Meta Graph API error: ${json.error.message}`);
+    if (json.status_code === "FINISHED") return;
+    if (json.status_code === "ERROR" || json.status_code === "EXPIRED") {
+      throw new Error(`Instagram could not process the media (${json.status || json.status_code})`);
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  throw new Error("Instagram media processing timed out — try again in a minute");
+}
+
 export async function postToInstagram(caption: string, imageUrl: string): Promise<string> {
   if (!config.meta.igUserId || !config.meta.pageAccessToken) {
     throw new Error("META_IG_USER_ID / META_PAGE_ACCESS_TOKEN not configured");
@@ -43,6 +65,7 @@ export async function postToInstagram(caption: string, imageUrl: string): Promis
     access_token: config.meta.pageAccessToken,
   });
   if (!container.id) throw new Error("Failed to create Instagram media container");
+  await waitForInstagramContainer(container.id);
   const published = await graphPost(`/${config.meta.igUserId}/media_publish`, {
     creation_id: container.id,
     access_token: config.meta.pageAccessToken,
