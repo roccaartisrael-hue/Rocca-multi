@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { config, ALL_PLATFORMS, Platform } from "../config";
 import { store, PlatformContent } from "../lib/store";
-import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion, generateMarketingPlan, generateStrategyReview, generateBrandVoice, generateCampaign, PlanItem } from "../lib/claude";
+import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion, generateMarketingPlan, generateStrategyReview, generateBrandVoice, generateMarketBrief, generateCampaign, PlanItem } from "../lib/claude";
 import { publishPost } from "../lib/publish";
 import {
   verifyWebhookChallenge,
@@ -58,6 +58,77 @@ api.get("/api/packs", (_req, res) => {
 // Claude usage this month (calls + tokens) vs. AI_MONTHLY_LIMIT — for tracking real cost per business.
 api.get("/api/usage", (_req, res) => {
   res.json({ ...currentUsage(), scheduledCount: store.listPosts().filter((p) => p.status === "scheduled").length });
+});
+
+// ---- Business setup ----
+// REQUIRE_PROFILE=true (customer deployments): no content is generated until the business is set up,
+// so a new customer never gets posts written in someone else's voice.
+function requireProfile(_req: Request, res: Response, next: NextFunction) {
+  if (process.env.REQUIRE_PROFILE === "true" && !getProfile()) {
+    return res.status(400).json({ error: "קודם צריך להגדיר את העסק בלשונית 'הגדרות'." });
+  }
+  next();
+}
+api.use(["/api/posts/generate", "/api/plan/generate", "/api/plan/review", "/api/campaign/generate"], requireProfile);
+
+api.get("/api/storage", (_req, res) => res.json(storageStatus()));
+
+api.get("/api/profile", (_req, res) => {
+  const p = getProfile();
+  res.json({
+    configured: !!p,
+    required: process.env.REQUIRE_PROFILE === "true",
+    profile: p,
+  });
+});
+
+const profileFields = (b: any) => ({
+  businessName: String(b?.businessName || "").trim().slice(0, 120),
+  whatYouSell: String(b?.whatYouSell || "").trim().slice(0, 600),
+  audience: String(b?.audience || "").trim().slice(0, 400),
+  location: String(b?.location || "").trim().slice(0, 120),
+  tone: String(b?.tone || "").trim().slice(0, 200),
+  neverSay: String(b?.neverSay || "").trim().slice(0, 400),
+});
+
+// Preview: Claude drafts the brand voice from the form; nothing is saved yet.
+api.post("/api/profile/generate", async (req, res) => {
+  try {
+    const f = profileFields(req.body);
+    if (!f.businessName || !f.whatYouSell) return res.status(400).json({ error: "חובה למלא שם עסק ומה אתם מוכרים" });
+    res.json({ brandVoice: await generateBrandVoice(f) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Learns the market of this business (works before saving: uses the form fields plus the account's own results).
+api.post("/api/profile/market", async (req, res) => {
+  try {
+    const f = profileFields(req.body);
+    if (!f.businessName || !f.whatYouSell) return res.status(400).json({ error: "חובה למלא שם עסק ומה אתם מוכרים" });
+    const tier = getTier();
+    const top = store.topPerformingPlatformContent("engagement", 3);
+    const stats = top.length
+      ? top.map((r) => `${r.content.platform}: מעורבות ${r.content.metrics?.engagement ?? "?"}, חשיפה ${r.content.metrics?.reach ?? "?"}`).join("; ")
+      : "";
+    const market = await generateMarketBrief(f, {
+      topPerformers: tier.learnsFromPerformance ? top.map((r) => r.content.text).filter(Boolean) : [],
+      inspirationNotes: tier.learnsFromPerformance ? store.listInspirations().slice(0, 3).map((i) => i.note).filter(Boolean) : [],
+      stats,
+    });
+    res.json({ market });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.post("/api/profile", (req, res) => {
+  const f = profileFields(req.body);
+  const brandVoice = String(req.body?.brandVoice || "").trim().slice(0, 6000);
+  if (!f.businessName || !brandVoice) return res.status(400).json({ error: "חסר שם עסק או קול מותג" });
+  const market = req.body?.market === undefined ? undefined : String(req.body.market).trim().slice(0, 6000);
+  res.json(saveProfile({ ...f, brandVoice, market: market ?? getProfile()?.market }));
 });
 
 // ---- Marketing plan ----

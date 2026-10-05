@@ -172,6 +172,10 @@
         <div id="pfPreview" class="hidden">
           <label for="pfVoice">קול המותג שנוצר (אפשר לערוך)</label>
           <textarea id="pfVoice" rows="10"></textarea>
+          <label for="pfMarket">הכרת השוק שלכם (אפשר לערוך)</label>
+          <textarea id="pfMarket" rows="10" placeholder="לחצו על 'למד את השוק שלי' כדי שה-AI יכיר את התחום, הלקוחות והעונתיות שלכם"></textarea>
+          <button id="pfMarketBtn" class="secondary" style="width:100%;margin-bottom:8px">🔎 למד את השוק שלי</button>
+          <p class="muted-small">זו ידיעה כללית של ה-AI על התחום, בשילוב התוצאות שלכם. לא נתוני שוק עדכניים, ולא מועתק תוכן ממתחרים. כדאי לתקן לפי מה שאתם מכירים.</p>
           <button id="pfSave" style="width:100%">שמור</button>
         </div>
       </div>
@@ -422,6 +426,7 @@ async function loadProfile() {
       const tone = document.getElementById("pfTone");
       if ([...tone.options].some((o) => o.text === p.tone)) tone.value = p.tone;
       document.getElementById("pfVoice").value = p.brandVoice;
+      document.getElementById("pfMarket").value = p.market || "";
       document.getElementById("pfPreview").classList.remove("hidden");
     }
   } catch {}
@@ -451,9 +456,24 @@ document.getElementById("pfGen").addEventListener("click", async () => {
     btn.textContent = "✨ צור לי קול מותג";
   }
 });
+document.getElementById("pfMarketBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("pfMarketBtn");
+  btn.disabled = true;
+  btn.textContent = "לומד את השוק…";
+  try {
+    const r = await api("/api/profile/market", { method: "POST", body: JSON.stringify(profileForm()) });
+    document.getElementById("pfMarket").value = r.market;
+    toast("✓ הוכן תקציר שוק. תבדקו, תתקנו, ושמרו");
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🔎 למד את השוק שלי";
+  }
+});
 document.getElementById("pfSave").addEventListener("click", async () => {
   try {
-    await api("/api/profile", { method: "POST", body: JSON.stringify({ ...profileForm(), brandVoice: document.getElementById("pfVoice").value }) });
+    await api("/api/profile", { method: "POST", body: JSON.stringify({ ...profileForm(), brandVoice: document.getElementById("pfVoice").value, market: document.getElementById("pfMarket").value }) });
     toast("✓ נשמר. מעכשיו הכתיבה לפי העסק שלכם");
     loadProfile();
   } catch (e) {

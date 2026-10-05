@@ -19,7 +19,10 @@ const DEFAULT_BRAND_VOICE = `
 // Per-deployment override: set BRAND_VOICE to run the bot for a different business.
 // A voice saved from the setup screen wins over BRAND_VOICE, which wins over the built-in ROCCA voice.
 function brandVoice(): string {
-  return getProfile()?.brandVoice || config.brandVoice || DEFAULT_BRAND_VOICE;
+  const p = getProfile();
+  const base = p?.brandVoice || config.brandVoice || DEFAULT_BRAND_VOICE;
+  // The learned market brief rides along in every prompt (capped so it stays cheap).
+  return p?.market ? `${base}\n\nידע על השוק של העסק (להתאמת הזוויות, העונתיות והמסרים; לא להעתיק מילה במילה):\n${p.market.slice(0, 2500)}` : base;
 }
 function businessName(): string {
   return getProfile()?.businessName || "ROCCA";
@@ -375,4 +378,43 @@ ${ctx.length ? "\n" + ctx.join("\n\n") + "\n" : ""}
     cr.budgetIls = stage ? Math.round(stage.budgetIls / same) : 0;
   });
   return c;
+}
+
+/**
+ * Learns the business's market: what drives buying decisions, customer segments, seasonality in Israel,
+ * content angles and how to stand out. Built from the owner's profile plus the account's own results.
+ * It is the model's general knowledge — not live market data and never scraped competitor content.
+ */
+export async function generateMarketBrief(input: ProfileInput, context?: GenerationContext & { stats?: string }): Promise<string> {
+  const ctx: string[] = [];
+  if (context?.topPerformers?.length) ctx.push(`פוסטים של העסק שהצליחו:\n` + context.topPerformers.map((t) => `- "${t}"`).join("\n"));
+  if (context?.inspirationNotes?.length) ctx.push(`מה בעל העסק אוהב:\n` + context.inspirationNotes.map((n) => `- "${n}"`).join("\n"));
+  if (context?.stats) ctx.push(`נתוני ביצועים של העסק:\n${context.stats}`);
+  assertWithinLimit();
+  const msg = await llm.messages.create({
+    max_tokens: 1800,
+    messages: [
+      {
+        role: "user",
+        content: `אתה אנליסט שוק ושיווק. כתוב תקציר שוק קצר ושימושי בעברית (עד 450 מילים) עבור העסק הבא, כדי שמערכת שכותבת עבורו תוכן תכיר את השוק שלו.
+
+שם העסק: ${input.businessName}
+מה מוכרים: ${input.whatYouSell}
+קהל יעד: ${input.audience}
+מיקום: ${input.location || "לא צוין"}
+${ctx.length ? "\n" + ctx.join("\n\n") + "\n" : ""}
+סעיפים (כותרת קצרה לכל אחד, ואחריה נקודות קצרות):
+1. איך מקבלים החלטת רכישה בשוק הזה (מה משפיע, מי משפיע, כמה זמן זה לוקח).
+2. פלחי לקוחות וצרכים עיקריים.
+3. עונתיות ואירועים רלוונטיים בישראל (חגים, עונות, תקופות עבודה).
+4. זוויות תוכן שמתאימות לתחום ולפלטפורמות (פייסבוק/אינסטגרם).
+5. איך עסקים בתחום נוטים להציג את עצמם (סוגים כלליים, בלי שמות), ומה יכול להבדיל את העסק הזה.
+6. חמש שאלות שכדאי שבעל העסק יברר מלקוחות כדי לדייק.
+
+כללים: זו ידיעה כללית ולא נתוני שוק עדכניים. אל תמציא מספרים, אחוזים או שמות מתחרים. סמן הנחות במילה "הנחה:". בלי מחירים. החזר רק את התקציר.`,
+      },
+    ],
+  });
+  recordUsage(msg.usage);
+  return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
 }
