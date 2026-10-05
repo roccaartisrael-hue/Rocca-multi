@@ -662,7 +662,10 @@ function renderDraft(post, container = document.getElementById("draftContainer")
   const scheduleRow = el(`
     <div class="post-block schedule-row ${post.status === "scheduled" ? "" : "hidden"}">
       <label>מתי לפרסם?</label>
-      <input type="datetime-local" class="scheduleInput" value="${post.scheduledFor ? toLocalInputValue(post.scheduledFor) : ""}" />
+      <div class="platforms dayChips"></div>
+      <div class="platforms timeChips"></div>
+      <label class="muted-small">או תאריך ושעה מדויקים:</label>
+      <input type="datetime-local" class="scheduleInput" min="${toLocalInputValue(new Date().toISOString())}" value="${post.scheduledFor ? toLocalInputValue(post.scheduledFor) : ""}" />
       <div class="row-actions">
         <button class="secondary confirmScheduleBtn">קבע תזמון</button>
         ${post.status === "scheduled" ? `<button class="danger cancelScheduleBtn">בטל תזמון</button>` : ""}
@@ -670,6 +673,7 @@ function renderDraft(post, container = document.getElementById("draftContainer")
     </div>
   `);
   card.appendChild(scheduleRow);
+  setupSchedulePicker(scheduleRow);
 
   const actions = el(`
     <div class="row-actions">
@@ -712,6 +716,10 @@ function renderDraft(post, container = document.getElementById("draftContainer")
       alert("בחרו תאריך ושעה");
       return;
     }
+    if (new Date(value).getTime() < Date.now() + 60000) {
+      toast("בחרו זמן עתידי");
+      return;
+    }
     const iso = new Date(value).toISOString();
     const updated = await api(`/api/posts/${post.id}`, {
       method: "PATCH",
@@ -738,6 +746,40 @@ function renderDraft(post, container = document.getElementById("draftContainer")
 
   updatePostHeaderStatus(card, post);
   container.prepend(card);
+}
+
+// Quick scheduling: the next 14 days as chips plus common posting times; both fill the exact date/time field.
+function setupSchedulePicker(row) {
+  const input = row.querySelector(".scheduleInput");
+  const dayBox = row.querySelector(".dayChips");
+  const timeBox = row.querySelector(".timeChips");
+  const times = ["09:00", "12:00", "14:00", "17:00", "19:00", "21:00"];
+  const pad = (n) => String(n).padStart(2, "0");
+  const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  let day = input.value ? input.value.slice(0, 10) : "";
+  let time = input.value ? input.value.slice(11, 16) : "19:00";
+
+  function sync() {
+    if (day) input.value = `${day}T${time}`;
+    dayBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.d === day));
+    timeBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.t === time));
+  }
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(Date.now() + i * 86400000);
+    const label = i === 0 ? "היום" : i === 1 ? "מחר" : d.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" });
+    const chip = el(`<div class="chip" data-d="${dayKey(d)}">${label}</div>`);
+    chip.addEventListener("click", () => { day = chip.dataset.d; sync(); });
+    dayBox.appendChild(chip);
+  }
+  times.forEach((t) => {
+    const chip = el(`<div class="chip" data-t="${t}">${t}</div>`);
+    chip.addEventListener("click", () => { time = t; if (!day) day = dayKey(new Date(Date.now() + 86400000)); sync(); });
+    timeBox.appendChild(chip);
+  });
+  input.addEventListener("input", () => {
+    if (input.value) { day = input.value.slice(0, 10); time = input.value.slice(11, 16); sync(); }
+  });
+  sync();
 }
 
 function toast(msg) {
