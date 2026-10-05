@@ -152,6 +152,7 @@
         <h2>העסק שלי</h2>
         <p class="muted-small" id="profileStatus"></p>
         <p class="muted-small" id="storageStatus"></p>
+        <p class="muted-small" id="aiStatus"></p>
         <label for="pfName">שם העסק</label>
         <input type="text" id="pfName" placeholder="למשל: סטודיו נעמה" />
         <label for="pfSell">מה אתם מוכרים / מה העסק עושה?</label>
@@ -408,6 +409,14 @@ async function loadPosts() {
 
 // ---- Business profile ----
 async function loadProfile() {
+  try {
+    const g = await api("/api/ai/status");
+    document.getElementById("aiStatus").textContent = !g.available
+      ? "ג'מיני: לא מחובר (חסר GEMINI_API_KEY). הכול עובד על Claude."
+      : g.usable && g.usable.length
+        ? `ג'מיני: מחובר · מודל פעיל: ${g.model} · זמינים למפתח: ${g.usable.join(", ")}`
+        : `ג'מיני: המפתח מחובר, אבל לא נמצאו מודלי Flash זמינים למפתח הזה (נעשה שימוש ב-${g.model}). אם זה נכשל, האפליקציה עוברת ל-Claude.`;
+  } catch {}
   try {
     const st = await api("/api/storage");
     document.getElementById("storageStatus").textContent =
