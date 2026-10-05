@@ -16,7 +16,47 @@ export type Provider = "claude" | "gemini";
 
 const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
 const CLAUDE_MODEL = "claude-sonnet-5";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const GEMINI_BASE = () => process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com";
+// Last-resort name if the model list can't be fetched. Normally the model is discovered from the API (see below).
+const GEMINI_FALLBACK = "gemini-flash-latest";
+
+interface ModelInfo { name: string; version: number[]; stable: boolean }
+let discovered: { model: string; at: number; all: string[] } | null = null;
+
+/** Picks the newest general-purpose Flash model that this API key can actually call (generateContent). */
+function pickFlash(models: { name: string; supportedGenerationMethods?: string[] }[]): { best: string; all: string[] } {
+  const ok: ModelInfo[] = [];
+  for (const m of models) {
+    const id = m.name.replace(/^models\//, "");
+    if (!(m.supportedGenerationMethods || []).includes("generateContent")) continue;
+    const match = id.match(/^gemini-(\d+)(?:\.(\d+))?-flash(-preview)?(?:-\d+)?$/);
+    if (!match) continue; // skips lite, image, tts, live, audio, exp, thinking variants
+    ok.push({ name: id, version: [Number(match[1]), Number(match[2] || 0)], stable: !match[3] && !/-\d{2,}$/.test(id) });
+  }
+  ok.sort((a, b) => b.version[0] - a.version[0] || b.version[1] - a.version[1] || Number(b.stable) - Number(a.stable));
+  return { best: ok[0]?.name || "", all: ok.map((m) => m.name) };
+}
+
+export async function geminiModel(force = false): Promise<string> {
+  if (process.env.GEMINI_MODEL) return process.env.GEMINI_MODEL; // explicit override
+  if (!force && discovered && Date.now() - discovered.at < 3600_000) return discovered.model;
+  try {
+    const res = await fetch(`${GEMINI_BASE()}/v1beta/models?pageSize=200`, { headers: { "x-goog-api-key": process.env.GEMINI_API_KEY! } });
+    const data: any = await res.json();
+    const { best, all } = pickFlash(data.models || []);
+    discovered = { model: best || GEMINI_FALLBACK, at: Date.now(), all };
+  } catch {
+    discovered = { model: GEMINI_FALLBACK, at: Date.now() - 3000_000, all: [] }; // retry listing in ~10 min
+  }
+  return discovered.model;
+}
+
+/** For diagnostics: which Flash models this key can use, and which one the app picked. */
+export async function geminiStatus() {
+  if (!geminiAvailable()) return { available: false };
+  const model = await geminiModel();
+  return { available: true, model, overridden: !!process.env.GEMINI_MODEL, usable: discovered?.all || [] };
+}
 
 /**
  * Task routing: Gemini takes the light, high-volume writing; Claude takes the work that needs depth.
@@ -95,16 +135,27 @@ async function viaGemini(p: CreateParams): Promise<AiResult> {
   if (p.system) body.systemInstruction = { parts: [{ text: p.system }] };
   // Gemini 2.5 Flash can skip "thinking" (budget 0), which otherwise eats the output budget. Newer models use a
   // different control, so the budget is only sent to 2.5 models; if a model rejects it we retry once without.
-  const withBudget = /2\.5.*flash/i.test(GEMINI_MODEL);
+  let model = await geminiModel();
+  const withBudget = /2\.5.*flash/i.test(model);
   if (withBudget) body.generationConfig.thinkingConfig = { thinkingBudget: Number(process.env.GEMINI_THINKING_BUDGET || 0) };
 
-  const url = `${process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com"}/v1beta/models/${GEMINI_MODEL}:generateContent`;
   const headers = { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! };
-  let res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  const call = () => fetch(`${GEMINI_BASE()}/v1beta/models/${model}:generateContent`, { method: "POST", headers, body: JSON.stringify(body) });
+  let res = await call();
   let data: any = await res.json().catch(() => ({}));
-  if (!res.ok && withBudget && /thinking/i.test(String(data?.error?.message))) {
+  const msg = () => String(data?.error?.message || "");
+  // A model name that is gone or closed to this key: re-discover once and retry with whatever the key can use.
+  if (!res.ok && !process.env.GEMINI_MODEL && /no longer available|not found|not supported|is not available/i.test(msg())) {
+    const next = await geminiModel(true);
+    if (next !== model) {
+      model = next;
+      res = await call();
+      data = await res.json().catch(() => ({}));
+    }
+  }
+  if (!res.ok && withBudget && /thinking/i.test(msg())) {
     delete body.generationConfig.thinkingConfig;
-    res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+    res = await call();
     data = await res.json().catch(() => ({}));
   }
   if (!res.ok) throw new Error(`Gemini: ${data?.error?.message || res.statusText}`);

@@ -14,7 +14,7 @@ import { replyToTweet } from "../connectors/x";
 import { fetchInsights } from "../connectors/insights";
 import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
 import { getTier } from "../lib/plans";
-import { withModelChoice, geminiAvailable } from "../lib/ai";
+import { withModelChoice, geminiAvailable, geminiStatus } from "../lib/ai";
 import { israelTime, pickSlot } from "../lib/autoschedule";
 import { campaigns } from "../lib/campaigns";
 import { getProfile, saveProfile } from "../lib/profile";
@@ -74,6 +74,8 @@ function requireProfile(_req: Request, res: Response, next: NextFunction) {
   next();
 }
 api.use(["/api/posts/generate", "/api/plan/generate", "/api/plan/review", "/api/campaign/generate"], requireProfile);
+
+api.get("/api/ai/status", async (_req, res) => res.json(await geminiStatus()));
 
 api.get("/api/media/status", (_req, res) => res.json({ uploadEnabled: mediaConfigured() }));
 

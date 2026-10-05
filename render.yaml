@@ -61,8 +61,9 @@ services:
       # Which tiers use Gemini (comma list: basic,premium,vip). Empty = Claude for all. AI_PROVIDER=gemini = Gemini for all.
       - key: GEMINI_FOR_TIERS
         value: ""
+      # Empty = auto-detect the newest Flash model the key can use. Set only to force one.
       - key: GEMINI_MODEL
-        value: gemini-3.8-flash
+        value: ""
       # Shown in the privacy policy / terms pages (/legal/privacy, /legal/terms, /legal/data-deletion)
       - key: OPERATOR_NAME
         sync: false
