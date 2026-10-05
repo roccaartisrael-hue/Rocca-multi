@@ -13,6 +13,12 @@ const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const cache = new Map<string, string>();
 let pool: Pool | null = null;
 let queue: Promise<void> = Promise.resolve();
+let ready = false;
+
+/** True once stored documents are loaded (immediately when no DATABASE_URL is set). */
+export function isReady(): boolean {
+  return ready;
+}
 
 const nameOf = (file: string) => path.basename(file);
 
@@ -20,12 +26,16 @@ export async function initPersistence(): Promise<void> {
   const url = process.env.DATABASE_URL;
   if (!url) {
     console.warn("DATABASE_URL is not set — data is stored in local files and is lost on every Render restart.");
+    ready = true;
     return;
   }
-  pool = new Pool({ connectionString: url, max: 3 });
+  // Timeouts so an unreachable/sleeping database fails fast and is retried instead of hanging forever.
+  pool = new Pool({ connectionString: url, max: 3, connectionTimeoutMillis: 15000 });
+  pool.on("error", (err) => console.error("Postgres pool error:", err.message));
   await pool.query("CREATE TABLE IF NOT EXISTS documents (name text PRIMARY KEY, body text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())");
   const { rows } = await pool.query("SELECT name, body FROM documents");
   rows.forEach((r) => cache.set(r.name, r.body));
+  ready = true;
   console.log(`Persistent storage ready (${rows.length} documents loaded).`);
 }
 
