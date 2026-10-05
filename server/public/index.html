@@ -86,6 +86,7 @@
   }
   nav.tabs button {
     flex: 1; background: transparent; color: var(--muted); margin: 0; font-weight: 500; border-radius: 10px;
+    font-size: 12px; padding: 10px 2px; min-width: 0;
   }
   nav.tabs button.active { color: var(--accent); background: var(--panel-2); }
   .hidden { display: none !important; }
@@ -141,6 +142,14 @@
         </div>
       </div>
       <div id="postsContainer"></div>
+    </section>
+
+    <section id="tab-connect" class="tab hidden">
+      <div class="card">
+        <h2>חיבורים</h2>
+        <p class="muted-small">חברו את הרשתות פעם אחת, והאפליקציה מפרסמת ועונה בשמכם.</p>
+        <div id="connectStatus"><p class="empty">טוען...</p></div>
+      </div>
     </section>
 
     <section id="tab-replies" class="tab hidden">
@@ -217,6 +226,7 @@
     <button data-tab="tab-new" class="active">פוסט חדש</button>
     <button data-tab="tab-posts">פוסטים</button>
     <button data-tab="tab-plan">תוכנית</button>
+    <button data-tab="tab-connect">חיבורים</button>
     <button data-tab="tab-replies">תגובות</button>
     <button data-tab="tab-performance">ביצועים</button>
     <button data-tab="tab-inspiration">השראה</button>
@@ -282,6 +292,7 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     document.querySelectorAll(".tab").forEach((t) => t.classList.add("hidden"));
     document.getElementById(btn.dataset.tab).classList.remove("hidden");
     if (btn.dataset.tab === "tab-posts") loadPosts();
+    if (btn.dataset.tab === "tab-connect") loadConnect();
     if (btn.dataset.tab === "tab-plan") loadTier();
     if (btn.dataset.tab === "tab-replies") loadReplies();
     if (btn.dataset.tab === "tab-inspiration") {
@@ -320,6 +331,47 @@ async function loadPosts() {
     else posts.reverse().forEach((p) => renderDraft(p, box)); // renderDraft prepends, so reverse keeps newest first
   } catch (err) {
     box.innerHTML = `<p class="empty">שגיאה בטעינה: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+
+// ---- Connections ----
+async function loadConnect() {
+  const box = document.getElementById("connectStatus");
+  try {
+    const c = await api("/api/connection");
+    const note = new URLSearchParams(location.search).get("connected");
+    box.innerHTML = "";
+    const row = el(`<div class="post-block"><span class="tag">פייסבוק + אינסטגרם</span>
+      <span class="status ${c.connected ? "sent" : "pending"}">${c.connected ? "מחובר" : "לא מחובר"}</span>
+      <p class="muted-small">${c.connected
+        ? `${c.pageName ? "עמוד: " + esc(c.pageName) : "חובר ידנית"}${c.igConnected ? " · אינסטגרם מחובר" : " · אינסטגרם לא מחובר"}`
+        : "לחיצה אחת, אישור בפייסבוק, וזה מוכן."}</p></div>`);
+    const btn = el(`<button style="width:100%;margin-top:8px">${c.connected ? "חיבור מחדש / החלפת עמוד" : "🔗 התחבר לפייסבוק ואינסטגרם"}</button>`);
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        const r = await api("/api/connection/start", { method: "POST" });
+        window.location.href = r.url;
+      } catch (e) {
+        btn.disabled = false;
+        toast(e.message);
+      }
+    });
+    row.appendChild(btn);
+    if (c.via === "facebook-login") {
+      const off = el(`<button class="secondary" style="width:100%;margin-top:8px">נתק</button>`);
+      off.addEventListener("click", async () => {
+        if (!confirm("לנתק את החיבור?")) return;
+        await api("/api/connection", { method: "DELETE" });
+        loadConnect();
+      });
+      row.appendChild(off);
+    }
+    box.appendChild(row);
+    ["טיקטוק", "האתר"].forEach((n) => box.appendChild(el(`<div class="post-block"><span class="tag">${n}</span><span class="status pending">בקרוב</span></div>`)));
+  } catch (e) {
+    box.innerHTML = `<p class="empty">שגיאה: ${esc(e.message)}</p>`;
   }
 }
 

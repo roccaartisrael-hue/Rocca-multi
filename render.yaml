@@ -43,6 +43,13 @@ services:
       # Postgres connection string (free Neon project) so posts, credits and usage survive restarts
       - key: DATABASE_URL
         sync: false
+      # "Connect with Facebook" (Meta app credentials + this service's public URL)
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: PUBLIC_URL
+        value: https://rocca-social-bot.onrender.com
       - key: AI_MONTHLY_LIMIT
         value: "0"
       # Business description / brand voice for Claude. Leave empty for ROCCA's built-in voice.

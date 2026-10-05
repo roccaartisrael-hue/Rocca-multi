@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 import { config } from "./config";
 import { api } from "./routes/api";
+import { auth } from "./routes/auth";
 import { startScheduler } from "./scheduler";
 import { initPersistence } from "./lib/persist";
 
@@ -12,6 +13,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
+app.use(auth);
 app.use(api);
 
 async function main() {
