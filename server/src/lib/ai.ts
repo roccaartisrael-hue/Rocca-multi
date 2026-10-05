@@ -16,7 +16,7 @@ export type Provider = "claude" | "gemini";
 
 const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
 const CLAUDE_MODEL = "claude-sonnet-5";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 /**
  * Task routing: Gemini takes the light, high-volume writing; Claude takes the work that needs depth.
@@ -93,15 +93,20 @@ async function viaGemini(p: CreateParams): Promise<AiResult> {
     generationConfig: { maxOutputTokens: p.max_tokens },
   };
   if (p.system) body.systemInstruction = { parts: [{ text: p.system }] };
-  // Flash models can skip "thinking", which otherwise eats the output budget and bills as output.
-  if (/flash/i.test(GEMINI_MODEL)) body.generationConfig.thinkingConfig = { thinkingBudget: Number(process.env.GEMINI_THINKING_BUDGET || 0) };
+  // Gemini 2.5 Flash can skip "thinking" (budget 0), which otherwise eats the output budget. Newer models use a
+  // different control, so the budget is only sent to 2.5 models; if a model rejects it we retry once without.
+  const withBudget = /2\.5.*flash/i.test(GEMINI_MODEL);
+  if (withBudget) body.generationConfig.thinkingConfig = { thinkingBudget: Number(process.env.GEMINI_THINKING_BUDGET || 0) };
 
-  const res = await fetch(`${process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com"}/v1beta/models/${GEMINI_MODEL}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
-    body: JSON.stringify(body),
-  });
-  const data: any = await res.json().catch(() => ({}));
+  const url = `${process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com"}/v1beta/models/${GEMINI_MODEL}:generateContent`;
+  const headers = { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! };
+  let res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  let data: any = await res.json().catch(() => ({}));
+  if (!res.ok && withBudget && /thinking/i.test(String(data?.error?.message))) {
+    delete body.generationConfig.thinkingConfig;
+    res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+    data = await res.json().catch(() => ({}));
+  }
   if (!res.ok) throw new Error(`Gemini: ${data?.error?.message || res.statusText}`);
   const text = (data.candidates?.[0]?.content?.parts || []).map((x: any) => x.text || "").join("");
   if (!text) throw new Error("Gemini לא החזיר טקסט (ייתכן שנחסם). נסו שוב או נסחו אחרת.");

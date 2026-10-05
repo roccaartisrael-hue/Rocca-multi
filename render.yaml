@@ -62,7 +62,7 @@ services:
       - key: GEMINI_FOR_TIERS
         value: ""
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.8-flash
       # Shown in the privacy policy / terms pages (/legal/privacy, /legal/terms, /legal/data-deletion)
       - key: OPERATOR_NAME
         sync: false
