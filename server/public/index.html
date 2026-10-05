@@ -157,6 +157,7 @@
     <section id="tab-plan" class="tab hidden">
       <div class="card">
         <h2>תוכנית פרסום</h2>
+        <p class="muted-small" id="tierInfo"></p>
         <p class="muted-small">ענו על 3 שאלות קצרות — ה-AI בונה לכם תוכנית מלאה עם פוסטים מוכנים ותזמון. אתם רק מאשרים.</p>
         <label for="planGoal">מה המטרה?</label>
         <select id="planGoal">
@@ -266,6 +267,7 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     btn.classList.add("active");
     document.querySelectorAll(".tab").forEach((t) => t.classList.add("hidden"));
     document.getElementById(btn.dataset.tab).classList.remove("hidden");
+    if (btn.dataset.tab === "tab-plan") loadTier();
     if (btn.dataset.tab === "tab-replies") loadReplies();
     if (btn.dataset.tab === "tab-inspiration") {
       loadInspirations();
@@ -291,6 +293,23 @@ function renderPlanChips() {
   });
 }
 renderPlanChips();
+
+async function loadTier() {
+  try {
+    const u = await api("/api/usage");
+    const t = u.tier;
+    document.getElementById("tierInfo").textContent =
+      `מסלול ${t.label} · תוכניות החודש: ${u.plans}/${t.plansPerMonth} · פניות ל-AI: ${u.calls}/${u.limit}`;
+    const weeks = document.getElementById("planWeeks");
+    [...weeks.options].forEach((o) => { o.disabled = Number(o.value) > t.maxWeeks; });
+    if (weeks.selectedOptions[0].disabled) weeks.value = "1";
+    const per = document.getElementById("planPer");
+    [...per.options].forEach((o) => { o.disabled = Number(o.value) > t.maxPostsPerWeek; });
+    if (per.selectedOptions[0].disabled) per.value = "2";
+    document.getElementById("planBudget").disabled = !t.adAdvice;
+    if (!t.adAdvice) document.getElementById("planBudget").placeholder = "זמין במסלול פרימיום ומעלה";
+  } catch {}
+}
 
 const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 

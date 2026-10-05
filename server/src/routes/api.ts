@@ -12,7 +12,8 @@ import {
 } from "../connectors/meta";
 import { replyToTweet } from "../connectors/x";
 import { fetchInsights } from "../connectors/insights";
-import { currentUsage } from "../lib/usage";
+import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
+import { getTier } from "../lib/plans";
 
 export const api = Router();
 
@@ -51,14 +52,20 @@ function israelTime(dayOffset: number, hour: number, minute: number): Date {
 api.post("/api/plan/generate", async (req, res) => {
   try {
     const b = req.body as { goal?: string; weeks?: number; postsPerWeek?: number; platforms?: Platform[]; adBudget?: number; notes?: string };
+    const tier = getTier();
     const platforms = (b.platforms || []).filter((p) => ALL_PLATFORMS.includes(p));
     if (!platforms.length) return res.status(400).json({ error: "בחר לפחות פלטפורמה אחת" });
-    const weeks = Math.min(4, Math.max(1, Math.round(Number(b.weeks) || 2)));
-    const postsPerWeek = Math.min(5, Math.max(1, Math.round(Number(b.postsPerWeek) || 3)));
-    const topPerformers = store.topPerformingPlatformContent("engagement", 3).map((r) => r.content.text).filter(Boolean);
-    const inspirationNotes = store.listInspirations().slice(0, 3).map((i) => i.note).filter(Boolean);
+    if (platforms.length > tier.maxPlatforms) {
+      return res.status(400).json({ error: `במסלול ${tier.label} אפשר עד ${tier.maxPlatforms} פלטפורמות בתוכנית` });
+    }
+    const weeks = Math.min(tier.maxWeeks, Math.max(1, Math.round(Number(b.weeks) || 2)));
+    const postsPerWeek = Math.min(tier.maxPostsPerWeek, Math.max(1, Math.round(Number(b.postsPerWeek) || 3)));
+    assertWithinLimit(); // check before consuming a plan so a blocked request doesn't burn the allowance
+    consumePlan();
+    const topPerformers = tier.learnsFromPerformance ? store.topPerformingPlatformContent("engagement", 3).map((r) => r.content.text).filter(Boolean) : [];
+    const inspirationNotes = tier.learnsFromPerformance ? store.listInspirations().slice(0, 3).map((i) => i.note).filter(Boolean) : [];
     const plan = await generateMarketingPlan(
-      { goal: (b.goal || "יותר פניות וחשיפה").slice(0, 300), weeks, postsPerWeek, platforms, adBudget: Number(b.adBudget) || 0, notes: (b.notes || "").slice(0, 500) },
+      { goal: (b.goal || "יותר פניות וחשיפה").slice(0, 300), weeks, postsPerWeek, platforms, adBudget: tier.adAdvice ? Number(b.adBudget) || 0 : 0, notes: (b.notes || "").slice(0, 500) },
       { topPerformers, inspirationNotes }
     );
     res.json(plan);

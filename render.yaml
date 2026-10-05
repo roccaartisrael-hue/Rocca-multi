@@ -27,7 +27,10 @@ services:
       # for where to get each one.
       - key: ANTHROPIC_API_KEY
         sync: false
-      # Max Claude calls per month (0 = unlimited). Check usage at /api/usage.
+      # Optional override of the tier's monthly Claude-call allowance (0 = use the tier). Usage: /api/usage.
+      # Subscription tier: basic | premium | vip (limits in server/src/lib/plans.ts)
+      - key: PLAN_TIER
+        value: vip
       - key: AI_MONTHLY_LIMIT
         value: "0"
       # Business description / brand voice for Claude. Leave empty for ROCCA's built-in voice.
