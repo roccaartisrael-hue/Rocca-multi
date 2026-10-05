@@ -132,6 +132,17 @@
       <div id="draftContainer"></div>
     </section>
 
+    <section id="tab-posts" class="tab hidden">
+      <div class="card">
+        <h2>הפוסטים שלי</h2>
+        <div class="platforms" id="postFilter">
+          <div class="chip active" data-f="open">טיוטות ומתוזמנים</div>
+          <div class="chip" data-f="published">פורסמו</div>
+        </div>
+      </div>
+      <div id="postsContainer"></div>
+    </section>
+
     <section id="tab-replies" class="tab hidden">
       <div class="card">
         <h2>תגובות והודעות ממתינות</h2>
@@ -196,7 +207,7 @@
       <div id="inspirationGallery"></div>
 
       <div class="card">
-        <h2>מה כבר פורסם</h2>
+        <h2>כל הפוסטים (היסטוריה)</h2>
       </div>
       <div id="historyContainer"></div>
     </section>
@@ -204,6 +215,7 @@
 
   <nav class="tabs">
     <button data-tab="tab-new" class="active">פוסט חדש</button>
+    <button data-tab="tab-posts">פוסטים</button>
     <button data-tab="tab-plan">תוכנית</button>
     <button data-tab="tab-replies">תגובות</button>
     <button data-tab="tab-performance">ביצועים</button>
@@ -269,6 +281,7 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     btn.classList.add("active");
     document.querySelectorAll(".tab").forEach((t) => t.classList.add("hidden"));
     document.getElementById(btn.dataset.tab).classList.remove("hidden");
+    if (btn.dataset.tab === "tab-posts") loadPosts();
     if (btn.dataset.tab === "tab-plan") loadTier();
     if (btn.dataset.tab === "tab-replies") loadReplies();
     if (btn.dataset.tab === "tab-inspiration") {
@@ -279,6 +292,36 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
   });
 });
 
+
+
+// ---- My posts ----
+let postFilter = "open";
+document.getElementById("postFilter").addEventListener("click", (e) => {
+  const chip = e.target.closest("[data-f]");
+  if (!chip) return;
+  document.querySelectorAll("#postFilter .chip").forEach((c) => c.classList.remove("active"));
+  chip.classList.add("active");
+  postFilter = chip.dataset.f;
+  loadPosts();
+});
+
+async function loadPosts() {
+  const box = document.getElementById("postsContainer");
+  box.innerHTML = `<p class="empty">טוען...</p>`;
+  try {
+    const all = await api("/api/posts");
+    const posts = all.filter((p) => (postFilter === "published" ? p.status === "published" : p.status !== "published"));
+    box.innerHTML = "";
+    if (!posts.length) {
+      box.innerHTML = `<p class="empty">${postFilter === "published" ? "עדיין לא פורסמו פוסטים" : "אין טיוטות או פוסטים מתוזמנים. אפשר ליצור בלשונית 'פוסט חדש' או 'תוכנית'."}</p>`;
+      return;
+    }
+    if (postFilter === "published") posts.forEach((p) => box.appendChild(postSummaryCard(p)));
+    else posts.reverse().forEach((p) => renderDraft(p, box)); // renderDraft prepends, so reverse keeps newest first
+  } catch (err) {
+    box.innerHTML = `<p class="empty">שגיאה בטעינה: ${escapeHtml(err.message)}</p>`;
+  }
+}
 
 // ---- Marketing plan ----
 let planSelected = new Set(["facebook", "instagram"]);
@@ -406,7 +449,7 @@ function renderPlan(plan, box) {
         texts: Object.fromEntries([...card.querySelectorAll("textarea")].map((t) => [t.dataset.p, t.value])),
       }));
       const r = await api("/api/plan/approve", { method: "POST", body: JSON.stringify({ items }) });
-      box.innerHTML = `<div class="card"><h2>🎉 מוכן!</h2><p>${r.scheduled} פוסטים תוזמנו ויעלו אוטומטית. ${r.drafts ? r.drafts + " נשמרו כטיוטות (חסרה תמונה) — תמצאו אותם בלשונית 'השראה' תחת 'מה כבר פורסם'." : ""}</p></div>`;
+      box.innerHTML = `<div class="card"><h2>🎉 מוכן!</h2><p>${r.scheduled} פוסטים תוזמנו ויעלו אוטומטית. ${r.drafts ? r.drafts + " נשמרו כטיוטות (חסרה תמונה) — תמצאו אותם בלשונית 'פוסטים'." : ""}</p></div>`;
     } catch (e) {
       alert(e.message);
       ok.disabled = false;
@@ -456,8 +499,7 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
   }
 });
 
-function renderDraft(post) {
-  const container = document.getElementById("draftContainer");
+function renderDraft(post, container = document.getElementById("draftContainer")) {
   const card = el(`<div class="card" data-post-id="${post.id}"></div>`);
   card.appendChild(el(`<h2>${escapeHtml(post.topic)}</h2>`));
 
@@ -501,7 +543,7 @@ function renderDraft(post) {
     btn.disabled = true;
     try {
       await saveDraftEdits(card, post);
-      toast("✓ נשמר. תמצאו את הפוסט בלשונית 'השראה' תחת 'מה כבר פורסם'");
+      toast("✓ נשמר. הוא בלשונית 'פוסטים'");
       btn.textContent = "✓ נשמר";
       setTimeout(() => { btn.textContent = label; }, 2000);
     } catch (err) {
@@ -683,6 +725,32 @@ function renderReply(reply) {
 }
 
 // ---- History ----
+function postSummaryCard(p) {
+  const card = el(`<div class="card"><h2>${escapeHtml(p.topic)}</h2></div>`);
+    p.platforms.forEach((pc) => {
+      const m = pc.metrics;
+      const metricsLine = m
+        ? `<p class="muted-small">${[
+            m.reach != null ? `חשיפה: ${m.reach}` : "",
+            m.engagement != null ? `מעורבות: ${m.engagement}` : "",
+            m.clicks != null ? `קליקים: ${m.clicks}` : "",
+            m.saved != null ? `שמירות: ${m.saved}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}</p>`
+        : "";
+      card.appendChild(el(`
+        <div class="post-block">
+          <span class="tag">${PLATFORM_LABELS[pc.platform] || pc.platform}</span>
+          <span class="status ${pc.status}">${statusLabel(pc.status)}</span>
+          <p style="font-size:13px;color:var(--muted);margin:6px 0 0;">${escapeHtml(pc.text)}</p>
+          ${metricsLine}
+        </div>
+      `));
+    });
+  return card;
+}
+
 async function loadHistory() {
   const container = document.getElementById("historyContainer");
   container.innerHTML = `<p class="empty">טוען...</p>`;
@@ -693,31 +761,7 @@ async function loadHistory() {
       return;
     }
     container.innerHTML = "";
-    posts.forEach((p) => {
-      const card = el(`<div class="card"><h2>${escapeHtml(p.topic)}</h2></div>`);
-      p.platforms.forEach((pc) => {
-        const m = pc.metrics;
-        const metricsLine = m
-          ? `<p class="muted-small">${[
-              m.reach != null ? `חשיפה: ${m.reach}` : "",
-              m.engagement != null ? `מעורבות: ${m.engagement}` : "",
-              m.clicks != null ? `קליקים: ${m.clicks}` : "",
-              m.saved != null ? `שמירות: ${m.saved}` : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")}</p>`
-          : "";
-        card.appendChild(el(`
-          <div class="post-block">
-            <span class="tag">${PLATFORM_LABELS[pc.platform] || pc.platform}</span>
-            <span class="status ${pc.status}">${statusLabel(pc.status)}</span>
-            <p style="font-size:13px;color:var(--muted);margin:6px 0 0;">${escapeHtml(pc.text)}</p>
-            ${metricsLine}
-          </div>
-        `));
-      });
-      container.appendChild(card);
-    });
+    posts.forEach((p) => container.appendChild(postSummaryCard(p)));
   } catch (err) {
     container.innerHTML = `<p class="empty">שגיאה בטעינה: ${escapeHtml(err.message)}</p>`;
   }
