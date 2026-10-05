@@ -15,6 +15,7 @@ import { fetchInsights } from "../connectors/insights";
 import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
 import { getTier } from "../lib/plans";
 import { getProfile, saveProfile } from "../lib/profile";
+import { storageStatus } from "../lib/persist";
 import { PACKS, packLink, grantPack } from "../lib/credits";
 
 export const api = Router();
@@ -66,6 +67,8 @@ function israelTime(dayOffset: number, hour: number, minute: number): Date {
   const offset = il.getTime() - new Date(guess.toLocaleString("en-US", { timeZone: "UTC" })).getTime();
   return new Date(guess.getTime() - offset);
 }
+
+api.get("/api/storage", (_req, res) => res.json(storageStatus()));
 
 // ---- Business setup ----
 // REQUIRE_PROFILE=true (customer deployments): no content is generated until the business is set up,

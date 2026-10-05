@@ -14,6 +14,8 @@ const cache = new Map<string, string>();
 let pool: Pool | null = null;
 let queue: Promise<void> = Promise.resolve();
 let ready = false;
+let lastError = "";
+let lastSavedAt = "";
 
 /** True once stored documents are loaded (immediately when no DATABASE_URL is set). */
 export function isReady(): boolean {
@@ -64,7 +66,24 @@ export function writeDoc(file: string, body: string): void {
           "INSERT INTO documents (name, body) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET body = EXCLUDED.body, updated_at = now()",
           [name, body]
         )
-        .then(() => undefined)
+        .then(() => {
+          lastSavedAt = new Date().toISOString();
+          lastError = "";
+        })
     )
-    .catch((err) => console.error(`Failed to persist ${name}:`, err.message));
+    .catch((err) => {
+      lastError = err.message;
+      console.error(`Failed to persist ${name}:`, err.message);
+    });
+}
+
+/** Storage health for the Settings screen: where data lives, how many documents, last save/error. */
+export function storageStatus() {
+  return {
+    mode: pool ? "database" : "files",
+    ready,
+    documents: cache.size,
+    lastSavedAt,
+    lastError,
+  };
 }

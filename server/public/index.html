@@ -148,6 +148,7 @@
       <div class="card" id="profileCard">
         <h2>העסק שלי</h2>
         <p class="muted-small" id="profileStatus"></p>
+        <p class="muted-small" id="storageStatus"></p>
         <label for="pfName">שם העסק</label>
         <input type="text" id="pfName" placeholder="למשל: סטודיו נעמה" />
         <label for="pfSell">מה אתם מוכרים / מה העסק עושה?</label>
@@ -365,6 +366,13 @@ async function loadPosts() {
 
 // ---- Business profile ----
 async function loadProfile() {
+  try {
+    const st = await api("/api/storage");
+    document.getElementById("storageStatus").textContent =
+      st.mode === "database"
+        ? `אחסון: מסד נתונים קבוע · ${st.documents} מסמכים${st.lastError ? " · ⚠️ שגיאת שמירה: " + st.lastError : ""}`
+        : "⚠️ אחסון: קבצים זמניים (DATABASE_URL לא מוגדר) — הנתונים יימחקו באתחול";
+  } catch {}
   try {
     const r = await api("/api/profile");
     const p = r.profile;
