@@ -14,6 +14,7 @@ import { replyToTweet } from "../connectors/x";
 import { fetchInsights } from "../connectors/insights";
 import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
 import { getTier } from "../lib/plans";
+import { withModelChoice, geminiAvailable } from "../lib/ai";
 import { israelTime, pickSlot } from "../lib/autoschedule";
 import { campaigns } from "../lib/campaigns";
 import { getProfile, saveProfile } from "../lib/profile";
@@ -50,6 +51,8 @@ api.post("/api/payments/webhook", (req, res) => {
 });
 
 api.use("/api", requireAuth);
+// The dashboard's model selector sends X-Model: auto | claude | gemini; every AI call in the request honours it.
+api.use("/api", (req, _res, next) => withModelChoice(req.header("x-model") || undefined, next));
 
 // Top-up packs the customer can buy when the monthly allowance runs out (any tier, VIP included).
 api.get("/api/packs", (_req, res) => {
@@ -58,7 +61,7 @@ api.get("/api/packs", (_req, res) => {
 
 // Claude usage this month (calls + tokens) vs. AI_MONTHLY_LIMIT — for tracking real cost per business.
 api.get("/api/usage", (_req, res) => {
-  res.json({ ...currentUsage(), scheduledCount: store.listPosts().filter((p) => p.status === "scheduled").length });
+  res.json({ ...currentUsage(), geminiAvailable: geminiAvailable(), scheduledCount: store.listPosts().filter((p) => p.status === "scheduled").length });
 });
 
 // ---- Business setup ----

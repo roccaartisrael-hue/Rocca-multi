@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "async_hooks";
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "../config";
 import { getTier } from "./plans";
@@ -17,11 +18,44 @@ const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
 const CLAUDE_MODEL = "claude-sonnet-5";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-export function activeProvider(): Provider {
-  if (!process.env.GEMINI_API_KEY) return "claude";
-  if ((process.env.AI_PROVIDER || "").toLowerCase() === "gemini") return "gemini";
+/**
+ * Task routing: Gemini takes the light, high-volume writing; Claude takes the work that needs depth.
+ * "auto" (default) follows TASKS below. The user can force a model per request with the X-Model header
+ * (the dashboard's model selector): "claude" = highest quality, "gemini" = fast and cheap.
+ */
+export type Task = "post" | "reply" | "brandVoice" | "marketBrief" | "plan" | "strategy" | "campaign";
+export type ModelChoice = "auto" | "claude" | "gemini";
+
+const TASKS: Record<Task, Provider> = {
+  post: "gemini", // single posts and captions
+  reply: "gemini", // short comment replies
+  brandVoice: "claude", // sets the voice of everything else
+  marketBrief: "claude",
+  plan: "claude", // content calendar
+  strategy: "claude", // learning from results
+  campaign: "claude", // professional campaign brief
+};
+
+const modelContext = new AsyncLocalStorage<ModelChoice>();
+
+/** Runs `fn` with the user's model choice visible to every llm call inside it. */
+export function withModelChoice<T>(choice: string | undefined, fn: () => T): T {
+  const c: ModelChoice = choice === "claude" || choice === "gemini" ? choice : "auto";
+  return modelContext.run(c, fn);
+}
+
+export function geminiAvailable(): boolean {
+  return !!process.env.GEMINI_API_KEY;
+}
+
+export function activeProvider(task: Task = "post"): Provider {
+  if (!geminiAvailable()) return "claude";
+  if ((process.env.AI_PROVIDER || "").toLowerCase() === "gemini") return "gemini"; // operator override: Gemini for everything
+  const choice = modelContext.getStore() || "auto";
+  if (choice !== "auto") return choice;
   const tiers = (process.env.GEMINI_FOR_TIERS || "").split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
-  return tiers.includes(getTier().name) ? "gemini" : "claude";
+  if (tiers.includes(getTier().name)) return "gemini"; // cheap tiers: Gemini even for the heavy tasks
+  return TASKS[task];
 }
 
 // Estimated USD per million tokens — override from the provider's real price list.
@@ -35,6 +69,7 @@ interface CreateParams {
   max_tokens: number;
   system?: string;
   messages: { role: "user"; content: string }[];
+  task?: Task;
 }
 
 export interface AiResult {
@@ -81,7 +116,7 @@ async function viaGemini(p: CreateParams): Promise<AiResult> {
 export const llm = {
   messages: {
     create(p: CreateParams): Promise<AiResult> {
-      return activeProvider() === "gemini" ? viaGemini(p) : viaClaude(p);
+      return activeProvider(p.task) === "gemini" ? viaGemini(p) : viaClaude(p);
     },
   },
 };

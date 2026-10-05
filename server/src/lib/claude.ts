@@ -82,6 +82,7 @@ export async function generatePostForPlatforms(
 
   assertWithinLimit();
   const msg = await llm.messages.create({
+    task: "post",
     max_tokens: 1500,
     system: brandVoice(),
     messages: [
@@ -110,6 +111,7 @@ export async function generateReplyDraft(params: {
 }): Promise<string> {
   assertWithinLimit();
   const msg = await llm.messages.create({
+    task: "reply",
     max_tokens: 400,
     system: `${brandVoice()}
 
@@ -195,6 +197,7 @@ export async function generateMarketingPlan(req: PlanRequest, context?: Generati
 
   assertWithinLimit();
   const msg = await llm.messages.create({
+    task: "plan",
     max_tokens: 12000,
     system: brandVoice(),
     messages: [
@@ -260,6 +263,7 @@ export async function generateStrategyReview(
 ): Promise<string> {
   assertWithinLimit();
   const msg = await llm.messages.create({
+    task: "strategy",
     max_tokens: 2500,
     system: brandVoice(),
     messages: [
@@ -296,6 +300,7 @@ export interface ProfileInput {
 export async function generateBrandVoice(input: ProfileInput): Promise<string> {
   assertWithinLimit();
   const msg = await llm.messages.create({
+    task: "brandVoice",
     max_tokens: 1200,
     messages: [
       {
@@ -339,6 +344,7 @@ export async function generateCampaign(req: CampaignRequest, context?: Generatio
 
   assertWithinLimit();
   const msg = await llm.messages.create({
+    task: "campaign",
     max_tokens: 9000,
     system: brandVoice(),
     messages: [
@@ -395,6 +401,7 @@ export async function generateMarketBrief(input: ProfileInput, context?: Generat
   if (context?.stats) ctx.push(`נתוני ביצועים של העסק:\n${context.stats}`);
   assertWithinLimit();
   const msg = await llm.messages.create({
+    task: "marketBrief",
     max_tokens: 1800,
     messages: [
       {

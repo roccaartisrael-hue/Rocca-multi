@@ -111,7 +111,8 @@
 <div id="app" class="hidden">
   <header>
     <h1>ROCCA Social</h1>
-    <p>ניהול תוכן ורשתות חברתיות · מופעל ע"י Claude</p>
+    <p>ניהול תוכן ורשתות חברתיות · מופעל בבינה מלאכותית</p>
+    <div class="platforms" id="modelChips" style="justify-content:center;margin-top:8px"></div>
   </header>
 
   <main>
@@ -300,6 +301,7 @@ function api(path, opts = {}) {
     headers: {
       "Content-Type": "application/json",
       Authorization: "Bearer " + token,
+      "X-Model": localStorage.getItem("rocca_model") || "auto",
       ...(opts.headers || {}),
     },
   }).then(async (r) => {
@@ -320,6 +322,7 @@ function showApp() {
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
   renderPlatformChips();
+  renderModelChips();
   loadReplies();
   loadHistory();
   attachUpload(document.getElementById("imageInput"));
@@ -601,6 +604,28 @@ document.getElementById("cgBtn").addEventListener("click", async () => {
     btn.textContent = "🎯 בנה מסע פרסום";
   }
 });
+
+
+// ---- Model selector (auto / Claude / Gemini) ----
+const MODEL_CHIPS = [
+  ["auto", "אוטומטי", "המערכת בוחרת: Gemini למשימות קלות, Claude למשימות מורכבות (מומלץ)"],
+  ["claude", "⭐ Claude", "איכות גבוהה: כתיבה, אסטרטגיה וניתוח ברמה הגבוהה ביותר. צורך יותר מהמכסה."],
+  ["gemini", "⚡ Gemini", "מהיר וחסכוני: מתאים לפוסטים ולתגובות פשוטים"],
+];
+function renderModelChips() {
+  const wrap = document.getElementById("modelChips");
+  const cur = localStorage.getItem("rocca_model") || "auto";
+  wrap.innerHTML = "";
+  MODEL_CHIPS.forEach(([key, label, tip]) => {
+    const chip = el(`<div class="chip ${cur === key ? "active" : ""}" title="${escapeHtml(tip)}">${label}</div>`);
+    chip.addEventListener("click", () => {
+      localStorage.setItem("rocca_model", key);
+      renderModelChips();
+      toast(tip);
+    });
+    wrap.appendChild(chip);
+  });
+}
 
 // ---- Marketing plan ----
 let planSelected = new Set(["facebook", "instagram"]);
