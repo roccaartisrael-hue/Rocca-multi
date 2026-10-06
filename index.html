@@ -182,6 +182,11 @@
   .social a{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid var(--line);border-radius:22px;font-size:14px;font-weight:700;color:var(--ink);background:var(--panel, var(--bg));}
   .social a:hover{border-color:var(--gold);color:var(--gold-deep);}
   .social svg{width:18px;height:18px;flex:none;}
+  .soon{background:#14110D;color:#F2EDE2;text-align:center;padding:46px 20px;}
+  .soon h2{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:clamp(24px,3.4vw,36px);margin:0 0 8px;}
+  .soon p{color:#C9C0AE;margin:0 auto 18px;max-width:56ch;}
+  .soon-cities{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .soon-cities span{border:1px solid rgba(212,151,12,.6);color:#E8B54A;padding:8px 18px;border-radius:22px;font-weight:700;}
 </style>
 <script type="application/ld+json">
 {
@@ -345,6 +350,12 @@
   </div>
 </section>
 
+<section class="soon" aria-label="שואו-רומים חדשים">
+  <h2>ROCCA מתרחבת</h2>
+  <p>בחודשים הקרובים נפתחים שלושה שואו-רומים חדשים, עם קירות אבן מוארים ולוחות שאפשר לראות מקרוב.</p>
+  <div class="soon-cities"><span>ראשון לציון</span><span>ירושלים</span><span>באר שבע</span></div>
+</section>
+
 <section class="section" id="contact">
   <div class="wrap contact-grid">
     <div class="contact-copy">
@@ -445,7 +456,7 @@ const SYSTEM_PROMPT = `את/ה יועץ מכירות דיגיטלי של "ROCCA"
 - מגוון מלא: אוניקס (ירוק, לבן, ורוד ועוד), שיש (כולל River Blue, שיש ירוק טבעי), גרניט (Alaska Gold, Blue Dunes, R Black, Alaska White), קוורציט ירוק ועוד.
 - שירות מקיף: ייבוא, חיתוך פרימיום, התקנה ותאורה תחת קורת גג אחת.
 - ללקוחות עסקיים (מעצבים/קבלנים): מחירון סיטונאי תחרותי ואפשרות לבלעדיות אזורית.
-- מיקום: קריית ביאליק (בקרוב גם סניף בראשון לציון).
+- מיקום: שואו-רום וממפעל בקריית ביאליק, ושירות לכל הארץ. בתוך חודשיים-שלושה נפתחים שלושה שואו-רומים חדשים: ראשון לציון, ירושלים ובאר שבע (בלי תאריכים או כתובות עד שיפורסמו).
 ענה בעברית, בנימה חמה ומקצועית, בקצרה (2-4 משפטים). בסיום כל תשובה, עודד בעדינות להשאיר פרטי קשר (שם וטלפון) לקבלת הצעת מחיר מדויקת.`;
 
 let chatHistory = [];
