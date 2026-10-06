@@ -60,3 +60,10 @@
 - [ ] גיבוי: Neon שומר היסטוריה; בדיקה שהלקוח יודע למי לפנות בתקלה.
 - [ ] הסכם בכתב: מי משלם על מה (AI, Render, Neon), בעלות על התוכן, ביטול.
 - [ ] הוראות קצרות ללקוח (דף אחד): איך נכנסים, איך יוצרים תוכנית, למי פונים.
+
+## Blueprint נפרד ללקוח (מונע דריסה של ROCCA)
+ב-Render, `render.yaml` מזוהה עם השירות הקיים `rocca-social-bot`, ו-Render מציע "Associate existing services" (עדכון השירות של ROCCA). **לא לבחור בזה.**
+לשירות לקוח משתמשים בקובץ נפרד: **`render.lugasi.yaml`** (שירות `lugasi-gallery-bot`, תוכנית Starter, `REQUIRE_PROFILE=true`, `PLAN_TIER=vip`).
+- ב-Render: New, Blueprint, מאגר `Rocca-multi`, ענף `main`, **Blueprint Path: `render.lugasi.yaml`**.
+- אם יוצא "Associate existing services", לבחור **"Create all as new services"**.
+- ללקוח אחר: להעתיק את הקובץ ולהחליף את שם השירות ואת `PUBLIC_URL`.
