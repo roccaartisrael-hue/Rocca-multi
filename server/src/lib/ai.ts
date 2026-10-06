@@ -152,13 +152,25 @@ async function viaGemini(p: CreateParams, model: string): Promise<AiResult> {
   // Gemini 2.5 Flash can skip "thinking" (budget 0), which otherwise eats the output budget. Newer models use a
   // different control, so the budget is only sent to 2.5 models; if a model rejects it we retry once without.
   const withBudget = /2\.5.*flash/i.test(model);
+  const isNew = /gemini-(?:[3-9])/i.test(model);
   if (withBudget) body.generationConfig.thinkingConfig = { thinkingBudget: Number(process.env.GEMINI_THINKING_BUDGET || 0) };
+  // Gemini 3+ thinks by default, which makes short marketing copy slow and costly: ask for low thinking.
+  else if (isNew) body.generationConfig.thinkingConfig = { thinkingLevel: process.env.GEMINI_THINKING_LEVEL || "low" };
 
   const headers = { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! };
-  const call = () => fetch(`${GEMINI_BASE()}/v1beta/models/${model}:generateContent`, { method: "POST", headers, body: JSON.stringify(body) });
+  // A request that hangs must not hang the user's page: abort and let the fallback chain take over.
+  const call = () =>
+    fetch(`${GEMINI_BASE()}/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(Number(process.env.GEMINI_TIMEOUT_MS || 25000)),
+    }).catch((e: any) => {
+      throw new GeminiError(504, `timeout/unavailable (${e?.name || "error"})`);
+    });
   let res = await call();
   let data: any = await res.json().catch(() => ({}));
-  if (!res.ok && withBudget && /thinking/i.test(String(data?.error?.message))) {
+  if (!res.ok && (withBudget || isNew) && /thinking/i.test(String(data?.error?.message))) {
     delete body.generationConfig.thinkingConfig;
     res = await call();
     data = await res.json().catch(() => ({}));
@@ -180,7 +192,10 @@ async function viaGemini(p: CreateParams, model: string): Promise<AiResult> {
  */
 async function withGeminiFallback(p: CreateParams): Promise<AiResult> {
   let last: Error | null = null;
+  const started = Date.now();
+  const budgetMs = Number(process.env.GEMINI_TOTAL_MS || 55000); // stay well under the proxy's request limit
   for (const model of await geminiCandidates()) {
+    if (Date.now() - started > budgetMs) break;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         return await viaGemini(p, model);
@@ -188,6 +203,7 @@ async function withGeminiFallback(p: CreateParams): Promise<AiResult> {
         last = err;
         const status = err instanceof GeminiError ? err.status : 500;
         if (!isTransient(status, String(err.message))) throw err;
+        if (status === 504) break; // timed out: do not wait again on the same model
         if (attempt === 0 && /high demand|overloaded|unavailable|429|503/i.test(String(err.message) + status)) await new Promise((r) => setTimeout(r, 1500));
         else break; // model gone / not supported: go to the next model
       }

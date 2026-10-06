@@ -296,7 +296,28 @@ const PLATFORM_LABELS = {
 let selectedPlatforms = new Set(["facebook", "instagram"]);
 let token = localStorage.getItem("rocca_token") || "";
 
-function api(path, opts = {}) {
+// Safari/Chrome report a dropped connection as "Load failed" / "Failed to fetch". On the free Render plan the server
+// may be waking up, so wait for it, retry once, and show a clear message instead of the raw browser error.
+async function waitForServer(maxMs = 70000) {
+  const end = Date.now() + maxMs;
+  while (Date.now() < end) {
+    try { const r = await fetch("/api/health", { cache: "no-store" }); if (r.ok) return true; } catch {}
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+  return false;
+}
+function isNetworkError(e) { return e instanceof TypeError || /load failed|failed to fetch|networkerror/i.test(String(e && e.message)); }
+async function api(path, opts = {}) {
+  try {
+    return await apiOnce(path, opts);
+  } catch (e) {
+    if (!isNetworkError(e)) throw e;
+    const idempotent = !opts.method || opts.method === "GET" || path === "/api/posts/generate";
+    if (idempotent && (await waitForServer())) return await apiOnce(path, opts).catch((e2) => { throw isNetworkError(e2) ? new Error("החיבור לשרת נותק. נסו שוב בעוד רגע.") : e2; });
+    throw new Error("החיבור לשרת נותק (ייתכן שהשרת התעורר). נסו שוב בעוד רגע.");
+  }
+}
+function apiOnce(path, opts = {}) {
   return fetch(path, {
     ...opts,
     headers: {
