@@ -46,7 +46,7 @@
   }
   .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent); }
   label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
-  input[type=text], textarea, input[type=url], input[type=password], input[type=datetime-local] {
+  input[type=text], textarea, select, input[type=number], input[type=url], input[type=password], input[type=datetime-local] {
     width: 100%;
     background: var(--panel-2);
     border: 1px solid #3a342b;
@@ -86,6 +86,7 @@
   }
   nav.tabs button {
     flex: 1; background: transparent; color: var(--muted); margin: 0; font-weight: 500; border-radius: 10px;
+    font-size: 12px; padding: 10px 2px; min-width: 0;
   }
   nav.tabs button.active { color: var(--accent); background: var(--panel-2); }
   .hidden { display: none !important; }
@@ -110,7 +111,8 @@
 <div id="app" class="hidden">
   <header>
     <h1>ROCCA Social</h1>
-    <p>ניהול תוכן ורשתות חברתיות · מופעל ע"י Claude</p>
+    <p>ניהול תוכן ורשתות חברתיות · מופעל בבינה מלאכותית</p>
+    <div class="platforms" id="modelChips" style="justify-content:center;margin-top:8px"></div>
   </header>
 
   <main>
@@ -123,13 +125,67 @@
         <label>לאילו פלטפורמות?</label>
         <div class="platforms" id="platformChips"></div>
 
-        <label for="imageInput">קישור לתמונה (חובה לאינסטגרם/טיקטוק, אופציונלי לשאר)</label>
+        <label for="imageInput">תמונה או סרטון (קישור ישיר, חובה לאינסטגרם/טיקטוק; סרטון MP4 הופך ל-Reel)</label>
         <input type="url" id="imageInput" placeholder="https://..." />
 
         <button id="generateBtn">✨ צור טיוטה עם Claude</button>
       </div>
 
       <div id="draftContainer"></div>
+    </section>
+
+    <section id="tab-posts" class="tab hidden">
+      <div class="card">
+        <h2>הפוסטים שלי</h2>
+        <div class="platforms" id="postFilter">
+          <div class="chip active" data-f="open">טיוטות ומתוזמנים</div>
+          <div class="chip" data-f="published">פורסמו</div>
+        </div>
+        <button id="autoAllBtn" style="width:100%;margin-top:10px">⚡ תזמן את כל הטיוטות אוטומטית</button>
+        <p class="muted-small">המערכת בוחרת ימים ושעות: מפזרת את הפוסטים, ומעדיפה את השעות שעבדו הכי טוב אצלכם. אפשר לשנות כל פוסט ידנית אחר כך.</p>
+      </div>
+      <div id="postsContainer"></div>
+    </section>
+
+    <section id="tab-connect" class="tab hidden">
+      <div class="card" id="profileCard">
+        <h2>העסק שלי</h2>
+        <p class="muted-small" id="profileStatus"></p>
+        <p class="muted-small" id="storageStatus"></p>
+        <p class="muted-small" id="aiStatus"></p>
+        <label for="pfName">שם העסק</label>
+        <input type="text" id="pfName" placeholder="למשל: סטודיו נעמה" />
+        <label for="pfSell">מה אתם מוכרים / מה העסק עושה?</label>
+        <textarea id="pfSell" rows="3" placeholder="למשל: עיצוב פנים לדירות ולמשרדים, ליווי מלא מרעיון ועד מסירה"></textarea>
+        <label for="pfAud">מי הלקוחות שלכם?</label>
+        <input type="text" id="pfAud" placeholder="למשל: זוגות צעירים ובעלי עסקים בגוש דן" />
+        <label for="pfLoc">מיקום (אופציונלי)</label>
+        <input type="text" id="pfLoc" placeholder="למשל: תל אביב" />
+        <label for="pfTone">איך תרצו להישמע?</label>
+        <select id="pfTone">
+          <option>חם ואישי</option>
+          <option>יוקרתי ומדויק</option>
+          <option>מקצועי ועניני</option>
+          <option>קליל וצעיר</option>
+        </select>
+        <label for="pfNever">משהו שאסור לומר או לעשות? (אופציונלי)</label>
+        <input type="text" id="pfNever" placeholder="למשל: לא להזכיר מתחרים" />
+        <button id="pfGen" style="width:100%">✨ צור לי קול מותג</button>
+        <div id="pfPreview" class="hidden">
+          <label for="pfVoice">קול המותג שנוצר (אפשר לערוך)</label>
+          <textarea id="pfVoice" rows="10"></textarea>
+          <label for="pfMarket">הכרת השוק שלכם (אפשר לערוך)</label>
+          <textarea id="pfMarket" rows="10" placeholder="לחצו על 'למד את השוק שלי' כדי שה-AI יכיר את התחום, הלקוחות והעונתיות שלכם"></textarea>
+          <button id="pfMarketBtn" class="secondary" style="width:100%;margin-bottom:8px">🔎 למד את השוק שלי</button>
+          <p class="muted-small">זו ידיעה כללית של ה-AI על התחום, בשילוב התוצאות שלכם. לא נתוני שוק עדכניים, ולא מועתק תוכן ממתחרים. כדאי לתקן לפי מה שאתם מכירים.</p>
+          <button id="pfSave" style="width:100%">שמור</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>חיבורים לרשתות</h2>
+        <p class="muted-small">חברו את הרשתות פעם אחת, והאפליקציה מפרסמת ועונה בשמכם.</p>
+        <div id="connectStatus"><p class="empty">טוען...</p></div>
+      </div>
     </section>
 
     <section id="tab-replies" class="tab hidden">
@@ -154,6 +210,51 @@
       <div id="performanceContainer"></div>
     </section>
 
+    <section id="tab-plan" class="tab hidden">
+      <div class="card">
+        <h2>תוכנית פרסום</h2>
+        <p class="muted-small" id="tierInfo"></p>
+        <p class="muted-small">ענו על 3 שאלות קצרות — ה-AI בונה לכם תוכנית מלאה עם פוסטים מוכנים ותזמון. אתם רק מאשרים.</p>
+        <label for="planGoal">מה המטרה?</label>
+        <select id="planGoal">
+          <option>יותר פניות ממעצבים ואדריכלים</option>
+          <option>יותר לקוחות פרטיים</option>
+          <option>חשיפה למוצר/אבן חדשה</option>
+          <option>חיזוק המותג והאמון</option>
+        </select>
+        <label for="planWeeks">לכמה זמן?</label>
+        <select id="planWeeks"><option value="1">שבוע</option><option value="2" selected>שבועיים</option><option value="4">חודש</option></select>
+        <label for="planPer">כמה פוסטים?</label>
+        <select id="planPer"><option value="3" selected>3 בשבוע</option><option value="7">פוסט ביום</option><option value="14">2 ביום</option><option value="21">3 ביום</option></select>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="planAggr" style="width:auto" /> מצב תקיפה אגרסיבי (מסרים חדים, בדיקות A/B)</label>
+        <label>איפה לפרסם?</label>
+        <div class="platforms" id="planPlatforms"></div>
+        <label for="planBudget">תקציב פרסום ממומן בשבוע (₪, אופציונלי)</label>
+        <input type="number" id="planBudget" placeholder="למשל 5000 — המערכת תחלק אותו בין הפוסטים לפי עדיפות" />
+        <label for="planNotes">משהו שחשוב שנדע? (אופציונלי)</label>
+        <input type="text" id="planNotes" placeholder="למשל: הגיעה סחורה חדשה, יש כנס בחודש הבא" />
+        <button id="planBtn" style="width:100%">✨ בנה לי תוכנית</button>
+        <button id="reviewBtn" class="secondary" style="width:100%;margin-top:8px">📊 נתח מה עבד והצע איך לתקוף בשבוע הבא</button>
+      </div>
+      <div class="card" id="campaignCard">
+        <h2>מסע פרסום מקצועי</h2>
+        <p class="muted-small">אסטרטגיה מלאה כמו ממשרד פרסום: משפך, קהלים, קריאייטיבים לבדיקות A/B, חלוקת תקציב, יעדי מדידה וכללי אופטימיזציה. (המערכת מכינה תוכנית; ההפעלה והתשלום נשארים אצלכם.)</p>
+        <label for="cgOffer">מה מקדמים?</label>
+        <input type="text" id="cgOffer" placeholder="למשל: קולקציית אוניקס חדשה לפרויקטים" />
+        <label for="cgGoal">מה המטרה?</label>
+        <select id="cgGoal"><option>יותר פניות ומכירות</option><option>מודעות למותג</option><option>הרשמות ללידים</option><option>חיזוק לקוחות קיימים</option></select>
+        <label for="cgWeeks">לכמה זמן?</label>
+        <select id="cgWeeks"><option value="1">שבוע</option><option value="2" selected>שבועיים</option><option value="4">חודש</option></select>
+        <label for="cgBudget">תקציב ממומן בשבוע (₪)</label>
+        <input type="number" id="cgBudget" placeholder="למשל 5000" />
+        <label for="cgNotes">הערות (אופציונלי)</label>
+        <input type="text" id="cgNotes" placeholder="למשל: אירוע בחודש הבא, אזור גיאוגרפי מועדף" />
+        <button id="cgBtn" style="width:100%">🎯 בנה מסע פרסום</button>
+      </div>
+      <div id="campaignContainer"></div>
+      <div id="planContainer"></div>
+    </section>
+
     <section id="tab-inspiration" class="tab hidden">
       <div class="card">
         <h2>הוסיפו השראה</h2>
@@ -167,7 +268,7 @@
       <div id="inspirationGallery"></div>
 
       <div class="card">
-        <h2>מה כבר פורסם</h2>
+        <h2>כל הפוסטים (היסטוריה)</h2>
       </div>
       <div id="historyContainer"></div>
     </section>
@@ -175,6 +276,9 @@
 
   <nav class="tabs">
     <button data-tab="tab-new" class="active">פוסט חדש</button>
+    <button data-tab="tab-posts">פוסטים</button>
+    <button data-tab="tab-plan">תוכנית</button>
+    <button data-tab="tab-connect">הגדרות</button>
     <button data-tab="tab-replies">תגובות</button>
     <button data-tab="tab-performance">ביצועים</button>
     <button data-tab="tab-inspiration">השראה</button>
@@ -192,12 +296,34 @@ const PLATFORM_LABELS = {
 let selectedPlatforms = new Set(["facebook", "instagram"]);
 let token = localStorage.getItem("rocca_token") || "";
 
-function api(path, opts = {}) {
+// Safari/Chrome report a dropped connection as "Load failed" / "Failed to fetch". On the free Render plan the server
+// may be waking up, so wait for it, retry once, and show a clear message instead of the raw browser error.
+async function waitForServer(maxMs = 70000) {
+  const end = Date.now() + maxMs;
+  while (Date.now() < end) {
+    try { const r = await fetch("/api/health", { cache: "no-store" }); if (r.ok) return true; } catch {}
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+  return false;
+}
+function isNetworkError(e) { return e instanceof TypeError || /load failed|failed to fetch|networkerror/i.test(String(e && e.message)); }
+async function api(path, opts = {}) {
+  try {
+    return await apiOnce(path, opts);
+  } catch (e) {
+    if (!isNetworkError(e)) throw e;
+    const idempotent = !opts.method || opts.method === "GET" || path === "/api/posts/generate";
+    if (idempotent && (await waitForServer())) return await apiOnce(path, opts).catch((e2) => { throw isNetworkError(e2) ? new Error("החיבור לשרת נותק. נסו שוב בעוד רגע.") : e2; });
+    throw new Error("החיבור לשרת נותק (ייתכן שהשרת התעורר). נסו שוב בעוד רגע.");
+  }
+}
+function apiOnce(path, opts = {}) {
   return fetch(path, {
     ...opts,
     headers: {
       "Content-Type": "application/json",
       Authorization: "Bearer " + token,
+      "X-Model": localStorage.getItem("rocca_model") || "auto",
       ...(opts.headers || {}),
     },
   }).then(async (r) => {
@@ -218,8 +344,10 @@ function showApp() {
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
   renderPlatformChips();
+  renderModelChips();
   loadReplies();
   loadHistory();
+  attachUpload(document.getElementById("imageInput"));
 }
 
 document.getElementById("loginBtn").addEventListener("click", () => {
@@ -239,6 +367,9 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     btn.classList.add("active");
     document.querySelectorAll(".tab").forEach((t) => t.classList.add("hidden"));
     document.getElementById(btn.dataset.tab).classList.remove("hidden");
+    if (btn.dataset.tab === "tab-posts") loadPosts();
+    if (btn.dataset.tab === "tab-connect") { loadProfile(); loadConnect(); }
+    if (btn.dataset.tab === "tab-plan") { loadTier(); loadCampaigns(); }
     if (btn.dataset.tab === "tab-replies") loadReplies();
     if (btn.dataset.tab === "tab-inspiration") {
       loadInspirations();
@@ -247,6 +378,453 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     if (btn.dataset.tab === "tab-performance") loadPerformance();
   });
 });
+
+
+
+// ---- My posts ----
+let postFilter = "open";
+document.getElementById("postFilter").addEventListener("click", (e) => {
+  const chip = e.target.closest("[data-f]");
+  if (!chip) return;
+  document.querySelectorAll("#postFilter .chip").forEach((c) => c.classList.remove("active"));
+  chip.classList.add("active");
+  postFilter = chip.dataset.f;
+  loadPosts();
+});
+
+document.getElementById("autoAllBtn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const r = await api("/api/posts/auto-schedule-all", { method: "POST" });
+    const note = r.skipped.length ? ` · ${r.skipped.length} לא תוזמנו (${r.skipped[0].reason})` : "";
+    toast(`⚡ ${r.scheduled} פוסטים תוזמנו${note}`);
+    loadPosts();
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function loadPosts() {
+  const box = document.getElementById("postsContainer");
+  box.innerHTML = `<p class="empty">טוען...</p>`;
+  try {
+    await refreshTierInfo();
+    const all = await api("/api/posts");
+    const posts = all.filter((p) => (postFilter === "published" ? p.status === "published" : p.status !== "published"));
+    box.innerHTML = "";
+    if (!posts.length) {
+      box.innerHTML = `<p class="empty">${postFilter === "published" ? "עדיין לא פורסמו פוסטים" : "אין טיוטות או פוסטים מתוזמנים. אפשר ליצור בלשונית 'פוסט חדש' או 'תוכנית'."}</p>`;
+      return;
+    }
+    if (postFilter === "published") posts.forEach((p) => box.appendChild(postSummaryCard(p)));
+    else posts.reverse().forEach((p) => renderDraft(p, box)); // renderDraft prepends, so reverse keeps newest first
+  } catch (err) {
+    box.innerHTML = `<p class="empty">שגיאה בטעינה: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+
+
+// ---- Business profile ----
+async function loadProfile() {
+  try {
+    const g = await api("/api/ai/status");
+    document.getElementById("aiStatus").textContent = !g.available
+      ? "ג'מיני: לא מחובר (חסר GEMINI_API_KEY). הכול עובד על Claude."
+      : g.usable && g.usable.length
+        ? `ג'מיני: מחובר · מודל פעיל: ${g.model} · זמינים למפתח: ${g.usable.join(", ")}`
+        : `ג'מיני: המפתח מחובר, אבל לא נמצאו מודלי Flash זמינים למפתח הזה (נעשה שימוש ב-${g.model}). אם זה נכשל, האפליקציה עוברת ל-Claude.`;
+  } catch {}
+  try {
+    const st = await api("/api/storage");
+    document.getElementById("storageStatus").textContent =
+      st.mode === "database"
+        ? `אחסון: מסד נתונים קבוע · ${st.documents} מסמכים${st.lastError ? " · ⚠️ שגיאת שמירה: " + st.lastError : ""}`
+        : "⚠️ אחסון: קבצים זמניים (DATABASE_URL לא מוגדר) — הנתונים יימחקו באתחול";
+  } catch {}
+  try {
+    const r = await api("/api/profile");
+    const p = r.profile;
+    document.getElementById("profileStatus").textContent = p
+      ? `✓ מוגדר: ${p.businessName}`
+      : r.required ? "⚠️ צריך להגדיר את העסק לפני שאפשר ליצור תוכן." : "כרגע הכתיבה לפי ברירת המחדל. הגדירו את העסק כדי שהתוכן יתאים לכם.";
+    if (p) {
+      document.getElementById("pfName").value = p.businessName;
+      document.getElementById("pfSell").value = p.whatYouSell;
+      document.getElementById("pfAud").value = p.audience;
+      document.getElementById("pfLoc").value = p.location;
+      document.getElementById("pfNever").value = p.neverSay;
+      const tone = document.getElementById("pfTone");
+      if ([...tone.options].some((o) => o.text === p.tone)) tone.value = p.tone;
+      document.getElementById("pfVoice").value = p.brandVoice;
+      document.getElementById("pfMarket").value = p.market || "";
+      document.getElementById("pfPreview").classList.remove("hidden");
+    }
+  } catch {}
+}
+function profileForm() {
+  return {
+    businessName: document.getElementById("pfName").value,
+    whatYouSell: document.getElementById("pfSell").value,
+    audience: document.getElementById("pfAud").value,
+    location: document.getElementById("pfLoc").value,
+    tone: document.getElementById("pfTone").value,
+    neverSay: document.getElementById("pfNever").value,
+  };
+}
+document.getElementById("pfGen").addEventListener("click", async () => {
+  const btn = document.getElementById("pfGen");
+  btn.disabled = true;
+  btn.textContent = "יוצר…";
+  try {
+    const r = await api("/api/profile/generate", { method: "POST", body: JSON.stringify(profileForm()) });
+    document.getElementById("pfVoice").value = r.brandVoice;
+    document.getElementById("pfPreview").classList.remove("hidden");
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ צור לי קול מותג";
+  }
+});
+document.getElementById("pfMarketBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("pfMarketBtn");
+  btn.disabled = true;
+  btn.textContent = "לומד את השוק…";
+  try {
+    const r = await api("/api/profile/market", { method: "POST", body: JSON.stringify(profileForm()) });
+    document.getElementById("pfMarket").value = r.market;
+    toast("✓ הוכן תקציר שוק. תבדקו, תתקנו, ושמרו");
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🔎 למד את השוק שלי";
+  }
+});
+document.getElementById("pfSave").addEventListener("click", async () => {
+  try {
+    await api("/api/profile", { method: "POST", body: JSON.stringify({ ...profileForm(), brandVoice: document.getElementById("pfVoice").value, market: document.getElementById("pfMarket").value }) });
+    toast("✓ נשמר. מעכשיו הכתיבה לפי העסק שלכם");
+    loadProfile();
+  } catch (e) {
+    toast(e.message);
+  }
+});
+
+// ---- Connections ----
+async function loadConnect() {
+  const box = document.getElementById("connectStatus");
+  try {
+    const c = await api("/api/connection");
+    const note = new URLSearchParams(location.search).get("connected");
+    box.innerHTML = "";
+    const row = el(`<div class="post-block"><span class="tag">פייסבוק + אינסטגרם</span>
+      <span class="status ${c.connected ? "sent" : "pending"}">${c.connected ? "מחובר" : "לא מחובר"}</span>
+      <p class="muted-small">${c.connected
+        ? `${c.pageName ? "עמוד: " + esc(c.pageName) : "חובר ידנית"}${c.igConnected ? " · אינסטגרם מחובר" : " · אינסטגרם לא מחובר"}`
+        : "לחיצה אחת, אישור בפייסבוק, וזה מוכן."}</p></div>`);
+    const btn = el(`<button style="width:100%;margin-top:8px">${c.connected ? "חיבור מחדש / החלפת עמוד" : "🔗 התחבר לפייסבוק ואינסטגרם"}</button>`);
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        const r = await api("/api/connection/start", { method: "POST" });
+        window.location.href = r.url;
+      } catch (e) {
+        btn.disabled = false;
+        toast(e.message);
+      }
+    });
+    row.appendChild(btn);
+    if (c.via === "facebook-login") {
+      const off = el(`<button class="secondary" style="width:100%;margin-top:8px">נתק</button>`);
+      off.addEventListener("click", async () => {
+        if (!confirm("לנתק את החיבור?")) return;
+        await api("/api/connection", { method: "DELETE" });
+        loadConnect();
+      });
+      row.appendChild(off);
+    }
+    box.appendChild(row);
+    ["טיקטוק", "האתר"].forEach((n) => box.appendChild(el(`<div class="post-block"><span class="tag">${n}</span><span class="status pending">בקרוב</span></div>`)));
+  } catch (e) {
+    box.innerHTML = `<p class="empty">שגיאה: ${esc(e.message)}</p>`;
+  }
+}
+
+
+// ---- Professional campaign ----
+function renderCampaign(c, box) {
+  const list = (items, fn) => (items || []).map(fn).join("");
+  const card = el(`<div class="card" data-campaign="${c.id}"><h2>${esc(c.name)}</h2>
+    <p>${esc(c.summary)}</p>
+    <p class="muted-small"><b>מטרה:</b> ${esc(c.objective)}</p>
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">משפך ותקציב</h3>
+    ${list(c.funnel, (f) => `<p class="muted-small"><b>${esc(f.stage)}</b> · ${f.budgetPercent}% (${f.budgetIls} ₪) · ${esc(f.goal)}<br>${(f.platforms || []).map(esc).join(", ")} · ${(f.formats || []).map(esc).join(", ")}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">קהלים</h3>
+    ${list(c.audiences, (a) => `<p class="muted-small"><b>${esc(a.name)}</b> (${esc(a.funnel)})<br>${esc(a.description)}<br>${esc(a.location)} · גילאים ${esc(a.ageRange)} · ${(a.interests || []).map(esc).join(", ")}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">קריאייטיבים (${(c.creatives || []).length})</h3>
+    ${list(c.creatives, (x) => `<div class="post-block"><span class="tag">${esc(x.funnelStage)}</span> <b>${esc(x.name)}</b>${x.budgetIls ? ` · ${x.budgetIls} ₪` : ""}<p style="white-space:pre-wrap;margin:6px 0">${esc(x.hook)}\n${esc(x.text)}\n${esc(x.cta)}</p><p class="muted-small">💡 ${esc(x.imageIdea)}${x.audience ? " · קהל: " + esc(x.audience) : ""}</p></div>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">תוכנית שבועית</h3>
+    ${list(c.schedule, (w) => `<p class="muted-small"><b>שבוע ${w.week}: ${esc(w.focus)}</b><br>${(w.actions || []).map((a) => "• " + esc(a)).join("<br>")}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">יעדי מדידה (השערות התחלתיות)</h3>
+    ${list(c.kpis, (k) => `<p class="muted-small"><b>${esc(k.metric)}</b>: ${esc(k.target)}<br>${esc(k.why)}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">כללי אופטימיזציה</h3>
+    ${list(c.optimizationRules, (r) => `<p class="muted-small">אם ${esc(r.if)} ← ${esc(r.then)}</p>`)}
+    <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">בדיקות A/B</h3>
+    ${list(c.abTests, (t) => `<p class="muted-small"><b>${esc(t.hypothesis)}</b><br>A: ${esc(t.variantA)} · B: ${esc(t.variantB)}<br>מדד: ${esc(t.metric)} · ${esc(t.duration)}</p>`)}
+    ${(c.risks || []).length ? `<h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent)">סיכונים</h3>${list(c.risks, (r) => `<p class="muted-small">• ${esc(r)}</p>`)}` : ""}
+    <p class="muted-small">⚠️ זו תוכנית מוצעת, לא הבטחת תוצאות. הקידום הממומן מופעל ונקבע על ידכם.</p>
+    <div class="row-actions"><button class="cgDrafts">צור טיוטות מהקריאייטיבים</button><button class="danger cgDel">מחק</button></div>
+  </div>`);
+  card.querySelector(".cgDrafts").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const r = await api(`/api/campaign/${c.id}/drafts`, { method: "POST" });
+      toast(`✓ נוצרו ${r.created} טיוטות. תמצאו אותן בלשונית 'פוסטים'`);
+    } catch (err) { toast(err.message); }
+    btn.disabled = false;
+  });
+  card.querySelector(".cgDel").addEventListener("click", async () => {
+    if (!confirm("למחוק את המסע?")) return;
+    await api(`/api/campaign/${c.id}`, { method: "DELETE" });
+    card.remove();
+  });
+  box.appendChild(card);
+}
+
+async function loadCampaigns() {
+  const box = document.getElementById("campaignContainer");
+  try {
+    const all = await api("/api/campaigns");
+    box.innerHTML = "";
+    all.slice(0, 3).forEach((c) => renderCampaign(c, box));
+  } catch {}
+}
+
+document.getElementById("cgBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("cgBtn");
+  btn.disabled = true;
+  btn.textContent = "בונה מסע… (עד דקה-שתיים)";
+  try {
+    const c = await api("/api/campaign/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        offer: document.getElementById("cgOffer").value,
+        goal: document.getElementById("cgGoal").value,
+        weeks: Number(document.getElementById("cgWeeks").value),
+        weeklyBudget: Number(document.getElementById("cgBudget").value) || 0,
+        notes: document.getElementById("cgNotes").value,
+      }),
+    });
+    const box = document.getElementById("campaignContainer");
+    const wrap = document.createElement("div");
+    renderCampaign(c, wrap);
+    box.prepend(wrap.firstChild);
+    loadTier();
+  } catch (e) {
+    toast(e.message);
+    if (/חבילת תוספת/.test(e.message)) showPacks(document.getElementById("campaignContainer"));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🎯 בנה מסע פרסום";
+  }
+});
+
+
+// ---- Model selector (auto / Claude / Gemini) ----
+function modelChips() {
+  return [
+  ["auto", "אוטומטי", "המערכת בוחרת: Gemini למשימות קלות, Claude למשימות מורכבות (מומלץ)"],
+  ["claude", "⭐ Claude", "איכות גבוהה: כתיבה, אסטרטגיה וניתוח ברמה הגבוהה ביותר. צורך יותר מהמכסה."],
+  ["gemini", "⚡ Gemini", "מהיר וחסכוני: מתאים לפוסטים ולתגובות פשוטים"],
+];
+}
+function renderModelChips() {
+  const wrap = document.getElementById("modelChips");
+  const cur = localStorage.getItem("rocca_model") || "auto";
+  wrap.innerHTML = "";
+  modelChips().forEach(([key, label, tip]) => {
+    const chip = el(`<div class="chip ${cur === key ? "active" : ""}" title="${escapeHtml(tip)}">${label}</div>`);
+    chip.addEventListener("click", () => {
+      localStorage.setItem("rocca_model", key);
+      renderModelChips();
+      toast(tip);
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+// ---- Marketing plan ----
+let planSelected = new Set(["facebook", "instagram"]);
+function renderPlanChips() {
+  const wrap = document.getElementById("planPlatforms");
+  wrap.innerHTML = "";
+  Object.entries(PLATFORM_LABELS).forEach(([key, label]) => {
+    const chip = el(`<div class="chip ${planSelected.has(key) ? "active" : ""}">${label}</div>`);
+    chip.addEventListener("click", () => {
+      planSelected.has(key) ? planSelected.delete(key) : planSelected.add(key);
+      renderPlanChips();
+    });
+    wrap.appendChild(chip);
+  });
+}
+renderPlanChips();
+
+async function loadTier() {
+  try {
+    const u = await api("/api/usage");
+    const t = u.tier;
+    document.getElementById("tierInfo").textContent =
+      `מסלול ${t.label} · תוכניות החודש: ${u.plans}/${u.plansCap} · שימוש: ${u.costIls}/${u.costCapIls} ₪`;
+    const weeks = document.getElementById("planWeeks");
+    [...weeks.options].forEach((o) => { o.disabled = Number(o.value) > t.maxWeeks; });
+    if (weeks.selectedOptions[0].disabled) weeks.value = "1";
+    const per = document.getElementById("planPer");
+    [...per.options].forEach((o) => { o.disabled = Number(o.value) > t.maxPostsPerWeek; });
+    if (per.selectedOptions[0].disabled) per.value = "3";
+    document.getElementById("planAggr").disabled = !t.adAdvice;
+    document.getElementById("planBudget").disabled = !t.adAdvice;
+    if (!t.adAdvice) document.getElementById("planBudget").placeholder = "זמין במסלול פרימיום ומעלה";
+  } catch {}
+}
+
+const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+document.getElementById("planBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("planBtn");
+  const box = document.getElementById("planContainer");
+  btn.disabled = true;
+  btn.textContent = "בונה תוכנית… (עד דקה)";
+  box.innerHTML = "";
+  try {
+    const plan = await api("/api/plan/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        goal: document.getElementById("planGoal").value,
+        weeks: Number(document.getElementById("planWeeks").value),
+        postsPerWeek: Number(document.getElementById("planPer").value),
+        platforms: [...planSelected],
+        weeklyBudget: Number(document.getElementById("planBudget").value) || 0,
+        aggressive: document.getElementById("planAggr").checked,
+        notes: document.getElementById("planNotes").value,
+      }),
+    });
+    renderPlan(plan, box);
+  } catch (e) {
+    box.appendChild(el(`<div class="card"><p>⚠️ ${esc(e.message)}</p></div>`));
+    if (/חבילת תוספת/.test(e.message)) showPacks(box);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ בנה לי תוכנית";
+  }
+});
+
+async function showPacks(box) {
+  try {
+    const packs = await api("/api/packs");
+    const card = el(`<div class="card"><h2>חבילות תוספת</h2><p class="muted-small">התוספת נשמרת ומתחילה להיצרך רק אחרי שהמכסה החודשית נגמרת.</p></div>`);
+    packs.forEach((p) => {
+      const row = el(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0"><span>${esc(p.label)} · ${p.priceIls} ₪<br><span class="muted-small">+${p.plans} תוכניות ושימוש נוסף</span></span></div>`);
+      const b = el(`<button>${p.link ? "רכישה" : "בקשת רכישה"}</button>`);
+      b.addEventListener("click", () => { if (p.link) window.open(p.link, "_blank"); else alert("הרכישה תיפתח בקרוב — פנו אלינו ונוסיף לכם את החבילה."); });
+      row.appendChild(b);
+      card.appendChild(row);
+    });
+    box.appendChild(card);
+  } catch {}
+}
+
+document.getElementById("reviewBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("reviewBtn");
+  const box = document.getElementById("planContainer");
+  btn.disabled = true;
+  box.innerHTML = '<div class="card"><p>מנתח את הביצועים…</p></div>';
+  try {
+    const r = await api("/api/plan/review", { method: "POST", body: JSON.stringify({ weeklyBudget: Number(document.getElementById("planBudget").value) || 0 }) });
+    box.innerHTML = "";
+    box.appendChild(el(`<div class="card"><h2>ניתוח ואסטרטגיה לשבוע הבא</h2><div style="white-space:pre-wrap;line-height:1.6">${esc(r.review)}</div></div>`));
+  } catch (e) {
+    box.innerHTML = `<div class="card"><p>⚠️ ${esc(e.message)}</p></div>`;
+    if (/חבילת תוספת/.test(e.message)) showPacks(box);
+  } finally { btn.disabled = false; }
+});
+
+function renderPlan(plan, box) {
+  const dateOf = (d) => new Date(Date.now() + d * 86400000).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "numeric" });
+  const head = el(`<div class="card"><h2>התוכנית שלכם</h2>
+    <p>${esc(plan.summary)}</p>
+    <p class="muted-small"><b>קהל יעד:</b> ${esc(plan.audience)}</p>
+    <p class="muted-small"><b>נושאים מרכזיים:</b> ${(plan.pillars || []).map(esc).join(" · ")}</p>
+    ${plan.adAdvice ? `<p class="muted-small"><b>המלצת פרסום:</b> ${esc(plan.adAdvice)}</p>` : ""}
+    <p class="muted-small">אפשר לערוך כל טקסט, להוסיף קישור לתמונה, או להסיר פוסט. פוסט עם אינסטגרם בלי תמונה יישמר כטיוטה.</p></div>`);
+  box.appendChild(head);
+  const cards = [];
+  (plan.items || []).forEach((it) => {
+    const card = el(`<div class="card"><h2>${esc(dateOf(it.dayOffset))} · ${esc(it.time)} — ${esc(it.topic)}</h2>
+      <p class="muted-small">💡 תמונה מומלצת: ${esc(it.imageIdea)}</p>
+      ${it.boost ? `<p class="muted-small">💰 קידום מומלץ: ${it.boost.budgetIls} ₪ ל-${it.boost.days} ימים · עדיפות ${it.boost.priority}/5</p>` : ""}
+      <input type="url" class="pimg" placeholder="קישור לתמונה או סרטון (אופציונלי)" />
+      ${Object.entries(it.texts || {}).map(([p, t]) => `<label>${esc(PLATFORM_LABELS[p] || p)}</label><textarea data-p="${esc(p)}" rows="4">${esc(t)}</textarea>`).join("")}
+      <button class="secondary prm">הסר מהתוכנית</button></div>`);
+    attachUpload(card.querySelector(".pimg"));
+    card.querySelector(".prm").addEventListener("click", () => { card.remove(); cards.splice(cards.findIndex((c) => c.card === card), 1); });
+    cards.push({ card, it });
+    box.appendChild(card);
+  });
+  const ok = el(`<button style="width:100%;margin:12px 0">✅ אשר ותזמן את כל הפוסטים</button>`);
+  ok.addEventListener("click", async () => {
+    ok.disabled = true;
+    try {
+      const items = cards.map(({ card, it }) => ({
+        ...it,
+        imageUrl: card.querySelector(".pimg").value.trim(),
+        texts: Object.fromEntries([...card.querySelectorAll("textarea")].map((t) => [t.dataset.p, t.value])),
+      }));
+      const r = await api("/api/plan/approve", { method: "POST", body: JSON.stringify({ items }) });
+      box.innerHTML = `<div class="card"><h2>🎉 מוכן!</h2><p>${r.scheduled} פוסטים תוזמנו ויעלו אוטומטית. ${r.drafts ? r.drafts + " נשמרו כטיוטות (חסרה תמונה) — תמצאו אותם בלשונית 'פוסטים'." : ""}</p></div>`;
+    } catch (e) {
+      alert(e.message);
+      ok.disabled = false;
+    }
+  });
+  box.appendChild(ok);
+}
+
+
+// ---- Media upload (photo/video) ----
+var mediaUploadEnabled = null; // var: showApp() may run before this line during page load
+async function uploadFileTo(inputEl, file, statusEl) {
+  statusEl.textContent = "מעלה… " + (file.size / 1048576).toFixed(1) + "MB";
+  try {
+    const r = await fetch("/api/media/upload", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": file.type || "application/octet-stream" }, body: file });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error || r.statusText);
+    inputEl.value = body.url;
+    inputEl.dispatchEvent(new Event("input"));
+    statusEl.textContent = "✓ הועלה";
+  } catch (e) {
+    statusEl.textContent = "";
+    toast(e.message);
+  }
+}
+async function attachUpload(inputEl) {
+  if (mediaUploadEnabled == null) {
+    try { mediaUploadEnabled = (await api("/api/media/status")).uploadEnabled; } catch { mediaUploadEnabled = false; }
+  }
+  if (!mediaUploadEnabled || inputEl.dataset.uploadAttached) return;
+  inputEl.dataset.uploadAttached = "1";
+  const wrap = el(`<div class="row-actions" style="margin:6px 0"><button type="button" class="secondary">📎 העלאת תמונה או סרטון</button><span class="muted-small upStatus"></span></div>`);
+  const file = el(`<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime" class="hidden">`);
+  wrap.querySelector("button").addEventListener("click", () => file.click());
+  file.addEventListener("change", () => { if (file.files[0]) uploadFileTo(inputEl, file.files[0], wrap.querySelector(".upStatus")); });
+  wrap.appendChild(file);
+  inputEl.after(wrap);
+}
 
 // ---- New post ----
 function renderPlatformChips() {
@@ -279,6 +857,7 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({ topic, platforms, imageUrl: imageUrl || undefined }),
     });
+    await refreshTierInfo();
     renderDraft(post);
     document.getElementById("topicInput").value = "";
   } catch (err) {
@@ -289,8 +868,7 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
   }
 });
 
-function renderDraft(post) {
-  const container = document.getElementById("draftContainer");
+function renderDraft(post, container = document.getElementById("draftContainer")) {
   const card = el(`<div class="card" data-post-id="${post.id}"></div>`);
   card.appendChild(el(`<h2>${escapeHtml(post.topic)}</h2>`));
 
@@ -306,17 +884,26 @@ function renderDraft(post) {
     card.appendChild(block);
   });
 
+  const mediaRow = el(`<div class="post-block"><label>תמונה או סרטון (קישור)</label><input type="url" class="draftMedia" placeholder="https://..." value="${escapeHtml((post.platforms.find((x) => x.imageUrl) || {}).imageUrl || "")}" /></div>`);
+  card.appendChild(mediaRow);
+  attachUpload(mediaRow.querySelector(".draftMedia"));
+
   const scheduleRow = el(`
     <div class="post-block schedule-row ${post.status === "scheduled" ? "" : "hidden"}">
       <label>מתי לפרסם?</label>
-      <input type="datetime-local" class="scheduleInput" value="${post.scheduledFor ? toLocalInputValue(post.scheduledFor) : ""}" />
+      <div class="platforms dayChips"></div>
+      <div class="platforms timeChips"></div>
+      <label class="muted-small">או תאריך ושעה מדויקים:</label>
+      <input type="datetime-local" class="scheduleInput" min="${toLocalInputValue(new Date().toISOString())}" value="${post.scheduledFor ? toLocalInputValue(post.scheduledFor) : ""}" />
       <div class="row-actions">
-        <button class="secondary confirmScheduleBtn">קבע תזמון</button>
+        <button class="autoScheduleBtn">⚡ תזמן אוטומטית</button>
+        <button class="secondary confirmScheduleBtn">קבע תזמון ידני</button>
         ${post.status === "scheduled" ? `<button class="danger cancelScheduleBtn">בטל תזמון</button>` : ""}
       </div>
     </div>
   `);
   card.appendChild(scheduleRow);
+  setupSchedulePicker(scheduleRow);
 
   const actions = el(`
     <div class="row-actions">
@@ -328,7 +915,21 @@ function renderDraft(post) {
   `);
   card.appendChild(actions);
 
-  actions.querySelector(".saveBtn").addEventListener("click", () => saveDraftEdits(card, post));
+  actions.querySelector(".saveBtn").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const label = btn.textContent;
+    btn.disabled = true;
+    try {
+      await saveDraftEdits(card, post);
+      toast("✓ נשמר. הוא בלשונית 'פוסטים'");
+      btn.textContent = "✓ נשמר";
+      setTimeout(() => { btn.textContent = label; }, 2000);
+    } catch (err) {
+      toast("השמירה נכשלה: " + err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
   actions.querySelector(".publishBtn").addEventListener("click", async () => {
     await saveDraftEdits(card, post, true);
   });
@@ -336,8 +937,28 @@ function renderDraft(post) {
     await api(`/api/posts/${post.id}`, { method: "DELETE" });
     card.remove();
   });
-  actions.querySelector(".scheduleToggleBtn").addEventListener("click", () => {
+  actions.querySelector(".scheduleToggleBtn").addEventListener("click", async () => {
     scheduleRow.classList.toggle("hidden");
+    if (!scheduleRow.classList.contains("hidden")) {
+      await refreshTierInfo();
+      setupSchedulePicker(scheduleRow);
+    }
+  });
+  scheduleRow.querySelector(".autoScheduleBtn").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const updated = await api(`/api/posts/${post.id}/auto-schedule`, { method: "POST" });
+      post.status = updated.status;
+      post.scheduledFor = updated.scheduledFor;
+      updatePostHeaderStatus(card, post);
+      toast(`⚡ תוזמן אוטומטית ל-${new Date(updated.scheduledFor).toLocaleString("he-IL", { weekday: "long", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+      scheduleRow.classList.add("hidden");
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      btn.disabled = false;
+    }
   });
   scheduleRow.querySelector(".confirmScheduleBtn").addEventListener("click", async () => {
     const value = scheduleRow.querySelector(".scheduleInput").value;
@@ -345,15 +966,25 @@ function renderDraft(post) {
       alert("בחרו תאריך ושעה");
       return;
     }
+    if (new Date(value).getTime() < Date.now() + 60000) {
+      toast("בחרו זמן עתידי");
+      return;
+    }
     const iso = new Date(value).toISOString();
-    const updated = await api(`/api/posts/${post.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ scheduledFor: iso }),
-    });
+    let updated;
+    try {
+      updated = await api(`/api/posts/${post.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ scheduledFor: iso }),
+      });
+    } catch (err) {
+      toast(err.message);
+      return;
+    }
     post.status = updated.status;
     post.scheduledFor = updated.scheduledFor;
     updatePostHeaderStatus(card, post);
-    alert("הפוסט תוזמן. הוא יפורסם אוטומטית בזמן שנקבע.");
+    toast("✓ הפוסט תוזמן ויפורסם אוטומטית בזמן שנקבע");
   });
   const cancelBtn = scheduleRow.querySelector(".cancelScheduleBtn");
   if (cancelBtn) {
@@ -371,6 +1002,67 @@ function renderDraft(post) {
 
   updatePostHeaderStatus(card, post);
   container.prepend(card);
+}
+
+// Quick scheduling: the next 14 days as chips plus common posting times; both fill the exact date/time field.
+let tierInfo = null; // subscription limits + scheduled count, from /api/usage
+async function refreshTierInfo() {
+  try {
+    const u = await api("/api/usage");
+    tierInfo = { ...u.tier, scheduledCount: u.scheduledCount };
+  } catch {}
+  return tierInfo;
+}
+
+function setupSchedulePicker(row) {
+  const input = row.querySelector(".scheduleInput");
+  const dayBox = row.querySelector(".dayChips");
+  const timeBox = row.querySelector(".timeChips");
+  dayBox.innerHTML = "";
+  timeBox.innerHTML = "";
+  const t = tierInfo || { horizonDays: 7, slots: ["12:00", "19:00", "21:00"], exactTime: false, maxScheduled: 7, scheduledCount: 0, label: "" };
+  const times = t.slots;
+  let info = row.querySelector(".scheduleInfo");
+  if (!info) {
+    info = el(`<p class="muted-small scheduleInfo"></p>`);
+    row.querySelector("label").after(info);
+  }
+  info.textContent = `מתוזמנים כרגע: ${t.scheduledCount}/${t.maxScheduled} · עד ${t.horizonDays} ימים קדימה${t.label ? " · מסלול " + t.label : ""}`;
+  input.classList.toggle("hidden", !t.exactTime);
+  row.querySelector("label.muted-small").classList.toggle("hidden", !t.exactTime);
+  input.max = toLocalInputValue(new Date(Date.now() + t.horizonDays * 86400000).toISOString());
+  const pad = (n) => String(n).padStart(2, "0");
+  const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  let day = input.value ? input.value.slice(0, 10) : "";
+  let time = input.value && times.includes(input.value.slice(11, 16)) ? input.value.slice(11, 16) : times.includes("19:00") ? "19:00" : times[0];
+
+  function sync() {
+    if (day) input.value = `${day}T${time}`;
+    dayBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.d === day));
+    timeBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.t === time));
+  }
+  for (let i = 0; i <= Math.min(t.horizonDays, 30); i++) {
+    const d = new Date(Date.now() + i * 86400000);
+    const label = i === 0 ? "היום" : i === 1 ? "מחר" : d.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" });
+    const chip = el(`<div class="chip" data-d="${dayKey(d)}">${label}</div>`);
+    chip.addEventListener("click", () => { day = chip.dataset.d; sync(); });
+    dayBox.appendChild(chip);
+  }
+  times.forEach((t) => {
+    const chip = el(`<div class="chip" data-t="${t}">${t}</div>`);
+    chip.addEventListener("click", () => { time = t; if (!day) day = dayKey(new Date(Date.now() + 86400000)); sync(); });
+    timeBox.appendChild(chip);
+  });
+  input.addEventListener("input", () => {
+    if (input.value) { day = input.value.slice(0, 10); time = input.value.slice(11, 16); sync(); }
+  });
+  sync();
+}
+
+function toast(msg) {
+  const t = el(`<div style="position:fixed;bottom:84px;left:50%;transform:translateX(-50%);background:#f3ead7;color:#1c1a17;padding:12px 18px;border-radius:12px;font-size:14px;z-index:99;max-width:90%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.4)">${escapeHtml(msg)}</div>`);
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
 }
 
 function toLocalInputValue(isoString) {
@@ -394,9 +1086,11 @@ function updatePostHeaderStatus(card, post) {
 
 async function saveDraftEdits(card, post, thenPublish) {
   const textareas = card.querySelectorAll("textarea[data-idx]");
+  const media = card.querySelector(".draftMedia");
   const platforms = post.platforms.map((pc, i) => ({
     ...pc,
     text: textareas[i] ? textareas[i].value : pc.text,
+    imageUrl: media ? media.value.trim() || undefined : pc.imageUrl,
   }));
   const updated = await api(`/api/posts/${post.id}`, {
     method: "PATCH",
@@ -496,6 +1190,32 @@ function renderReply(reply) {
 }
 
 // ---- History ----
+function postSummaryCard(p) {
+  const card = el(`<div class="card"><h2>${escapeHtml(p.topic)}</h2></div>`);
+    p.platforms.forEach((pc) => {
+      const m = pc.metrics;
+      const metricsLine = m
+        ? `<p class="muted-small">${[
+            m.reach != null ? `חשיפה: ${m.reach}` : "",
+            m.engagement != null ? `מעורבות: ${m.engagement}` : "",
+            m.clicks != null ? `קליקים: ${m.clicks}` : "",
+            m.saved != null ? `שמירות: ${m.saved}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}</p>`
+        : "";
+      card.appendChild(el(`
+        <div class="post-block">
+          <span class="tag">${PLATFORM_LABELS[pc.platform] || pc.platform}</span>
+          <span class="status ${pc.status}">${statusLabel(pc.status)}</span>
+          <p style="font-size:13px;color:var(--muted);margin:6px 0 0;">${escapeHtml(pc.text)}</p>
+          ${metricsLine}
+        </div>
+      `));
+    });
+  return card;
+}
+
 async function loadHistory() {
   const container = document.getElementById("historyContainer");
   container.innerHTML = `<p class="empty">טוען...</p>`;
@@ -506,31 +1226,7 @@ async function loadHistory() {
       return;
     }
     container.innerHTML = "";
-    posts.forEach((p) => {
-      const card = el(`<div class="card"><h2>${escapeHtml(p.topic)}</h2></div>`);
-      p.platforms.forEach((pc) => {
-        const m = pc.metrics;
-        const metricsLine = m
-          ? `<p class="muted-small">${[
-              m.reach != null ? `חשיפה: ${m.reach}` : "",
-              m.engagement != null ? `מעורבות: ${m.engagement}` : "",
-              m.clicks != null ? `קליקים: ${m.clicks}` : "",
-              m.saved != null ? `שמירות: ${m.saved}` : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")}</p>`
-          : "";
-        card.appendChild(el(`
-          <div class="post-block">
-            <span class="tag">${PLATFORM_LABELS[pc.platform] || pc.platform}</span>
-            <span class="status ${pc.status}">${statusLabel(pc.status)}</span>
-            <p style="font-size:13px;color:var(--muted);margin:6px 0 0;">${escapeHtml(pc.text)}</p>
-            ${metricsLine}
-          </div>
-        `));
-      });
-      container.appendChild(card);
-    });
+    posts.forEach((p) => container.appendChild(postSummaryCard(p)));
   } catch (err) {
     container.innerHTML = `<p class="empty">שגיאה בטעינה: ${escapeHtml(err.message)}</p>`;
   }

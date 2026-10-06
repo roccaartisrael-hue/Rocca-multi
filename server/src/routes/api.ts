@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { config, ALL_PLATFORMS, Platform } from "../config";
 import { store, PlatformContent } from "../lib/store";
-import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion } from "../lib/claude";
+import { generatePostForPlatforms, generateReplyDraft, isPriceQuestion, generateMarketingPlan, generateStrategyReview, generateBrandVoice, generateMarketBrief, generateCampaign, PlanItem } from "../lib/claude";
 import { publishPost } from "../lib/publish";
 import {
   verifyWebhookChallenge,
@@ -12,6 +12,15 @@ import {
 } from "../connectors/meta";
 import { replyToTweet } from "../connectors/x";
 import { fetchInsights } from "../connectors/insights";
+import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
+import { getTier } from "../lib/plans";
+import { withModelChoice, geminiAvailable, geminiStatus } from "../lib/ai";
+import { israelTime, pickSlot } from "../lib/autoschedule";
+import { campaigns } from "../lib/campaigns";
+import { getProfile, saveProfile } from "../lib/profile";
+import { storageStatus } from "../lib/persist";
+import { uploadMedia, mediaConfigured } from "../lib/media";
+import { PACKS, packLink, grantPack } from "../lib/credits";
 
 export const api = Router();
 
@@ -29,7 +38,252 @@ api.get("/api/health", (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
+// Payment provider calls this after a successful payment: POST {packId, paymentRef} with header x-webhook-secret.
+// Idempotent per paymentRef. Disabled unless PAYMENT_WEBHOOK_SECRET is set.
+api.post("/api/payments/webhook", (req, res) => {
+  const secret = process.env.PAYMENT_WEBHOOK_SECRET || "";
+  if (!secret || req.header("x-webhook-secret") !== secret) return res.status(401).json({ error: "Unauthorized" });
+  const { packId, paymentRef } = req.body || {};
+  if (!packId || !paymentRef) return res.status(400).json({ error: "packId and paymentRef are required" });
+  const purchase = grantPack(String(packId), String(paymentRef));
+  if (!purchase) return res.status(400).json({ error: "Unknown pack" });
+  res.json({ ok: true });
+});
+
 api.use("/api", requireAuth);
+// The dashboard's model selector sends X-Model: auto | claude | gemini; every AI call in the request honours it.
+api.use("/api", (req, _res, next) => withModelChoice(req.header("x-model") || undefined, next));
+
+// Top-up packs the customer can buy when the monthly allowance runs out (any tier, VIP included).
+api.get("/api/packs", (_req, res) => {
+  res.json(PACKS.map((p) => ({ ...p, link: packLink(p.id) })));
+});
+
+// Claude usage this month (calls + tokens) vs. AI_MONTHLY_LIMIT — for tracking real cost per business.
+api.get("/api/usage", (_req, res) => {
+  res.json({ ...currentUsage(), geminiAvailable: geminiAvailable(), scheduledCount: store.listPosts().filter((p) => p.status === "scheduled").length });
+});
+
+// ---- Business setup ----
+// REQUIRE_PROFILE=true (customer deployments): no content is generated until the business is set up,
+// so a new customer never gets posts written in someone else's voice.
+function requireProfile(_req: Request, res: Response, next: NextFunction) {
+  if (process.env.REQUIRE_PROFILE === "true" && !getProfile()) {
+    return res.status(400).json({ error: "קודם צריך להגדיר את העסק בלשונית 'הגדרות'." });
+  }
+  next();
+}
+api.use(["/api/posts/generate", "/api/plan/generate", "/api/plan/review", "/api/campaign/generate"], requireProfile);
+
+api.get("/api/ai/status", async (_req, res) => res.json(await geminiStatus()));
+
+api.get("/api/media/status", (_req, res) => res.json({ uploadEnabled: mediaConfigured() }));
+
+// Upload a photo/video from the dashboard; returns a public URL to use in a post.
+api.post("/api/media/upload", async (req, res) => {
+  try {
+    const type = String(req.header("content-type") || "");
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: "לא התקבל קובץ, או שסוג הקובץ לא נתמך (JPG, PNG, WEBP, MP4, MOV)" });
+    res.json({ url: await uploadMedia(req.body, type) });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+api.get("/api/storage", (_req, res) => res.json(storageStatus()));
+
+api.get("/api/profile", (_req, res) => {
+  const p = getProfile();
+  res.json({
+    configured: !!p,
+    required: process.env.REQUIRE_PROFILE === "true",
+    profile: p,
+  });
+});
+
+const profileFields = (b: any) => ({
+  businessName: String(b?.businessName || "").trim().slice(0, 120),
+  whatYouSell: String(b?.whatYouSell || "").trim().slice(0, 600),
+  audience: String(b?.audience || "").trim().slice(0, 400),
+  location: String(b?.location || "").trim().slice(0, 120),
+  tone: String(b?.tone || "").trim().slice(0, 200),
+  neverSay: String(b?.neverSay || "").trim().slice(0, 400),
+});
+
+// Preview: Claude drafts the brand voice from the form; nothing is saved yet.
+api.post("/api/profile/generate", async (req, res) => {
+  try {
+    const f = profileFields(req.body);
+    if (!f.businessName || !f.whatYouSell) return res.status(400).json({ error: "חובה למלא שם עסק ומה אתם מוכרים" });
+    res.json({ brandVoice: await generateBrandVoice(f) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Learns the market of this business (works before saving: uses the form fields plus the account's own results).
+api.post("/api/profile/market", async (req, res) => {
+  try {
+    const f = profileFields(req.body);
+    if (!f.businessName || !f.whatYouSell) return res.status(400).json({ error: "חובה למלא שם עסק ומה אתם מוכרים" });
+    const tier = getTier();
+    const top = store.topPerformingPlatformContent("engagement", 3);
+    const stats = top.length
+      ? top.map((r) => `${r.content.platform}: מעורבות ${r.content.metrics?.engagement ?? "?"}, חשיפה ${r.content.metrics?.reach ?? "?"}`).join("; ")
+      : "";
+    const market = await generateMarketBrief(f, {
+      topPerformers: tier.learnsFromPerformance ? top.map((r) => r.content.text).filter(Boolean) : [],
+      inspirationNotes: tier.learnsFromPerformance ? store.listInspirations().slice(0, 3).map((i) => i.note).filter(Boolean) : [],
+      stats,
+    });
+    res.json({ market });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.post("/api/profile", (req, res) => {
+  const f = profileFields(req.body);
+  const brandVoice = String(req.body?.brandVoice || "").trim().slice(0, 6000);
+  if (!f.businessName || !brandVoice) return res.status(400).json({ error: "חסר שם עסק או קול מותג" });
+  const market = req.body?.market === undefined ? undefined : String(req.body.market).trim().slice(0, 6000);
+  res.json(saveProfile({ ...f, brandVoice, market: market ?? getProfile()?.market }));
+});
+
+// ---- Marketing plan ----
+api.post("/api/plan/generate", async (req, res) => {
+  try {
+    const b = req.body as { goal?: string; weeks?: number; postsPerWeek?: number; platforms?: Platform[]; weeklyBudget?: number; aggressive?: boolean; notes?: string };
+    const tier = getTier();
+    const platforms = (b.platforms || []).filter((p) => ALL_PLATFORMS.includes(p));
+    if (!platforms.length) return res.status(400).json({ error: "בחר לפחות פלטפורמה אחת" });
+    if (platforms.length > tier.maxPlatforms) {
+      return res.status(400).json({ error: `במסלול ${tier.label} אפשר עד ${tier.maxPlatforms} פלטפורמות בתוכנית` });
+    }
+    const postsPerWeek = Math.min(tier.maxPostsPerWeek, Math.max(1, Math.round(Number(b.postsPerWeek) || 3)));
+    // one plan = at most 21 posts, so output stays within a single reliable Claude response
+    const weeks = Math.max(1, Math.min(tier.maxWeeks, Math.round(Number(b.weeks) || 2), Math.floor(21 / postsPerWeek)));
+    assertWithinLimit(); // check before consuming a plan so a blocked request doesn't burn the allowance
+    consumePlan();
+    const topPerformers = tier.learnsFromPerformance ? store.topPerformingPlatformContent("engagement", 3).map((r) => r.content.text).filter(Boolean) : [];
+    const inspirationNotes = tier.learnsFromPerformance ? store.listInspirations().slice(0, 3).map((i) => i.note).filter(Boolean) : [];
+    const plan = await generateMarketingPlan(
+      { goal: (b.goal || "יותר פניות וחשיפה").slice(0, 300), weeks, postsPerWeek, platforms, weeklyBudget: tier.adAdvice ? Math.max(0, Number(b.weeklyBudget) || 0) : 0, aggressive: !!b.aggressive && tier.adAdvice, notes: (b.notes || "").slice(0, 500) },
+      { topPerformers, inspirationNotes }
+    );
+    res.json(plan);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Professional campaign (strategy brief; nothing is launched or paid automatically) ----
+api.get("/api/campaigns", (_req, res) => res.json(campaigns.list()));
+
+api.post("/api/campaign/generate", async (req, res) => {
+  try {
+    const tier = getTier();
+    if (!tier.adAdvice) return res.status(403).json({ error: `מסע פרסום מקצועי זמין מפרימיום ומעלה` });
+    const b = req.body || {};
+    const offer = String(b.offer || "").trim().slice(0, 400);
+    if (!offer) return res.status(400).json({ error: "כתבו מה מקדמים" });
+    const weeks = Math.min(tier.maxWeeks, Math.max(1, Math.round(Number(b.weeks) || 2)));
+    const weeklyBudget = Math.max(0, Math.round(Number(b.weeklyBudget) || 0));
+    assertWithinLimit();
+    consumePlan(); // a campaign counts as one plan of the monthly allowance
+    const topPerformers = tier.learnsFromPerformance ? store.topPerformingPlatformContent("engagement", 3).map((r) => r.content.text).filter(Boolean) : [];
+    const inspirationNotes = tier.learnsFromPerformance ? store.listInspirations().slice(0, 3).map((i) => i.note).filter(Boolean) : [];
+    const request = { goal: String(b.goal || "יותר פניות ומכירות").slice(0, 300), offer, weeks, weeklyBudget, notes: String(b.notes || "").slice(0, 500) };
+    const generated = await generateCampaign(request, { topPerformers, inspirationNotes });
+    res.json(campaigns.save({ request, ...generated }));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Turns the campaign's creatives into drafts (with the recommended boost) — the owner still reviews, schedules and boosts.
+api.post("/api/campaign/:id/drafts", (req, res) => {
+  const c = campaigns.get(req.params.id);
+  if (!c) return res.status(404).json({ error: "Not found" });
+  const platforms: Platform[] = ["facebook", "instagram"];
+  let created = 0;
+  for (const cr of c.creatives) {
+    const text = [cr.hook, cr.text, cr.cta].filter(Boolean).join("\n\n");
+    const post = store.createPost(
+      `${c.name} · ${cr.name}`,
+      platforms.map((p) => ({ platform: p, text, status: "pending" as const })),
+    );
+    if (cr.budgetIls) store.updatePost(post.id, { boost: { budgetIls: cr.budgetIls, days: 5, audience: cr.audience || "", priority: 3 } });
+    created++;
+  }
+  res.json({ created });
+});
+
+api.delete("/api/campaign/:id", (req, res) => res.json({ deleted: campaigns.remove(req.params.id) }));
+
+// Learns from published posts' metrics and recommends how to attack and re-split budget next week.
+api.post("/api/plan/review", async (req, res) => {
+  try {
+    const tier = getTier();
+    if (!tier.learnsFromPerformance) return res.status(403).json({ error: `ניתוח וחידוד אסטרטגיה זמינים מפרימיום ומעלה` });
+    const weeklyBudget = tier.adAdvice ? Math.max(0, Number(req.body?.weeklyBudget) || 0) : 0;
+    const rows = store
+      .listPosts()
+      .filter((p) => p.status === "published")
+      .slice(0, 25)
+      .flatMap((p) =>
+        p.platforms.map((pc) => ({
+          topic: p.topic,
+          text: pc.text.slice(0, 200),
+          platform: pc.platform,
+          reach: pc.metrics?.reach,
+          engagement: pc.metrics?.engagement,
+          clicks: pc.metrics?.clicks,
+          boostIls: p.boost?.budgetIls,
+        }))
+      );
+    res.json({ review: await generateStrategyReview(rows, weeklyBudget) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Turns approved plan items into posts. Items that need an image (instagram/tiktok) and have none stay drafts.
+api.post("/api/plan/approve", (req, res) => {
+  try {
+    const items = (req.body?.items || []) as (PlanItem & { imageUrl?: string })[];
+    if (!items.length) return res.status(400).json({ error: "אין פוסטים לאישור" });
+    let scheduled = 0;
+    let drafts = 0;
+    for (const it of items) {
+      const contents: PlatformContent[] = (Object.entries(it.texts || {}) as [Platform, string][])
+        .filter(([p, t]) => ALL_PLATFORMS.includes(p) && t)
+        .map(([p, t]) => ({ platform: p, text: t, imageUrl: it.imageUrl || undefined, status: "pending" as const }));
+      if (!contents.length) continue;
+      const [h, m] = String(it.time || "19:00").split(":").map(Number);
+      const when = israelTime(Number(it.dayOffset) || 1, Number.isFinite(h) ? h : 19, Number.isFinite(m) ? m : 0);
+      const needsImage = contents.some((c) => (c.platform === "instagram" || c.platform === "tiktok") && !c.imageUrl);
+      if (needsImage) {
+        // keep as draft, but remember the intended time in the topic so nothing is lost
+        const post = store.createPost(`${it.topic} (מתוכנן ל-${when.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })} — חסרה תמונה)`, contents);
+        if (it.boost?.budgetIls) store.updatePost(post.id, { boost: it.boost });
+        drafts++;
+      } else if (scheduleProblem(when.toISOString(), null, false)) {
+        // over the tier's scheduling limits: keep as a draft instead of dropping it
+        const post = store.createPost(`${it.topic} (מתוכנן ל-${when.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })} — מעל מגבלת התזמון במסלול)`, contents);
+        if (it.boost?.budgetIls) store.updatePost(post.id, { boost: it.boost });
+        drafts++;
+      } else {
+        const post = store.createPost(it.topic, contents, when.toISOString());
+        if (it.boost?.budgetIls) store.updatePost(post.id, { boost: it.boost });
+        scheduled++;
+      }
+    }
+    res.json({ scheduled, drafts });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ---- Posts ----
 
@@ -77,6 +331,68 @@ api.get("/api/posts", (_req, res) => {
   res.json(store.listPosts());
 });
 
+/** Scheduling limits by tier: how many at once, how far ahead, and which times (Israel time). Returns an error message or null. */
+function scheduleProblem(whenIso: string, excludePostId: string | null, checkSlot: boolean): string | null {
+  const tier = getTier();
+  const when = new Date(whenIso);
+  if (isNaN(when.getTime())) return "תאריך לא תקין";
+  const now = Date.now();
+  if (when.getTime() < now + 60 * 1000) return "בחרו זמן עתידי";
+  if (when.getTime() > now + (tier.horizonDays + 1) * 86400000) return `במסלול ${tier.label} אפשר לתזמן עד ${tier.horizonDays} ימים קדימה`;
+  const alreadyScheduled = store.listPosts().filter((p) => p.status === "scheduled" && p.id !== excludePostId).length;
+  if (alreadyScheduled >= tier.maxScheduled) return `במסלול ${tier.label} אפשר לתזמן עד ${tier.maxScheduled} פוסטים במקביל. אפשר לשדרג מסלול.`;
+  if (checkSlot && !tier.exactTime) {
+    const hhmm = when.toLocaleTimeString("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" });
+    if (!tier.slots.includes(hhmm)) return `במסלול ${tier.label} אפשר לבחור אחת מהשעות: ${tier.slots.join(", ")}`;
+  }
+  return null;
+}
+
+function takenSlots(excludeId?: string): string[] {
+  return store.listPosts().filter((p) => p.status === "scheduled" && p.scheduledFor && p.id !== excludeId).map((p) => p.scheduledFor!);
+}
+
+const needsImage = (p: { platforms: PlatformContent[] }) =>
+  p.platforms.some((c) => (c.platform === "instagram" || c.platform === "tiktok") && !c.imageUrl);
+
+// Automatic scheduling of one post: the system picks the next best free time inside the tier's limits.
+api.post("/api/posts/:id/auto-schedule", (req, res) => {
+  const post = store.getPost(req.params.id);
+  if (!post) return res.status(404).json({ error: "Not found" });
+  if (post.status === "published") return res.status(400).json({ error: "הפוסט כבר פורסם" });
+  if (needsImage(post)) return res.status(400).json({ error: "חסרה תמונה לאינסטגרם/טיקטוק. הוסיפו תמונה לפני התזמון." });
+  const tier = getTier();
+  const when = pickSlot(takenSlots(post.id), tier, store.listPosts().filter((p) => p.status === "published"));
+  if (!when) return res.status(400).json({ error: "אין זמן פנוי בטווח של המסלול" });
+  const problem = scheduleProblem(when.toISOString(), post.id, false);
+  if (problem) return res.status(400).json({ error: problem });
+  res.json(store.updatePost(post.id, { scheduledFor: when.toISOString(), status: "scheduled" }));
+});
+
+// Automatic scheduling of every draft (oldest first) until the tier's limits are reached.
+api.post("/api/posts/auto-schedule-all", (_req, res) => {
+  const tier = getTier();
+  const published = store.listPosts().filter((p) => p.status === "published");
+  const drafts = store.listPosts().filter((p) => p.status === "draft").reverse();
+  let scheduled = 0;
+  const skipped: { topic: string; reason: string }[] = [];
+  for (const post of drafts) {
+    if (needsImage(post)) {
+      skipped.push({ topic: post.topic, reason: "חסרה תמונה" });
+      continue;
+    }
+    const when = pickSlot(takenSlots(), tier, published);
+    const problem = when ? scheduleProblem(when.toISOString(), post.id, false) : "אין זמן פנוי בטווח של המסלול";
+    if (!when || problem) {
+      skipped.push({ topic: post.topic, reason: problem || "אין זמן פנוי" });
+      break; // limit reached: remaining drafts would fail the same way
+    }
+    store.updatePost(post.id, { scheduledFor: when.toISOString(), status: "scheduled" });
+    scheduled++;
+  }
+  res.json({ scheduled, skipped });
+});
+
 api.patch("/api/posts/:id", (req, res) => {
   const post = store.getPost(req.params.id);
   if (!post) return res.status(404).json({ error: "Not found" });
@@ -86,6 +402,10 @@ api.patch("/api/posts/:id", (req, res) => {
   };
   const patch: any = {};
   if (platforms) patch.platforms = platforms;
+  if (scheduledFor) {
+    const problem = scheduleProblem(scheduledFor, post.id, true);
+    if (problem) return res.status(400).json({ error: problem });
+  }
   if (scheduledFor !== undefined) {
     patch.scheduledFor = scheduledFor;
     patch.status = scheduledFor ? "scheduled" : "draft";

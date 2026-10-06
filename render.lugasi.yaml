@@ -1,13 +1,15 @@
-# Render Blueprint — lets you deploy server/ with a few clicks instead of a terminal.
+# Render Blueprint for a CUSTOMER copy (Lugasi Gallery): separate service, Starter plan (never sleeps),
+# profile required before content is generated. Select this file in "Blueprint Path": render.lugasi.yaml
+# Original header: Render Blueprint — lets you deploy server/ with a few clicks instead of a terminal.
 # Docs: https://render.com/docs/blueprint-spec
 # Usage: push this repo to GitHub, then in Render click "New +" -> "Blueprint" and
 # point it at the repo (or use the "Deploy to Render" button in server/README.md).
 services:
   - type: web
-    name: rocca-social-bot
+    name: lugasi-gallery-bot
     runtime: node
     rootDir: server
-    plan: free
+    plan: starter
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
@@ -51,10 +53,10 @@ services:
       - key: META_LOGIN_CONFIG_ID
         sync: false
       - key: PUBLIC_URL
-        value: https://rocca-social-bot.onrender.com
+        value: https://lugasi-gallery-bot.onrender.com
       # true on customer copies: no content is written until the business is set up in the app (Settings tab)
       - key: REQUIRE_PROFILE
-        value: "false"
+        value: "true"
       # Optional second model: Gemini. Without GEMINI_API_KEY the app uses Claude only.
       - key: GEMINI_API_KEY
         sync: false

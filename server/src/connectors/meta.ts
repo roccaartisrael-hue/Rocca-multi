@@ -2,6 +2,11 @@ import { config } from "../config";
 
 const GRAPH = "https://graph.facebook.com/v19.0";
 
+/** A media URL is treated as video when its path ends in a common video extension. */
+export function isVideoUrl(url?: string): boolean {
+  return !!url && /\.(mp4|mov|m4v|webm)(\?|#|$)/i.test(url);
+}
+
 interface GraphResponse {
   id?: string;
   error?: { message: string; type: string; code: number };
@@ -22,12 +27,37 @@ export async function postToFacebook(text: string, imageUrl?: string): Promise<s
   if (!config.meta.pageId || !config.meta.pageAccessToken) {
     throw new Error("META_PAGE_ID / META_PAGE_ACCESS_TOKEN not configured");
   }
-  const endpoint = imageUrl ? `/${config.meta.pageId}/photos` : `/${config.meta.pageId}/feed`;
-  const body: Record<string, string> = imageUrl
-    ? { url: imageUrl, caption: text, access_token: config.meta.pageAccessToken }
-    : { message: text, access_token: config.meta.pageAccessToken };
+  const video = isVideoUrl(imageUrl);
+  const endpoint = video ? `/${config.meta.pageId}/videos` : imageUrl ? `/${config.meta.pageId}/photos` : `/${config.meta.pageId}/feed`;
+  const body: Record<string, string> = video
+    ? { file_url: imageUrl!, description: text, access_token: config.meta.pageAccessToken }
+    : imageUrl
+      ? { url: imageUrl, caption: text, access_token: config.meta.pageAccessToken }
+      : { message: text, access_token: config.meta.pageAccessToken };
   const result = await graphPost(endpoint, body);
   return result.id || "unknown";
+}
+
+/**
+ * Instagram processes the uploaded image asynchronously. Publishing before the
+ * container is FINISHED fails with "Media ID is not available", so poll its
+ * status (up to ~60s) before calling media_publish.
+ */
+async function waitForInstagramContainer(containerId: string, tries = 20, delayMs = 3000): Promise<void> {
+  const url = `${GRAPH}/${containerId}?fields=status_code,status&access_token=${encodeURIComponent(
+    config.meta.pageAccessToken,
+  )}`;
+  for (let attempt = 0; attempt < tries; attempt++) {
+    const res = await fetch(url);
+    const json = (await res.json()) as { status_code?: string; status?: string; error?: { message: string } };
+    if (json.error) throw new Error(`Meta Graph API error: ${json.error.message}`);
+    if (json.status_code === "FINISHED") return;
+    if (json.status_code === "ERROR" || json.status_code === "EXPIRED") {
+      throw new Error(`Instagram could not process the media (${json.status || json.status_code})`);
+    }
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  throw new Error("Instagram media processing timed out — try again in a minute");
 }
 
 export async function postToInstagram(caption: string, imageUrl: string): Promise<string> {
@@ -37,12 +67,17 @@ export async function postToInstagram(caption: string, imageUrl: string): Promis
   if (!imageUrl) {
     throw new Error("Instagram requires an image (or video) URL — text-only posts are not supported");
   }
-  const container = await graphPost(`/${config.meta.igUserId}/media`, {
-    image_url: imageUrl,
-    caption,
-    access_token: config.meta.pageAccessToken,
-  });
+  const video = isVideoUrl(imageUrl);
+  const container = await graphPost(
+    `/${config.meta.igUserId}/media`,
+    video
+      ? { media_type: "REELS", video_url: imageUrl, caption, share_to_feed: "true", access_token: config.meta.pageAccessToken }
+      : { image_url: imageUrl, caption, access_token: config.meta.pageAccessToken },
+  );
   if (!container.id) throw new Error("Failed to create Instagram media container");
+  // Videos take much longer to process than photos: poll up to ~5 minutes.
+  if (video) await waitForInstagramContainer(container.id, 60, 5000);
+  else await waitForInstagramContainer(container.id);
   const published = await graphPost(`/${config.meta.igUserId}/media_publish`, {
     creation_id: container.id,
     access_token: config.meta.pageAccessToken,
