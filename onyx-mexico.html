@@ -121,12 +121,21 @@
 
   .whatsapp-float{position:fixed;bottom:calc(22px + env(safe-area-inset-bottom, 0px));left:22px;z-index:80;width:58px;height:58px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.3);}
   .whatsapp-float svg{width:30px;height:30px;}
+  .lang-switch{display:flex;gap:2px;font-size:13px;font-weight:700;align-items:center;}
+  .lang-switch a{padding:4px 7px;border-radius:2px;color:var(--ink-soft);}
+  .lang-switch a:hover{color:var(--gold-deep);}
+  .lang-switch a[aria-current]{color:var(--gold-deep);}
+  @media (max-width:520px){.lang-switch{font-size:12.5px;gap:0;}.lang-switch a{padding:4px 4px;}}
   .social{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
   footer{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px)) !important;}
   .social a{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid var(--line);border-radius:22px;font-size:14px;font-weight:700;color:var(--ink);background:var(--panel, var(--bg));}
   .social a:hover{border-color:var(--gold);color:var(--gold-deep);}
   .social svg{width:18px;height:18px;flex:none;}
 </style>
+<link rel="alternate" hreflang="he" href="https://rocca.co.il/onyx-mexico.html">
+<link rel="alternate" hreflang="en" href="https://rocca.co.il/en/onyx-mexico.html">
+<link rel="alternate" hreflang="es" href="https://rocca.co.il/es/onyx-mexico.html">
+<link rel="alternate" hreflang="x-default" href="https://rocca.co.il/onyx-mexico.html">
 </head>
 <body>
 
@@ -134,6 +143,7 @@
   <div class="nav">
     <a class="brand" href="index.html"><span class="brand-word">ROCCA</span><span class="brand-heb">רוקה</span></a>
     <a class="back" href="index.html">→ חזרה לאתר</a>
+    <div class="lang-switch"><a href="onyx-mexico.html" hreflang="he" lang="he" aria-current="true">עברית</a><a href="en/onyx-mexico.html" hreflang="en" lang="en">EN</a><a href="es/onyx-mexico.html" hreflang="es" lang="es">ES</a></div>
   </div>
 </header>
 
