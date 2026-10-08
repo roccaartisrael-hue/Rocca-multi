@@ -1,4 +1,5 @@
 import { Lead, whatsappDigits } from "./leads";
+import { brandDomain } from "./brand";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -31,7 +32,7 @@ export async function notifyLead(businessName: string, lead: Lead, target: Notif
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: process.env.NOTIFY_FROM || "BOOL <leads@bool.co.il>", to: [target.email], subject: `ליד חדש: ${lead.fullName || lead.phone || "פנייה חדשה"}`, html: leadEmailHtml(businessName, lead) }),
+        body: JSON.stringify({ from: process.env.NOTIFY_FROM || `BOOL <leads@${brandDomain()}>`, to: [target.email], subject: `ליד חדש: ${lead.fullName || lead.phone || "פנייה חדשה"}`, html: leadEmailHtml(businessName, lead) }),
         signal: AbortSignal.timeout(10000),
       });
       out.email = r.ok;

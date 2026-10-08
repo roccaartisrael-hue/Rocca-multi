@@ -1,6 +1,7 @@
 import path from "path";
 import { v4 as uuid } from "uuid";
 import { readDoc, writeDoc, readGlobal, writeGlobal } from "./persist";
+import { brandDomain, brandUrl } from "./brand";
 
 const FILE = path.join(__dirname, "..", "..", "data", "site.json");
 
@@ -45,8 +46,8 @@ export function addArticle(a: { title: string; description: string; body: string
 }
 
 // ---- domains → tenant (system-wide) ----
-const RESERVED = /(^|\.)(bool\.co\.il|rocca\.co\.il|onrender\.com|localhost)$/i;
-export const validDomain = (d: string) => /^(?=.{4,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,24}$/i.test(d) && !RESERVED.test(d);
+const isReserved = (d: string) => [brandDomain(), "rocca.co.il", "onrender.com", "localhost"].some((r) => d === r || d.endsWith("." + r));
+export const validDomain = (d: string) => /^(?=.{4,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,24}$/i.test(d) && !isReserved(d.toLowerCase());
 const readIdx = (): Record<string, string> => {
   try {
     return JSON.parse(readGlobal("siteDomains.json") || "{}");
@@ -78,7 +79,7 @@ const esc = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&
  */
 export function boolCredit(): string {
   const rel = process.env.BOOL_CREDIT_NOFOLLOW === "true" ? "nofollow noopener" : "noopener";
-  return `<p class="credit">Powered by <a href="https://bool.co.il" rel="${rel}">BOOL</a> | שותף שיווקי של <a href="https://rocca.co.il" rel="${rel}">rocca.co.il</a></p>`;
+  return `<p class="credit">Powered by <a href="${brandUrl()}" rel="${rel}">BOOL</a> | שותף שיווקי של <a href="https://rocca.co.il" rel="${rel}">rocca.co.il</a></p>`;
 }
 
 const CSS = `*{box-sizing:border-box}body{margin:0;font-family:system-ui,Arial,sans-serif;background:#161412;color:#f3ead7;line-height:1.7}main{max-width:760px;margin:auto;padding:24px 16px}h1,h2{color:#d4b56a;line-height:1.3}a{color:#d4b56a}.card{background:#1f1c19;border:1px solid #3a342c;border-radius:12px;padding:16px;margin:12px 0}input,textarea{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #3a342c;background:#161412;color:#f3ead7;font:inherit}button,.btn{display:inline-block;background:#d4b56a;color:#161412;border:0;border-radius:8px;padding:11px 20px;font-weight:700;text-decoration:none;cursor:pointer}.wa{background:#25d366;color:#0b1f12}.credit{text-align:center;color:#8d8372;font-size:13px;margin:32px 0 8px}`;

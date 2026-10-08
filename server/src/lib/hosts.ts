@@ -6,14 +6,15 @@ import { tenantForDomain, getSite, renderSiteHtml, renderArticleHtml } from "./s
 import { runAsTenant, DEFAULT_TENANT } from "./tenantContext";
 import { getTenant } from "./tenants";
 import { getProfile } from "./profile";
+import { brandDomain } from "./brand";
 
 /**
- * Subdomains: bool.co.il / www → marketing site, app.bool.co.il → the dashboard, api.bool.co.il → API only.
+ * Subdomains of BRAND_DOMAIN (default boolai.co.il): the bare domain and www → marketing site, app. → the dashboard, api. → API only.
  * Override the names with MARKETING_HOSTS / API_HOSTS (comma-separated) if the domains change.
  */
 const list = (v: string | undefined, fallback: string[]) => (v ? v.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : fallback);
-const MARKETING = () => list(process.env.MARKETING_HOSTS, ["bool.co.il", "www.bool.co.il"]);
-const API_ONLY = () => list(process.env.API_HOSTS, ["api.bool.co.il"]);
+const MARKETING = () => list(process.env.MARKETING_HOSTS, [brandDomain(), `www.${brandDomain()}`]);
+const API_ONLY = () => list(process.env.API_HOSTS, [`api.${brandDomain()}`]);
 const hostOf = (req: Request) => String(req.hostname || "").toLowerCase();
 
 const PUBLIC_DIR = path.join(__dirname, "..", "..", "public");
@@ -50,14 +51,14 @@ export function siteHost(req: Request, res: Response, next: NextFunction) {
   });
 }
 
-const DEFAULT_ORIGINS = ["https://bool.co.il", "https://www.bool.co.il", "https://app.bool.co.il", "https://api.bool.co.il", "https://rocca.co.il", "https://www.rocca.co.il"];
+const defaultOrigins = () => [brandDomain(), `www.${brandDomain()}`, `app.${brandDomain()}`, `api.${brandDomain()}`, "rocca.co.il", "www.rocca.co.il"].map((h) => `https://${h}`);
 const OPEN_PATHS = /^\/(api\/leads\/capture|api\/billing\/catalog|api\/auth\/config)$/; // landing pages anywhere may call these
 
 /** CORS: the BOOL / ROCCA domains, this server's own origin, local development; the public lead/catalog endpoints are open. */
 export const corsOptions = (req: Request, cb: (err: Error | null, o?: CorsOptions) => void) => {
   const extra = list(process.env.CORS_ORIGINS, []);
   const allowAll = extra.includes("*");
-  const allowed = new Set([...DEFAULT_ORIGINS, ...extra, process.env.PUBLIC_URL || ""].map((o) => o.replace(/\/$/, "")));
+  const allowed = new Set([...defaultOrigins(), ...extra, process.env.PUBLIC_URL || ""].map((o) => o.replace(/\/$/, "")));
   cb(null, {
     origin: (origin, done) => {
       if (!origin || allowAll || OPEN_PATHS.test(req.path)) return done(null, true);

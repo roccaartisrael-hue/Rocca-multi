@@ -538,7 +538,7 @@ fetch("/api/auth/config").then((r) => r.json()).then((c) => {
   if (signupMode !== "closed") $("authModes").querySelector('[data-mode="signup"]').classList.remove("hidden");
 }).catch(() => {});
 
-if (/(^|\.)bool\.co\.il$/.test(location.hostname)) { $("loginTitle").textContent = "BOOL"; $("appTitle").textContent = "BOOL"; }
+if (/(^|\.)boolai\.co\.il$/.test(location.hostname)) { $("loginTitle").textContent = "BOOL"; $("appTitle").textContent = "BOOL"; }
 async function showApp() {
   try { me = await api("/api/me"); } catch (e) { if (!token) return; me = null; }
   $("loginScreen").classList.add("hidden");
@@ -1760,7 +1760,7 @@ $("domainBtn").addEventListener("click", async () => {
 // ---- plans & checkout ----
 const fmtIls = (n) => "₪" + (Number.isInteger(n) ? Number(n).toLocaleString("he-IL") : Number(n).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const isGross = (cat) => !cat || cat.priceDisplay !== "net";
-const vatDetail = (i, cat) => (isGross(cat) ? `מתוכם ${Math.round(cat.vatRate * 100)}% מע״מ: <b>${fmtIls(i.vatIls)}</b> (מחיר לפני מע״מ: ${fmtIls(i.priceIls)})` : `(<b style="color:var(--accent)">${fmtIls(i.grossIls)}</b> כולל מע״מ)`);
+const vatDetail = (i, cat) => (isGross(cat) ? `מתוכם ${Math.round(cat.vatRate * 100)}% מע״מ: <b>${fmtIls(i.vatIls)}</b> (מחיר לפני מע״מ: ${fmtIls(i.netIls)})` : `(<b style="color:var(--accent)">${fmtIls(i.grossIls)}</b> כולל מע״מ)`);
 const perLabel = (i) => (i.cycle === "weekly" ? "לשבוע" : i.cycle === "monthly" || i.cycle === "annual" ? "לחודש" : "");
 async function loadPlans() {
   try {
@@ -1772,7 +1772,7 @@ async function loadPlans() {
       const card = el(`<div class="card"><h2>${title}</h2></div>`);
       cat.items.filter((i) => i.kind === kind).forEach((i) => {
         const commit = i.kind === "package" ? (i.commitmentMonths ? `התחייבות ל-${i.commitmentMonths} חודשים` : "ללא התחייבות") : "";
-        const it = el(`<div class="plan-item"><h3><bdi>${escapeHtml(i.label)}</bdi> · ${fmtIls(isGross(cat) ? i.grossIls : i.priceIls)} ${perLabel(i)}</h3><p class="muted-small" style="margin:0 0 4px">${vatDetail(i, cat)}${commit ? " · " + commit : ""}</p>${i.includes ? `<ul>${i.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}${IS_STORE_APP ? `<p class="muted-small">את המנוי מנהלים באתר, בחשבון שלך.</p>` : `<button>לרכישה</button>`}</div>`);
+        const it = el(`<div class="plan-item"><h3><bdi>${escapeHtml(i.label)}</bdi> · ${fmtIls(isGross(cat) ? i.grossIls : i.netIls)} ${perLabel(i)}</h3><p class="muted-small" style="margin:0 0 4px">${vatDetail(i, cat)}${commit ? " · " + commit : ""}</p>${i.includes ? `<ul>${i.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}${IS_STORE_APP ? `<p class="muted-small">את המנוי מנהלים באתר, בחשבון שלך.</p>` : `<button>לרכישה</button>`}</div>`);
         const btn = it.querySelector("button"); if (btn) btn.addEventListener("click", () => openCheckout(i));
         card.appendChild(it);
       });

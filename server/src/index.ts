@@ -18,7 +18,7 @@ app.use(express.json());
 // Raw binary body for media uploads only (photos/videos): /api/media/upload
 app.use("/api/media/upload", express.raw({ type: ["image/*", "video/*"], limit: "60mb" }));
 app.use(express.urlencoded({ extended: false }));
-app.use(hostRouting); // bool.co.il → marketing site, api.bool.co.il → API only
+app.use(hostRouting); // boolai.co.il → marketing site, api.boolai.co.il → API only
 app.use(siteHost); // a customer's own domain → that customer's site
 app.use(express.static(path.join(__dirname, "..", "public")));
 

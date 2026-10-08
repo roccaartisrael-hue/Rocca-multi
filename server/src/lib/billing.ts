@@ -43,9 +43,16 @@ export const vatRate = (): number => {
 
 const agorot = (n: number) => Math.round(n * 100) / 100;
 
-/** Catalog prices are BEFORE VAT. The VAT-inclusive amount is exact to the agora (₪790 → ₪932.20) — the payment page must charge exactly this. */
-export function vatBreakdown(netIls: number) {
-  const grossIls = agorot(netIls * (1 + vatRate()));
+/**
+ * The customer pays ONE amount: the VAT-inclusive price, rounded to the nearest whole shekel (PRICE_ROUNDING=agora keeps agorot).
+ * The pre-VAT price and the VAT are then derived from that amount, so what is shown is exactly what is charged and invoiced.
+ * Catalog prices (priceIls) are the list price before VAT that the rounded amount comes from.
+ */
+export function vatBreakdown(listNetIls: number) {
+  const rate = vatRate();
+  const exact = listNetIls * (1 + rate);
+  const grossIls = String(process.env.PRICE_ROUNDING || "shekel").toLowerCase() === "agora" ? agorot(exact) : Math.round(exact);
+  const netIls = agorot(grossIls / (1 + rate));
   return { netIls, vatIls: agorot(grossIls - netIls), grossIls };
 }
 

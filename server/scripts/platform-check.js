@@ -34,11 +34,11 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   // ---- prices: before VAT + the VAT-inclusive amount
   let cat = await call("GET", "/api/billing/catalog", null);
   const byId = Object.fromEntries(cat.body.items.map((i) => [i.id, i]));
-  check("business packages show the exact VAT-inclusive price (1,490→1,758.20 · 1,890→2,230.20 · 2,490→2,938.20)", byId.core_presence_annual.grossIls === 1758.2 && byId.digital_pro_annual.grossIls === 2230.2 && byId.total_dominance_annual.grossIls === 2938.2, cat.body.items.map((i) => [i.id, i.priceIls, i.grossIls]));
-  check("Starter Social is in the catalog: ₪790 → ₪932.20, monthly, no commitment", byId.starter_social_monthly && byId.starter_social_monthly.priceIls === 790 && byId.starter_social_monthly.grossIls === 932.2 && !byId.starter_social_monthly.commitmentMonths, byId.starter_social_monthly);
+  check("final prices are whole shekels incl. VAT (1,758 · 2,230 · 2,938) with net+VAT derived from them", byId.core_presence_annual.grossIls === 1758 && byId.core_presence_annual.netIls === 1489.83 && byId.core_presence_annual.vatIls === 268.17 && byId.digital_pro_annual.grossIls === 2230 && byId.total_dominance_annual.grossIls === 2938, cat.body.items.map((i) => [i.id, i.priceIls, i.grossIls]));
+  check("Starter Social is in the catalog: ₪790 list → ₪932 final, monthly, no commitment", byId.starter_social_monthly && byId.starter_social_monthly.priceIls === 790 && byId.starter_social_monthly.grossIls === 932 && !byId.starter_social_monthly.commitmentMonths, byId.starter_social_monthly);
   check("every tier that is sold has a catalog entry", ["creator_lite", "creator_pro", "starter_social", "digital_core", "digital_pro", "total_dominance"].every((t) => cat.body.items.some((i) => i.tier === t)));
   check("the display defaults to Gross (the VAT-inclusive price is the prominent one)", cat.body.priceDisplay === "gross", cat.body.priceDisplay);
-  check("every price carries net, VAT and gross that add up", cat.body.items.every((i) => i.priceIls + i.vatIls === i.grossIls && i.grossIls > i.priceIls));
+  check("every price carries net, VAT and gross that add up", cat.body.items.every((i) => Math.abs(i.netIls + i.vatIls - i.grossIls) < 0.005 && i.grossIls > i.netIls));
   check("the VAT note defaults to the wording the owner chose", cat.body.vatNote === "המחירים כוללים מע״מ כחוק" && cat.body.vatRate === 0.18, cat.body.vatNote);
 
   // ---- freemium: 3 gift credits, no card
@@ -69,16 +69,16 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
 
   // ---- checkout + webhook
   r = await call("POST", "/api/billing/quote", F, { sku: "credits_10" });
-  check("the quote shows net, VAT and the exact total, plus the terms", r.body.netIls === 19 && r.body.vatIls === 3.42 && r.body.grossIls === 22.42 && r.body.terms.length >= 2, r.body);
+  check("the quote shows net, VAT and the exact total, plus the terms", r.body.netIls === 18.64 && r.body.vatIls === 3.36 && r.body.grossIls === 22 && r.body.terms.length >= 2, r.body);
   r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "credits_10" });
   check("checkout is refused until the customer accepts the terms", r.status === 400 && r.body.code === "terms_required", r);
   r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "credits_10", acceptTerms: true }, { "x-store-app": "1" });
   check("a store build never links out to a web checkout", r.status === 403 && r.body.code === "store_policy", r);
   r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "credits_10", acceptTerms: true });
-  check("checkout returns the hosted payment link with a signed ref", r.status === 200 && r.body.url.startsWith("https://pay.example/c10?ref=") && r.body.grossIls === 22.42, r);
+  check("checkout returns the hosted payment link with a signed ref", r.status === 200 && r.body.url.startsWith("https://pay.example/c10?ref=") && r.body.grossIls === 22, r);
   const ref = decodeURIComponent(r.body.url.split("ref=")[1]);
   let orders = (await call("GET", "/api/billing/orders", F)).body;
-  check("a pending order is recorded with the frozen price and the accepted terms", orders.length === 1 && orders[0].status === "pending" && orders[0].grossIls === 22.42 && !!orders[0].termsAcceptedAt, orders);
+  check("a pending order is recorded with the frozen price and the accepted terms", orders.length === 1 && orders[0].status === "pending" && orders[0].grossIls === 22 && !!orders[0].termsAcceptedAt, orders);
   r = await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-short", amount: 19 }, { "x-webhook-secret": "whsec" });
   check("a payment for the wrong amount is rejected", r.status === 400 && /mismatch/.test(r.body.error) && (await call("GET", "/api/me", F)).body.credits === 0, r);
   r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "creator_pro_monthly", acceptTerms: true });
@@ -87,7 +87,7 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   check("webhook rejects a wrong secret", r.status === 401, r);
   r = await call("POST", "/api/billing/webhook", null, { ref: ref.replace(/.$/, "0"), paymentRef: "pay-x" }, { "x-webhook-secret": "whsec" });
   check("webhook rejects a tampered ref", r.status === 400, r);
-  r = await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-1", amount: 22.42 }, { "x-webhook-secret": "whsec" });
+  r = await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-1", amount: 22 }, { "x-webhook-secret": "whsec" });
   check("a valid payment adds the credits", r.status === 200 && (await call("GET", "/api/me", F)).body.credits === 10);
   await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-1" }, { "x-webhook-secret": "whsec" });
   orders = (await call("GET", "/api/billing/orders", F)).body;
@@ -145,7 +145,7 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   r = await call("GET", "/api/billing/status", F);
   check("one click activates Starter Social with its features", r.body.tier === "starter_social" && r.body.cycle === "monthly" && r.body.credits === null && !!r.body.expiresAt, r.body);
   orders = (await call("GET", "/api/billing/orders", F)).body;
-  check("the manual activation is recorded as a manual, paid order", orders[0].method === "manual" && orders[0].status === "paid" && orders[0].grossIls === 932.2 && orders[0].note === "נסגר בחנות", orders[0]);
+  check("the manual activation is recorded as a manual, paid order", orders[0].method === "manual" && orders[0].status === "paid" && orders[0].grossIls === 932 && orders[0].note === "נסגר בחנות", orders[0]);
 
   // ---- business package: unlimited credits, ads, site, domain
   await call("POST", `/api/admin/tenants/${tid}`, ADM, { plan: "digital_pro", commitmentMonths: 12, subscriptionCycle: "annual" });
@@ -167,14 +167,14 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   check("an SEO article is generated and stored", r.status === 200 && r.body.slug, r);
   const site = (await call("GET", "/api/site", F)).body;
   r = await call("GET", site.publicPath, null);
-  check("the public site renders with the BOOL credit pointing to rocca.co.il", r.status === 200 && /Powered by <a href="https:\/\/bool\.co\.il"/.test(r.body._text) && /rocca\.co\.il/.test(r.body._text), r.body._text && r.body._text.slice(-400));
+  check("the public site renders with the BOOL credit pointing to rocca.co.il", r.status === 200 && /Powered by <a href="https:\/\/boolai\.co\.il"/.test(r.body._text) && /rocca\.co\.il/.test(r.body._text), r.body._text && r.body._text.slice(-400));
   r = await call("GET", `${site.publicPath}/${(await call("GET", "/api/site", F)).body.site.articles[0].slug}`, null);
   check("article pages render", r.status === 200 && /כך בוחרים אבן/.test(r.body._text), r.status);
   r = await call("GET", `${site.publicPath}/sitemap.xml`, null);
   check("sitemap lists the pages", /<urlset/.test(r.body._text) && (r.body._text.match(/<loc>/g) || []).length === 2, r.body._text);
   r = await call("GET", "/s/doesnotexist", null);
   check("unknown site key → 404", r.status === 404, r.status);
-  r = await call("POST", "/api/site/domain", F, { domain: "bool.co.il" });
+  r = await call("POST", "/api/site/domain", F, { domain: "boolai.co.il" });
   check("BOOL/ROCCA domains cannot be claimed", r.status === 400, r);
   r = await call("POST", "/api/site/domain", F, { domain: "free-biz.co.il" });
   check("Core Presence+ can request its own domain", r.status === 200 && r.body.domainStatus === "pending_dns", r);
@@ -201,16 +201,16 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   check("tenants cannot read the operator's ticket list", (await call("GET", "/api/admin/tickets", F)).status === 403);
 
   // ---- subdomains
-  r = await asHost("bool.co.il");
-  check("bool.co.il serves the marketing site", r.status === 200 && r.text.includes("BOOL"), r.status);
-  r = await asHost("api.bool.co.il");
-  check("api.bool.co.il answers as an API only", JSON.parse(r.text).service === "BOOL API");
-  r = await asHost("api.bool.co.il", "/api/leads/capture", "OPTIONS", { origin: "https://some-landing.example", "access-control-request-method": "POST" });
+  r = await asHost("boolai.co.il");
+  check("boolai.co.il serves the marketing site", r.status === 200 && r.text.includes("BOOL"), r.status);
+  r = await asHost("api.boolai.co.il");
+  check("api.boolai.co.il answers as an API only", JSON.parse(r.text).service === "BOOL API");
+  r = await asHost("api.boolai.co.il", "/api/leads/capture", "OPTIONS", { origin: "https://some-landing.example", "access-control-request-method": "POST" });
   check("lead capture accepts cross-origin landing pages", r.headers["access-control-allow-origin"] === "https://some-landing.example", r.headers);
-  r = await asHost("api.bool.co.il", "/api/posts", "OPTIONS", { origin: "https://evil.example", "access-control-request-method": "GET" });
+  r = await asHost("api.boolai.co.il", "/api/posts", "OPTIONS", { origin: "https://evil.example", "access-control-request-method": "GET" });
   check("the private API does not allow arbitrary origins", !r.headers["access-control-allow-origin"], r.headers["access-control-allow-origin"]);
-  r = await asHost("api.bool.co.il", "/api/posts", "OPTIONS", { origin: "https://app.bool.co.il", "access-control-request-method": "GET" });
-  check("app.bool.co.il is allowed", r.headers["access-control-allow-origin"] === "https://app.bool.co.il");
+  r = await asHost("api.boolai.co.il", "/api/posts", "OPTIONS", { origin: "https://app.boolai.co.il", "access-control-request-method": "GET" });
+  check("app.boolai.co.il is allowed", r.headers["access-control-allow-origin"] === "https://app.boolai.co.il");
 
   stop();
   fs.rmSync(DATA, { recursive: true, force: true });
