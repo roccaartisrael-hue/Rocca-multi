@@ -5,7 +5,7 @@ import { getSettings, saveSettings } from "../lib/settings";
 import { runAutopilot } from "../lib/autopilot";
 import { addLead, listLeads, setLeadStatus, LeadStatus } from "../lib/leads";
 import { notifyLead } from "../lib/notify";
-import { CATALOG, getSku, checkoutUrl, parseRef, applyPayment } from "../lib/billing";
+import { CATALOG, getSku, checkoutUrl, parseRef, applyPayment, vatBreakdown, vatRate, DEFAULT_VAT_NOTE } from "../lib/billing";
 import { addStats, listStats, listInsightLogs, runWeeklyAllocation, AD_CHANNELS } from "../lib/adBudget";
 import { getSite, saveSite, addArticle, claimDomain, validDomain, renderSiteHtml, renderArticleHtml } from "../lib/sites";
 import { listTickets, openTicket, replyTicket } from "../lib/support";
@@ -29,7 +29,7 @@ const businessNameOf = (): string => (isDefaultTenant() ? getProfile()?.business
 export const publicPlatform = Router();
 
 publicPlatform.get("/api/billing/catalog", (_req, res) => {
-  res.json({ vatNote: process.env.PRICES_VAT_NOTE || "", items: CATALOG });
+  res.json({ vatNote: process.env.PRICES_VAT_NOTE || DEFAULT_VAT_NOTE, vatRate: vatRate(), items: CATALOG.map((i) => ({ ...i, ...vatBreakdown(i.priceIls) })) });
 });
 
 // Landing pages, the generated site's form and paid-ad lead forms post here. The business is identified by its public key.

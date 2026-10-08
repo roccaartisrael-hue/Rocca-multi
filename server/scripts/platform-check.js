@@ -31,6 +31,13 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
     q.on("error", reject); q.end();
   });
 
+  // ---- prices: before VAT + the VAT-inclusive amount
+  let cat = await call("GET", "/api/billing/catalog", null);
+  const byId = Object.fromEntries(cat.body.items.map((i) => [i.id, i]));
+  check("business packages show the VAT-inclusive price (1,490→1,758 · 1,890→2,230 · 2,490→2,938)", byId.core_presence_annual.grossIls === 1758 && byId.digital_pro_annual.grossIls === 2230 && byId.total_dominance_annual.grossIls === 2938, cat.body.items.map((i) => [i.id, i.priceIls, i.grossIls]));
+  check("every price carries net, VAT and gross that add up", cat.body.items.every((i) => i.priceIls + i.vatIls === i.grossIls && i.grossIls > i.priceIls));
+  check("the VAT note defaults to the wording the owner chose", cat.body.vatNote === "המחירים כוללים מע״מ כחוק / מוצגים כולל מע״מ" && cat.body.vatRate === 0.18, cat.body.vatNote);
+
   // ---- freemium: 3 gift credits, no card
   let r = await call("POST", "/api/auth/signup", null, { email: "free@x.co", password: "password1", businessName: "Free Biz" });
   const F = r.body.token;

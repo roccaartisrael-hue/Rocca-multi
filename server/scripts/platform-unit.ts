@@ -83,6 +83,12 @@ const check = (name: string, ok: boolean, extra?: unknown) => {
   check("lead email escapes everything a visitor typed", !/<script>|<img/.test(html) && /&lt;script&gt;/.test(html), html.slice(0, 300));
   check("israeli numbers become wa.me digits", whatsappDigits("050-123-4567") === "972501234567" && whatsappDigits("+972 50 123 4567") === "972501234567");
 
+  // ---- VAT
+  const { vatBreakdown } = await import("../src/lib/billing");
+  check("VAT 18% rounds to whole shekels: 1490→1758, 1890→2230, 2490→2938", vatBreakdown(1490).grossIls === 1758 && vatBreakdown(1890).grossIls === 2230 && vatBreakdown(2490).grossIls === 2938);
+  check("small prices: 19→22, 49→58, 29→34, 69→81, 129→152", [19, 49, 29, 69, 129].map((n) => vatBreakdown(n).grossIls).join() === "22,58,34,81,152");
+  check("net + VAT = gross", vatBreakdown(1490).netIls + vatBreakdown(1490).vatIls === vatBreakdown(1490).grossIls);
+
   // ---- tiers
   check("every tier has a coherent shape", Object.values(TIERS).every((t) => t.costCapIls > 0 && t.aiCalls > 0 && t.slots.length > 0));
   check("free trial and creators are credit-based; business tiers are not", !TIERS.free_trial.unlimitedCredits && !TIERS.creator_lite.unlimitedCredits && TIERS.digital_core.unlimitedCredits && TIERS.total_dominance.unlimitedCredits);

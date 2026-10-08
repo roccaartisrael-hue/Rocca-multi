@@ -5,7 +5,7 @@ import { adjustCredits, getTenant, updateTenant } from "./tenants";
 import { isValidTenantId } from "./tenantContext";
 
 /**
- * What can be bought. Prices are what the customer pays (the dashboard states whether VAT is included via PRICES_VAT_NOTE).
+ * What can be bought. priceIls is the price BEFORE VAT; the catalog endpoint adds the VAT-inclusive amount (grossIls) and every screen shows both.
  * The actual payment page belongs to the payment provider / existing Israeli clearing terminal: it is a hosted link
  * set per product in env (CHECKOUT_LINK_<SKU>), so no card data ever touches this server.
  */
@@ -32,6 +32,20 @@ export const CATALOG: Sku[] = [
   { id: "digital_pro_annual", kind: "package", label: "Digital Pro + Ads", priceIls: 1890, tier: "digital_pro", cycle: "annual", commitmentMonths: 12, includes: ["כל מה שב-Core Presence", "חלוקת תקציב ממומן חכמה בין ערוצים (המלצה שבועית)", "דוחות שקופים עם הסברי AI"] },
   { id: "total_dominance_annual", kind: "package", label: "Total Dominance", priceIls: 2490, tier: "total_dominance", cycle: "annual", commitmentMonths: 12, includes: ["כל מה שב-Digital Pro", "טיקטוק וגוגל — בקרוב", "בוט מענה ללידים 24/7 — בקרוב"] },
 ];
+
+/** Israeli VAT (18% since 2025); override with VAT_RATE (e.g. 0.18) if the rate changes. */
+export const vatRate = (): number => {
+  const r = Number(process.env.VAT_RATE);
+  return Number.isFinite(r) && r >= 0 && r < 1 ? r : 0.18;
+};
+
+/** Catalog prices are BEFORE VAT. The VAT-inclusive price is rounded to whole shekels — set the payment page to charge exactly this amount. */
+export function vatBreakdown(netIls: number) {
+  const grossIls = Math.round(netIls * (1 + vatRate()));
+  return { netIls, vatIls: grossIls - netIls, grossIls };
+}
+
+export const DEFAULT_VAT_NOTE = "המחירים כוללים מע״מ כחוק / מוצגים כולל מע״מ";
 
 export const getSku = (id: string): Sku | undefined => CATALOG.find((s) => s.id === id);
 
