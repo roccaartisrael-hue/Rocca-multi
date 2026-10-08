@@ -2,7 +2,8 @@ import crypto from "crypto";
 import { readGlobal, writeGlobal } from "./persist";
 import { TierName } from "./plans";
 import { adjustCredits, getTenant, updateTenant } from "./tenants";
-import { isValidTenantId } from "./tenantContext";
+import { isValidTenantId, runAsTenant } from "./tenantContext";
+import { recordPaid } from "./orders";
 
 /**
  * What can be bought. priceIls is the price BEFORE VAT; the catalog endpoint adds the VAT-inclusive amount (grossIls) and every screen shows both.
@@ -28,6 +29,7 @@ export const CATALOG: Sku[] = [
   { id: "creator_weekly", kind: "subscription", label: "יוצרים — שבועי", priceIls: 29, tier: "creator_lite", cycle: "weekly", credits: 10, includes: ["10 קרדיטים בכל שבוע"] },
   { id: "creator_lite_monthly", kind: "subscription", label: "יוצרים לייט — חודשי", priceIls: 69, tier: "creator_lite", cycle: "monthly", credits: 40, includes: ["40 קרדיטים בחודש", "פייסבוק + אינסטגרם", "טייס אוטומטי"] },
   { id: "creator_pro_monthly", kind: "subscription", label: "יוצרים פרו — חודשי", priceIls: 129, tier: "creator_pro", cycle: "monthly", credits: 100, includes: ["100 קרדיטים בחודש", "תזמון מדויק", "המלצות לקידום ממומן"] },
+  { id: "starter_social_monthly", kind: "package", label: "Starter Social", priceIls: 790, tier: "starter_social", cycle: "monthly", commitmentMonths: 0, includes: ["פייסבוק + אינסטגרם אורגני", "טייס אוטומטי: פוסטים שבועיים לאישור", "תוכניות שיווק חודשיות ודוחות"] },
   { id: "core_presence_annual", kind: "package", label: "Core Presence", priceIls: 1490, tier: "digital_core", cycle: "annual", commitmentMonths: 12, includes: ["אתר תדמית + חיבור דומיין עצמאי", "מאמרי SEO לגוגל", "פייסבוק + אינסטגרם אורגני עם טייס אוטומטי"] },
   { id: "digital_pro_annual", kind: "package", label: "Digital Pro + Ads", priceIls: 1890, tier: "digital_pro", cycle: "annual", commitmentMonths: 12, includes: ["כל מה שב-Core Presence", "חלוקת תקציב ממומן חכמה בין ערוצים (המלצה שבועית)", "דוחות שקופים עם הסברי AI"] },
   { id: "total_dominance_annual", kind: "package", label: "Total Dominance", priceIls: 2490, tier: "total_dominance", cycle: "annual", commitmentMonths: 12, includes: ["כל מה שב-Digital Pro", "טיקטוק וגוגל — בקרוב", "בוט מענה ללידים 24/7 — בקרוב"] },
@@ -39,13 +41,26 @@ export const vatRate = (): number => {
   return Number.isFinite(r) && r >= 0 && r < 1 ? r : 0.18;
 };
 
-/** Catalog prices are BEFORE VAT. The VAT-inclusive price is rounded to whole shekels — set the payment page to charge exactly this amount. */
+const agorot = (n: number) => Math.round(n * 100) / 100;
+
+/** Catalog prices are BEFORE VAT. The VAT-inclusive amount is exact to the agora (₪790 → ₪932.20) — the payment page must charge exactly this. */
 export function vatBreakdown(netIls: number) {
-  const grossIls = Math.round(netIls * (1 + vatRate()));
-  return { netIls, vatIls: grossIls - netIls, grossIls };
+  const grossIls = agorot(netIls * (1 + vatRate()));
+  return { netIls, vatIls: agorot(grossIls - netIls), grossIls };
 }
 
-export const DEFAULT_VAT_NOTE = "המחירים כוללים מע״מ כחוק / מוצגים כולל מע״מ";
+export const DEFAULT_VAT_NOTE = "המחירים כוללים מע״מ כחוק";
+
+/** What the customer must be told, and agree to, before paying. */
+export function termsFor(sku: Sku): string[] {
+  const t: string[] = [];
+  if (sku.kind === "credits") t.push("רכישה חד־פעמית של קרדיטים. הקרדיטים אינם פגי תוקף כל עוד החשבון פעיל.");
+  if (sku.cycle === "weekly") t.push("מנוי שבועי המתחדש מדי שבוע עד לביטולו.");
+  if (sku.cycle === "monthly") t.push(sku.kind === "package" ? "מנוי חודשי ללא התחייבות, המתחדש מדי חודש עד לביטולו." : "מנוי חודשי המתחדש מדי חודש עד לביטולו.");
+  if (sku.commitmentMonths) t.push(`התחייבות ל-${sku.commitmentMonths} חודשים, בחיוב חודשי.`);
+  t.push("שום תוכן לא מתפרסם בלי אישור שלך, והשימוש כפוף לתנאי השימוש ולמדיניות הפרטיות.");
+  return t;
+}
 
 export const getSku = (id: string): Sku | undefined => CATALOG.find((s) => s.id === id);
 
@@ -93,7 +108,7 @@ const readProcessed = (): Processed[] => {
  * Applies a successful payment. Idempotent per paymentRef (a webhook retried by the provider never double-credits).
  * Credits are added on every payment; tier/cycle/expiry are set for subscriptions and packages.
  */
-export function applyPayment(tenantId: string, skuId: string, paymentRef: string): { applied: boolean; reason?: string } {
+export function applyPayment(tenantId: string, skuId: string, paymentRef: string, opts: { ref?: string; method?: "web" | "manual"; note?: string } = {}): { applied: boolean; reason?: string } {
   const sku = getSku(skuId);
   const tenant = getTenant(tenantId);
   if (!sku || !tenant) return { applied: false, reason: "unknown sku or tenant" };
@@ -104,6 +119,7 @@ export function applyPayment(tenantId: string, skuId: string, paymentRef: string
     const expires = new Date(Date.now() + (CYCLE_DAYS[sku.cycle] + GRACE_DAYS) * 86400000).toISOString();
     updateTenant(tenantId, { plan: sku.tier, subscriptionCycle: sku.cycle, commitmentMonths: sku.commitmentMonths ?? 0, planExpiresAt: expires, trialEndsAt: undefined });
   }
+  runAsTenant(tenantId, () => recordPaid(sku, paymentRef, { ref: opts.ref, method: opts.method || "web", note: opts.note }));
   done.push({ paymentRef, tenantId, sku: skuId, at: new Date().toISOString() });
   writeGlobal("payments.json", JSON.stringify(done.slice(-5000), null, 2));
   return { applied: true };

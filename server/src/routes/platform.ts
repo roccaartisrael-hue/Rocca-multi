@@ -5,7 +5,8 @@ import { getSettings, saveSettings } from "../lib/settings";
 import { runAutopilot } from "../lib/autopilot";
 import { addLead, listLeads, setLeadStatus, LeadStatus } from "../lib/leads";
 import { notifyLead } from "../lib/notify";
-import { CATALOG, getSku, checkoutUrl, parseRef, applyPayment, vatBreakdown, vatRate, DEFAULT_VAT_NOTE } from "../lib/billing";
+import { CATALOG, getSku, checkoutUrl, parseRef, applyPayment, vatBreakdown, vatRate, DEFAULT_VAT_NOTE, termsFor } from "../lib/billing";
+import { createOrder, listOrders, findOrderByRef } from "../lib/orders";
 import { addStats, listStats, listInsightLogs, runWeeklyAllocation, AD_CHANNELS } from "../lib/adBudget";
 import { getSite, saveSite, addArticle, claimDomain, validDomain, renderSiteHtml, renderArticleHtml } from "../lib/sites";
 import { listTickets, openTicket, replyTicket } from "../lib/support";
@@ -58,11 +59,17 @@ publicPlatform.post("/api/billing/webhook", (req, res) => {
   const secret = process.env.PAYMENT_WEBHOOK_SECRET || "";
   const given = String(req.header("x-webhook-secret") || "");
   if (!secret || !safeEqual(given, secret)) return res.status(401).json({ error: "Unauthorized" });
-  const { ref, tenantId, sku, paymentRef } = req.body || {};
+  const { ref, tenantId, sku, paymentRef, amount } = req.body || {};
   if (!paymentRef) return res.status(400).json({ error: "paymentRef is required" });
   const parsed = ref ? parseRef(String(ref)) : tenantId && sku ? { tenantId: String(tenantId), sku: String(sku) } : null;
   if (!parsed) return res.status(400).json({ error: "invalid ref" });
-  const r = applyPayment(parsed.tenantId, parsed.sku, String(paymentRef));
+  // When the provider reports the amount it charged, it must equal the VAT-inclusive price the customer confirmed.
+  if (amount !== undefined && ref) {
+    const order = runAsTenant(parsed.tenantId, () => findOrderByRef(String(ref)));
+    const expected = order ? order.grossIls : vatBreakdown(getSku(parsed.sku)!.priceIls).grossIls;
+    if (Math.abs(Number(amount) - expected) > 0.01) return res.status(400).json({ error: `amount mismatch (expected ${expected})` });
+  }
+  const r = applyPayment(parsed.tenantId, parsed.sku, String(paymentRef), { ref: ref ? String(ref) : undefined, method: "web" });
   if (!r.applied) return res.status(400).json({ error: r.reason });
   res.json({ ok: true });
 });
@@ -154,14 +161,29 @@ platformRouter.get("/api/billing/status", (_req, res) => {
     features: { autopilot: isDefaultTenant() || tier.autopilot, customDomain: isDefaultTenant() || tier.customDomain, ads: isDefaultTenant() || tier.ads, leadBot: isDefaultTenant() || tier.leadBot },
   });
 });
-platformRouter.post("/api/billing/create-checkout-session", (req, res) => {
-  if (isDefaultTenant()) return res.status(400).json({ error: "החשבון הראשי לא נרכש בתשלום" });
+// The confirmation screen: exactly what will be charged, and the terms the customer agrees to.
+platformRouter.post("/api/billing/quote", (req, res) => {
   const sku = getSku(String(req.body?.sku || ""));
   if (!sku) return res.status(400).json({ error: "מוצר לא מוכר" });
+  res.json({ sku: sku.id, label: sku.label, cycle: sku.cycle, commitmentMonths: sku.commitmentMonths ?? 0, ...vatBreakdown(sku.priceIls), vatRate: vatRate(), terms: termsFor(sku), includes: sku.includes || [] });
+});
+
+// In-app checkout: the customer confirms the quote and accepts the terms → a pending order with a frozen price →
+// the hosted payment page of the clearing provider (no card data ever touches this server) → webhook marks it paid.
+platformRouter.post("/api/billing/create-checkout-session", (req, res) => {
+  if (isDefaultTenant()) return res.status(400).json({ error: "החשבון הראשי לא נרכש בתשלום" });
+  // Store builds (Google Play / App Store) must not link out to a web checkout for digital goods; they ask the user to manage the plan on the web.
+  if (req.header("x-store-app")) return res.status(403).json({ error: "את המנוי מנהלים באתר, בחשבון שלך.", code: "store_policy" });
+  const sku = getSku(String(req.body?.sku || ""));
+  if (!sku) return res.status(400).json({ error: "מוצר לא מוכר" });
+  if (req.body?.acceptTerms !== true) return res.status(400).json({ error: "יש לאשר את תנאי הרכישה לפני המעבר לתשלום", code: "terms_required" });
   const c = checkoutUrl(currentTenantId(), sku.id);
   if (!c) return res.status(501).json({ error: "הסליקה עדיין לא הוגדרה למוצר הזה. פנו אלינו ונפעיל את החבילה ידנית.", code: "checkout_not_configured" });
-  res.json({ url: c.url });
+  const order = createOrder(sku, c.ref, new Date().toISOString());
+  res.json({ url: c.url, orderId: order.id, grossIls: order.grossIls });
 });
+
+platformRouter.get("/api/billing/orders", (_req, res) => res.json(listOrders()));
 
 // ---- ads: smart budget allocation + transparent reports ----
 platformRouter.get("/api/ads/overview", requireFeature("ads"), (_req, res) => {
@@ -303,4 +325,14 @@ platformRouter.post("/api/admin/tickets/:tenantId/:id/reply", requireAdmin, (req
 platformRouter.post("/api/admin/sites/:tenantId/domain/activate", requireAdmin, (req, res) => {
   if (!getTenant(req.params.tenantId)) return res.status(404).json({ error: "לא נמצא" });
   res.json(runAsTenant(req.params.tenantId, () => (getSite().domain ? saveSite({ domainStatus: "active" }) : null)) || { error: "אין דומיין מבוקש" });
+});
+
+// Manual activation: a deal closed in the field (or through a store) — the operator activates the package in one click.
+// Same effect as a paid web order (tier, credits, cycle, expiry) and recorded as a manual order for the audit trail.
+platformRouter.post("/api/admin/tenants/:id/activate", requireAdmin, (req, res) => {
+  const sku = getSku(String(req.body?.sku || ""));
+  if (!sku) return res.status(400).json({ error: "מוצר לא מוכר" });
+  if (!getTenant(req.params.id)) return res.status(404).json({ error: "לא נמצא" });
+  const r = applyPayment(req.params.id, sku.id, `manual-${Date.now()}`, { method: "manual", note: String(req.body?.note || "").slice(0, 300) || "הופעל ידנית" });
+  r.applied ? res.json({ ok: true }) : res.status(400).json({ error: r.reason });
 });

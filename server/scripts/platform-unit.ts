@@ -85,9 +85,9 @@ const check = (name: string, ok: boolean, extra?: unknown) => {
 
   // ---- VAT
   const { vatBreakdown } = await import("../src/lib/billing");
-  check("VAT 18% rounds to whole shekels: 1490→1758, 1890→2230, 2490→2938", vatBreakdown(1490).grossIls === 1758 && vatBreakdown(1890).grossIls === 2230 && vatBreakdown(2490).grossIls === 2938);
-  check("small prices: 19→22, 49→58, 29→34, 69→81, 129→152", [19, 49, 29, 69, 129].map((n) => vatBreakdown(n).grossIls).join() === "22,58,34,81,152");
-  check("net + VAT = gross", vatBreakdown(1490).netIls + vatBreakdown(1490).vatIls === vatBreakdown(1490).grossIls);
+  check("VAT 18% is exact to the agora: 1490→1758.20, 1890→2230.20, 2490→2938.20, 790→932.20", vatBreakdown(1490).grossIls === 1758.2 && vatBreakdown(1890).grossIls === 2230.2 && vatBreakdown(2490).grossIls === 2938.2 && vatBreakdown(790).grossIls === 932.2);
+  check("small prices: 19→22.42, 49→57.82, 29→34.22, 69→81.42, 129→152.22", [19, 49, 29, 69, 129].map((n) => vatBreakdown(n).grossIls).join() === "22.42,57.82,34.22,81.42,152.22");
+  check("net + VAT = gross (no floating-point drift)", [19, 790, 1490, 1890, 2490].every((n) => Math.round((vatBreakdown(n).netIls + vatBreakdown(n).vatIls) * 100) === Math.round(vatBreakdown(n).grossIls * 100)));
 
   // ---- tiers
   check("every tier has a coherent shape", Object.values(TIERS).every((t) => t.costCapIls > 0 && t.aiCalls > 0 && t.slots.length > 0));

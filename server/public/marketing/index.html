@@ -80,7 +80,7 @@
 
   <section id="plans">
     <h2>חבילות</h2>
-    <p class="sub">התחילו בחינם ושדרגו כשצריך. המחיר מוצג לפני מע״מ, ומתחתיו המחיר הסופי כולל מע״מ.</p>
+    <p class="sub">התחילו בחינם ושדרגו כשצריך. בכל חבילה מוצג המחיר הבסיסי, ובסוגריים הסכום הסופי כולל מע״מ (18%).</p>
     <p class="sub" id="vatNote" style="margin-top:-12px"></p>
     <div class="grid" id="catalog"></div>
   </section>
@@ -104,10 +104,10 @@
   document.querySelectorAll("[data-app]").forEach((a) => (a.href = appUrl));
   fetch("/api/billing/catalog").then((r) => r.json()).then((c) => {
     if (c.vatNote) document.getElementById("vatNote").textContent = c.vatNote;
-    const per = (i) => (i.cycle === "weekly" ? "/ שבוע" : i.kind === "package" || i.cycle === "monthly" ? "/ חודש" : "חד־פעמי");
-    const tag = { credits: "קרדיטים", subscription: "יוצרים", package: "לעסקים · 12 חודשים" };
-    const fmt = (n) => "₪" + Number(n).toLocaleString("he-IL");
-    document.getElementById("catalog").innerHTML = c.items.map((i) => `<div class="card"><span class="tag">${tag[i.kind]}</span><h3>${i.label}</h3><div class="price">${fmt(i.priceIls)} <small>${per(i)}</small></div><div class="vat">כולל מע״מ: <b>${fmt(i.grossIls)}</b></div>${i.includes ? `<ul>${i.includes.map((x) => `<li>${x}</li>`).join("")}</ul>` : "<ul></ul>"}<a class="btn ghost" href="${appUrl}">להתחיל</a></div>`).join("");
+    const fmt = (n) => "₪" + (Number.isInteger(n) ? n.toLocaleString("he-IL") : n.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    const per = (i) => (i.cycle === "weekly" ? "לשבוע" : i.cycle === "monthly" || i.cycle === "annual" ? "לחודש" : "חד־פעמי");
+    const tag = (i) => (i.kind === "credits" ? "קרדיטים" : i.kind === "subscription" ? "יוצרים" : i.commitmentMonths ? `לעסקים · התחייבות ${i.commitmentMonths} חודשים` : "לעסקים · ללא התחייבות");
+    document.getElementById("catalog").innerHTML = c.items.map((i) => `<div class="card"><span class="tag">${tag(i)}</span><h3>${i.label}</h3><div class="price">${fmt(i.priceIls)} <small>${per(i)}</small></div><div class="vat">(<b>${fmt(i.grossIls)}</b> כולל מע״מ)</div>${i.includes ? `<ul>${i.includes.map((x) => `<li>${x}</li>`).join("")}</ul>` : "<ul></ul>"}<a class="btn ghost" href="${appUrl}">להתחיל</a></div>`).join("");
   }).catch(() => {});
 </script>
 </body>

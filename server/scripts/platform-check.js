@@ -34,9 +34,11 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   // ---- prices: before VAT + the VAT-inclusive amount
   let cat = await call("GET", "/api/billing/catalog", null);
   const byId = Object.fromEntries(cat.body.items.map((i) => [i.id, i]));
-  check("business packages show the VAT-inclusive price (1,490→1,758 · 1,890→2,230 · 2,490→2,938)", byId.core_presence_annual.grossIls === 1758 && byId.digital_pro_annual.grossIls === 2230 && byId.total_dominance_annual.grossIls === 2938, cat.body.items.map((i) => [i.id, i.priceIls, i.grossIls]));
+  check("business packages show the exact VAT-inclusive price (1,490→1,758.20 · 1,890→2,230.20 · 2,490→2,938.20)", byId.core_presence_annual.grossIls === 1758.2 && byId.digital_pro_annual.grossIls === 2230.2 && byId.total_dominance_annual.grossIls === 2938.2, cat.body.items.map((i) => [i.id, i.priceIls, i.grossIls]));
+  check("Starter Social is in the catalog: ₪790 → ₪932.20, monthly, no commitment", byId.starter_social_monthly && byId.starter_social_monthly.priceIls === 790 && byId.starter_social_monthly.grossIls === 932.2 && !byId.starter_social_monthly.commitmentMonths, byId.starter_social_monthly);
+  check("every tier that is sold has a catalog entry", ["creator_lite", "creator_pro", "starter_social", "digital_core", "digital_pro", "total_dominance"].every((t) => cat.body.items.some((i) => i.tier === t)));
   check("every price carries net, VAT and gross that add up", cat.body.items.every((i) => i.priceIls + i.vatIls === i.grossIls && i.grossIls > i.priceIls));
-  check("the VAT note defaults to the wording the owner chose", cat.body.vatNote === "המחירים כוללים מע״מ כחוק / מוצגים כולל מע״מ" && cat.body.vatRate === 0.18, cat.body.vatNote);
+  check("the VAT note defaults to the wording the owner chose", cat.body.vatNote === "המחירים כוללים מע״מ כחוק" && cat.body.vatRate === 0.18, cat.body.vatNote);
 
   // ---- freemium: 3 gift credits, no card
   let r = await call("POST", "/api/auth/signup", null, { email: "free@x.co", password: "password1", businessName: "Free Biz" });
@@ -65,18 +67,30 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   check("ads module is blocked on the free trial", r.status === 402, r);
 
   // ---- checkout + webhook
+  r = await call("POST", "/api/billing/quote", F, { sku: "credits_10" });
+  check("the quote shows net, VAT and the exact total, plus the terms", r.body.netIls === 19 && r.body.vatIls === 3.42 && r.body.grossIls === 22.42 && r.body.terms.length >= 2, r.body);
   r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "credits_10" });
-  check("checkout returns the hosted payment link with a signed ref", r.status === 200 && r.body.url.startsWith("https://pay.example/c10?ref="), r);
+  check("checkout is refused until the customer accepts the terms", r.status === 400 && r.body.code === "terms_required", r);
+  r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "credits_10", acceptTerms: true }, { "x-store-app": "1" });
+  check("a store build never links out to a web checkout", r.status === 403 && r.body.code === "store_policy", r);
+  r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "credits_10", acceptTerms: true });
+  check("checkout returns the hosted payment link with a signed ref", r.status === 200 && r.body.url.startsWith("https://pay.example/c10?ref=") && r.body.grossIls === 22.42, r);
   const ref = decodeURIComponent(r.body.url.split("ref=")[1]);
-  r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "creator_pro_monthly" });
+  let orders = (await call("GET", "/api/billing/orders", F)).body;
+  check("a pending order is recorded with the frozen price and the accepted terms", orders.length === 1 && orders[0].status === "pending" && orders[0].grossIls === 22.42 && !!orders[0].termsAcceptedAt, orders);
+  r = await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-short", amount: 19 }, { "x-webhook-secret": "whsec" });
+  check("a payment for the wrong amount is rejected", r.status === 400 && /mismatch/.test(r.body.error) && (await call("GET", "/api/me", F)).body.credits === 0, r);
+  r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "creator_pro_monthly", acceptTerms: true });
   check("a product without a configured payment link says so (501)", r.status === 501, r);
   r = await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-1" }, { "x-webhook-secret": "wrong" });
   check("webhook rejects a wrong secret", r.status === 401, r);
   r = await call("POST", "/api/billing/webhook", null, { ref: ref.replace(/.$/, "0"), paymentRef: "pay-x" }, { "x-webhook-secret": "whsec" });
   check("webhook rejects a tampered ref", r.status === 400, r);
-  r = await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-1" }, { "x-webhook-secret": "whsec" });
+  r = await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-1", amount: 22.42 }, { "x-webhook-secret": "whsec" });
   check("a valid payment adds the credits", r.status === 200 && (await call("GET", "/api/me", F)).body.credits === 10);
   await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-1" }, { "x-webhook-secret": "whsec" });
+  orders = (await call("GET", "/api/billing/orders", F)).body;
+  check("the order is marked paid, once", orders.length === 1 && orders[0].status === "paid" && orders[0].paymentRef === "pay-1" && orders[0].method === "web", orders);
   check("the same payment replayed never double-credits", (await call("GET", "/api/me", F)).body.credits === 10);
   r = await call("POST", "/api/posts/generate", F, { topic: "t5", platforms: ["facebook"] });
   check("generation works again after buying credits", r.status === 200, r);
@@ -120,6 +134,17 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   check("another business never sees these leads", (await call("GET", "/api/leads", other.body.token)).body.leads.length === 0);
   r = await call("POST", "/api/leads/capture", null, { key: "rocca-lead-key", phone: "0521111111" });
   check("the original business has its own lead key (LEAD_KEY)", r.status === 200 && (await call("GET", "/api/leads", ADM)).body.leads.length === 1);
+
+  // ---- manual activation by the operator (deal closed in the field / through a store)
+  r = await call("POST", `/api/admin/tenants/${tid}/activate`, F, { sku: "digital_core_x" });
+  check("tenants cannot activate packages themselves", r.status === 403, r);
+  r = await call("POST", `/api/admin/tenants/${tid}/activate`, ADM, { sku: "nope" });
+  check("an unknown package is refused", r.status === 400, r);
+  r = await call("POST", `/api/admin/tenants/${tid}/activate`, ADM, { sku: "starter_social_monthly", note: "נסגר בחנות" });
+  r = await call("GET", "/api/billing/status", F);
+  check("one click activates Starter Social with its features", r.body.tier === "starter_social" && r.body.cycle === "monthly" && r.body.credits === null && !!r.body.expiresAt, r.body);
+  orders = (await call("GET", "/api/billing/orders", F)).body;
+  check("the manual activation is recorded as a manual, paid order", orders[0].method === "manual" && orders[0].status === "paid" && orders[0].grossIls === 932.2 && orders[0].note === "נסגר בחנות", orders[0]);
 
   // ---- business package: unlimited credits, ads, site, domain
   await call("POST", `/api/admin/tenants/${tid}`, ADM, { plan: "digital_pro", commitmentMonths: 12, subscriptionCycle: "annual" });

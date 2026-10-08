@@ -461,6 +461,8 @@ const PLATFORM_LABELS = {
 };
 let selectedPlatforms = new Set(["facebook", "instagram"]);
 let token = localStorage.getItem("rocca_token") || "";
+// A native wrapper for Google Play / App Store sets window.BOOL_STORE_APP (or opens the app with ?store=1): no purchase links inside it.
+const IS_STORE_APP = !!window.BOOL_STORE_APP || new URLSearchParams(location.search).has("store");
 
 // Safari/Chrome report a dropped connection as "Load failed" / "Failed to fetch". On the free Render plan the server
 // may be waking up, so wait for it, retry once, and show a clear message instead of the raw browser error.
@@ -490,6 +492,7 @@ function apiOnce(path, opts = {}) {
       "Content-Type": "application/json",
       Authorization: "Bearer " + token,
       "X-Model": localStorage.getItem("rocca_model") || "auto",
+      ...(IS_STORE_APP ? { "X-Store-App": "1" } : {}),
       ...(opts.headers || {}),
     },
   }).then(async (r) => {
@@ -565,6 +568,7 @@ async function showApp() {
   loadHistory();
   loadHome();
   attachUpload($("imageInput"));
+  handleCheckoutReturn();
 }
 
 $("loginBtn").addEventListener("click", async () => {
@@ -605,9 +609,11 @@ $("delAccountBtn").addEventListener("click", async () => {
 });
 
 // ---- Operator admin ----
+let adminSkus = [];
 async function loadAdmin() {
   try {
-    const [rows, invites] = await Promise.all([api("/api/admin/tenants"), api("/api/admin/invites")]);
+    const [rows, invites, cat] = await Promise.all([api("/api/admin/tenants"), api("/api/admin/invites"), fetch("/api/billing/catalog").then((r) => r.json())]);
+    adminSkus = cat.items;
     const box = $("adminTenants");
     box.className = "";
     box.innerHTML = "";
@@ -623,8 +629,10 @@ async function loadAdmin() {
         const del = el('<button class="secondary" style="color:#e07a6a">מחיקה</button>');
         del.addEventListener("click", async () => { if (confirm("למחוק את " + t.name + " וכל הנתונים שלו?")) { await api("/api/admin/tenants/" + t.id, { method: "DELETE" }); loadAdmin(); } });
         const cr = el('<button class="secondary">+10 קרדיטים</button>');
+        const act = el(`<select><option value="">הפעלת חבילה ידנית…</option>${adminSkus.map((k) => `<option value="${k.id}">${escapeHtml(k.label)} · ${fmtIls(k.grossIls)} כולל מע״מ</option>`).join("")}</select>`);
+        act.addEventListener("change", async () => { if (!act.value) return; const sku = adminSkus.find((k) => k.id === act.value); if (confirm(`להפעיל "${sku.label}" עבור ${t.name}?`)) { const note = prompt("הערה (למשל: נסגר בחנות / מזומן / העברה):", "נסגר בשטח") || ""; await api(`/api/admin/tenants/${t.id}/activate`, { method: "POST", body: JSON.stringify({ sku: sku.id, note }) }); loadAdmin(); } else act.value = ""; });
         cr.addEventListener("click", async () => { await api("/api/admin/tenants/" + t.id, { method: "POST", body: JSON.stringify({ creditsDelta: 10 }) }); loadAdmin(); });
-        card.append(sel, cr, sus, del);
+        card.append(sel, act, cr, sus, del);
       }
       box.appendChild(card);
     });
@@ -1022,7 +1030,7 @@ async function showPacks(box) {
     const packs = await api("/api/packs");
     const card = el(`<div class="card"><h2>חבילות תוספת</h2><p class="muted-small">התוספת נשמרת ומתחילה להיצרך רק אחרי שהמכסה החודשית נגמרת.</p></div>`);
     packs.forEach((p) => {
-      const row = el(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0"><span>${esc(p.label)} · ₪${p.priceIls} כולל מע״מ<br><span class="muted-small">+${p.plans} תוכניות ושימוש נוסף</span></span></div>`);
+      const row = el(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0"><span>${esc(p.label)} · ${fmtIls(p.priceIls)} כולל מע״מ<br><span class="muted-small">+${p.plans} תוכניות ושימוש נוסף</span></span></div>`);
       const b = el(`<button>${p.link ? "רכישה" : "בקשת רכישה"}</button>`);
       b.addEventListener("click", () => { if (p.link) window.open(p.link, "_blank"); else alert("הרכישה תיפתח בקרוב — פנו אלינו ונוסיף לכם את החבילה."); });
       row.appendChild(b);
@@ -1750,25 +1758,74 @@ $("domainBtn").addEventListener("click", async () => {
 });
 
 // ---- plans & checkout ----
+const fmtIls = (n) => "₪" + (Number.isInteger(n) ? Number(n).toLocaleString("he-IL") : Number(n).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const perLabel = (i) => (i.cycle === "weekly" ? "לשבוע" : i.cycle === "monthly" || i.cycle === "annual" ? "לחודש" : "");
 async function loadPlans() {
   try {
-    const [bill, cat] = await Promise.all([api("/api/billing/status"), fetch("/api/billing/catalog").then((r) => r.json())]);
+    const [bill, cat, orders] = await Promise.all([api("/api/billing/status"), fetch("/api/billing/catalog").then((r) => r.json()), api("/api/billing/orders").catch(() => [])]);
     $("plansStatus").innerHTML = `<h2>החבילה שלי: ${escapeHtml(bill.tierLabel)}</h2><p class="muted-small" style="margin:0">${bill.credits != null ? `נשארו ${bill.credits} קרדיטים` : "ללא הגבלת קרדיטים"}</p>${cat.vatNote ? `<p class="muted-small">${escapeHtml(cat.vatNote)}</p>` : ""}`;
-    const groups = [["credits", "קרדיטים (חד־פעמי)"], ["subscription", "מנויים ליוצרים"], ["package", "חבילות לעסקים (התחייבות 12 חודשים)"]];
+    const groups = [["credits", "קרדיטים (חד־פעמי)"], ["subscription", "מנויים ליוצרים"], ["package", "חבילות לעסקים"]];
     const box = $("plansCatalog"); box.innerHTML = "";
     for (const [kind, title] of groups) {
       const card = el(`<div class="card"><h2>${title}</h2></div>`);
       cat.items.filter((i) => i.kind === kind).forEach((i) => {
-        const per = i.cycle === "weekly" ? "/ שבוע" : i.kind === "package" ? "/ חודש" : i.cycle === "monthly" ? "/ חודש" : "";
-        const it = el(`<div class="plan-item"><h3>${escapeHtml(i.label)} · ₪${nf(i.priceIls)} ${per}</h3><p class="muted-small" style="margin:0 0 4px">כולל מע״מ: <b style="color:var(--accent)">₪${nf(i.grossIls)}</b></p>${i.includes ? `<ul>${i.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}<button>לרכישה</button></div>`);
-        it.querySelector("button").addEventListener("click", async () => {
-          try { const r = await api("/api/billing/create-checkout-session", { method: "POST", body: JSON.stringify({ sku: i.id }) }); location.href = r.url; } catch (e) { toast(e.message); }
-        });
+        const commit = i.kind === "package" ? (i.commitmentMonths ? `התחייבות ל-${i.commitmentMonths} חודשים` : "ללא התחייבות") : "";
+        const it = el(`<div class="plan-item"><h3><bdi>${escapeHtml(i.label)}</bdi> · ${fmtIls(i.priceIls)} ${perLabel(i)}</h3><p class="muted-small" style="margin:0 0 4px">(<b style="color:var(--accent)">${fmtIls(i.grossIls)}</b> כולל מע״מ)${commit ? " · " + commit : ""}</p>${i.includes ? `<ul>${i.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}${IS_STORE_APP ? `<p class="muted-small">את המנוי מנהלים באתר, בחשבון שלך.</p>` : `<button>לרכישה</button>`}</div>`);
+        const btn = it.querySelector("button"); if (btn) btn.addEventListener("click", () => openCheckout(i));
         card.appendChild(it);
       });
       box.appendChild(card);
     }
+    const oc = el(`<div class="card"><h2>ההזמנות שלי</h2></div>`);
+    if (!orders.length) oc.appendChild(el(`<p class="empty">אין הזמנות עדיין.</p>`));
+    const st = { paid: "שולם ✓", pending: "ממתין לתשלום", cancelled: "בוטל" };
+    orders.slice(0, 20).forEach((o) => oc.appendChild(el(`<div class="lead-row"><b>${escapeHtml(o.label)}</b> · ${fmtIls(o.grossIls)} כולל מע״מ <span class="status ${o.status === "paid" ? "sent" : "pending"}">${st[o.status] || o.status}</span><p class="muted-small" style="margin:2px 0">${new Date(o.createdAt).toLocaleDateString("he-IL")}${o.method === "manual" ? " · הופעל על ידי הצוות" : ""}</p></div>`)));
+    box.appendChild(oc);
   } catch (e) { $("plansStatus").innerHTML = `<p class="empty">${escapeHtml(e.message)}</p>`; }
+}
+
+// Confirmation step: price, VAT, total, terms → only then the hosted payment page.
+async function openCheckout(item) {
+  let q;
+  try { q = await api("/api/billing/quote", { method: "POST", body: JSON.stringify({ sku: item.id }) }); } catch (e) { toast(e.message); return; }
+  const ov = el(`<div style="position:fixed;inset:0;background:#000b;z-index:80;display:flex;align-items:flex-end;justify-content:center"><div class="card" style="max-width:520px;width:100%;margin:0;border-radius:18px 18px 0 0;max-height:92vh;overflow:auto">
+    <h2>אישור רכישה — <bdi>${escapeHtml(q.label)}</bdi></h2>
+    <div style="display:flex;justify-content:space-between"><span>מחיר${q.cycle ? " " + perLabel(q) : ""}</span><b>${fmtIls(q.netIls)}</b></div>
+    <div style="display:flex;justify-content:space-between"><span class="muted-small">מע״מ (${Math.round(q.vatRate * 100)}%)</span><span class="muted-small">${fmtIls(q.vatIls)}</span></div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #3a342b;margin-top:6px;padding-top:6px;font-size:18px"><span>סה״כ לתשלום</span><b style="color:var(--accent)">${fmtIls(q.grossIls)} כולל מע״מ</b></div>
+    ${q.includes.length ? `<ul class="muted-small">${q.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
+    <ul class="muted-small">${q.terms.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
+    <label style="display:flex;gap:8px;align-items:flex-start;color:var(--text)"><input type="checkbox" id="coTerms" style="width:auto;margin-top:4px" /><span>קראתי ואני מאשר/ת את תנאי הרכישה, <a href="/legal/terms" target="_blank" rel="noopener" style="color:var(--accent)">תנאי השימוש</a> ו<a href="/legal/privacy" target="_blank" rel="noopener" style="color:var(--accent)">מדיניות הפרטיות</a>.</span></label>
+    <div class="row-actions" style="margin-top:12px"><button id="coGo" disabled>מעבר לתשלום</button><button class="secondary" id="coCancel">ביטול</button></div></div></div>`);
+  document.body.appendChild(ov);
+  const go = ov.querySelector("#coGo");
+  ov.querySelector("#coTerms").addEventListener("change", (e) => (go.disabled = !e.target.checked));
+  ov.querySelector("#coCancel").addEventListener("click", () => ov.remove());
+  go.addEventListener("click", async () => {
+    go.disabled = true; go.textContent = "מעביר…";
+    try {
+      const r = await api("/api/billing/create-checkout-session", { method: "POST", body: JSON.stringify({ sku: item.id, acceptTerms: true }) });
+      try { sessionStorage.setItem("bool_checkout", JSON.stringify({ tier: me && me.plan, credits: me && me.credits })); } catch {}
+      location.href = r.url;
+    } catch (e) { go.disabled = false; go.textContent = "מעבר לתשלום"; toast(e.message); }
+  });
+}
+
+// Back from the payment page (?#checkout=success|cancel): wait for the payment webhook to land, then confirm.
+async function handleCheckoutReturn() {
+  const m = location.hash.match(/checkout=(success|cancel)/);
+  if (!m) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  document.querySelector('nav.tabs button[data-tab="tab-plans"]').click();
+  if (m[1] === "cancel") return toast("הרכישה בוטלה. לא חויבת.");
+  let before = {}; try { before = JSON.parse(sessionStorage.getItem("bool_checkout") || "{}"); } catch {}
+  toast("מאמתים את התשלום…");
+  for (let i = 0; i < 15; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const b = await api("/api/billing/status").catch(() => null);
+    if (b && (b.tier !== before.tier || (b.credits != null && before.credits != null && b.credits > before.credits))) { toast("✓ התשלום התקבל והחבילה פעילה"); try { me = await api("/api/me"); } catch {} return loadPlans(); }
+  }
+  toast("התשלום עדיין לא אושר אצלנו. אם חויבת, החבילה תופעל בדקות הקרובות — או פנו לתמיכה.");
 }
 
 // ---- support ----
