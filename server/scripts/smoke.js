@@ -10,8 +10,8 @@ const routes = [
   ["POST", "/api/plan/approve"], ["POST", "/api/plan/review"], ["POST", "/api/campaign/generate"], ["POST", "/api/connection/start"],
   ["GET", "/legal/privacy"], ["GET", "/legal/terms"], ["GET", "/legal/data-deletion"],
 ];
-const srv = spawn("npx", ["tsx", "src/index.ts"], { env: { ...process.env, PORT, ANTHROPIC_API_KEY: "x", DATABASE_URL: "" }, stdio: "ignore" });
-const done = (code) => { srv.kill(); process.exit(code); };
+const srv = spawn("npx", ["tsx", "src/index.ts"], { env: { ...process.env, PORT, ANTHROPIC_API_KEY: "x", DATABASE_URL: "" }, stdio: "ignore", detached: true });
+const done = (code) => { try { process.kill(-srv.pid); } catch {} process.exit(code); };
 (async () => {
   for (let i = 0; i < 40; i++) {
     try { if ((await fetch(`http://localhost:${PORT}/api/health`)).ok) break; } catch {}
