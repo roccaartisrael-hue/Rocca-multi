@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { currentTenantId } from "./tenantContext";
 
 /**
  * Uploads a photo or video to Supabase Storage (public bucket) so Instagram/Facebook can fetch it by URL.
@@ -19,7 +20,7 @@ export async function uploadMedia(data: Buffer, contentType: string): Promise<st
   if (!mediaConfigured()) throw new Error("העלאת קבצים עוד לא מוגדרת. אפשר להדביק קישור ישיר לתמונה או לסרטון.");
   const base = process.env.SUPABASE_URL!.replace(/\/$/, "");
   const bucket = process.env.SUPABASE_BUCKET || "media";
-  const name = `${new Date().toISOString().slice(0, 10)}/${crypto.randomBytes(8).toString("hex")}.${ext}`;
+  const name = `${currentTenantId()}/${new Date().toISOString().slice(0, 10)}/${crypto.randomBytes(8).toString("hex")}.${ext}`;
   const res = await fetch(`${base}/storage/v1/object/${bucket}/${name}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`, apikey: process.env.SUPABASE_SERVICE_KEY!, "Content-Type": contentType, "x-upsert": "false" },

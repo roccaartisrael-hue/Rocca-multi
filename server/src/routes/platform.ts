@@ -1,0 +1,306 @@
+import { Router, Request, Response, NextFunction } from "express";
+import { store } from "../lib/store";
+import { getTier } from "../lib/plans";
+import { getSettings, saveSettings } from "../lib/settings";
+import { runAutopilot } from "../lib/autopilot";
+import { addLead, listLeads, setLeadStatus, LeadStatus } from "../lib/leads";
+import { notifyLead } from "../lib/notify";
+import { CATALOG, getSku, checkoutUrl, parseRef, applyPayment } from "../lib/billing";
+import { addStats, listStats, listInsightLogs, runWeeklyAllocation, AD_CHANNELS } from "../lib/adBudget";
+import { getSite, saveSite, addArticle, claimDomain, validDomain, renderSiteHtml, renderArticleHtml } from "../lib/sites";
+import { listTickets, openTicket, replyTicket } from "../lib/support";
+import { generateSeoArticle, answerSupport } from "../lib/claude";
+import { getProfile } from "../lib/profile";
+import { creditsLeft, requireFeature } from "../lib/checkCredits";
+import { rateLimited } from "../lib/ratelimit";
+import { currentTenantId, isDefaultTenant, runAsTenant, DEFAULT_TENANT } from "../lib/tenantContext";
+import { getTenant, findByLeadKey, ensureLeadKey, safeEqual, withDefaults, activeTenantIds, adjustCredits } from "../lib/tenants";
+
+/** Which business does this public key belong to? LEAD_KEY (env) = the original business; others have their own key. */
+function tenantForKey(key: string): string | null {
+  if (!key) return null;
+  const own = process.env.LEAD_KEY || "";
+  if (own && safeEqual(key, own)) return DEFAULT_TENANT;
+  return findByLeadKey(key)?.id || null;
+}
+const businessNameOf = (): string => (isDefaultTenant() ? getProfile()?.businessName || "ROCCA" : getTenant(currentTenantId())?.name || "העסק");
+
+// ================= public (no login) =================
+export const publicPlatform = Router();
+
+publicPlatform.get("/api/billing/catalog", (_req, res) => {
+  res.json({ vatNote: process.env.PRICES_VAT_NOTE || "", items: CATALOG });
+});
+
+// Landing pages, the generated site's form and paid-ad lead forms post here. The business is identified by its public key.
+publicPlatform.post("/api/leads/capture", async (req, res) => {
+  if (rateLimited(`lead|${req.ip}`, 20, 10 * 60 * 1000)) return res.status(429).json({ error: "יותר מדי פניות. נסו שוב בעוד כמה דקות." });
+  const b = req.body || {};
+  if (b.website) return res.json({ ok: true }); // honeypot field: bots fill it, people never see it
+  const tid = tenantForKey(String(b.key || ""));
+  if (!tid) return res.status(404).json({ error: "לא נמצא" });
+  const phone = String(b.phone || "").trim();
+  const email = String(b.email || "").trim();
+  if (!phone && !email) return res.status(400).json({ error: "נדרש טלפון או אימייל" });
+  const out = await runAsTenant(tid, async () => {
+    const lead = addLead({ fullName: b.full_name ?? b.fullName, phone, email, source: b.source, notes: b.notes });
+    const s = getSettings();
+    const owner = tid === DEFAULT_TENANT ? process.env.CONTACT_EMAIL : getTenant(tid)?.email;
+    await notifyLead(businessNameOf(), lead, { email: s.notifyEmail || owner, whatsapp: s.notifyWhatsapp });
+    return lead;
+  });
+  res.json({ ok: true, id: out.id });
+});
+
+// The payment provider calls this after a successful payment. Disabled unless PAYMENT_WEBHOOK_SECRET is set.
+// Body: { ref | (tenantId + sku), paymentRef }. Idempotent per paymentRef.
+publicPlatform.post("/api/billing/webhook", (req, res) => {
+  const secret = process.env.PAYMENT_WEBHOOK_SECRET || "";
+  const given = String(req.header("x-webhook-secret") || "");
+  if (!secret || !safeEqual(given, secret)) return res.status(401).json({ error: "Unauthorized" });
+  const { ref, tenantId, sku, paymentRef } = req.body || {};
+  if (!paymentRef) return res.status(400).json({ error: "paymentRef is required" });
+  const parsed = ref ? parseRef(String(ref)) : tenantId && sku ? { tenantId: String(tenantId), sku: String(sku) } : null;
+  if (!parsed) return res.status(400).json({ error: "invalid ref" });
+  const r = applyPayment(parsed.tenantId, parsed.sku, String(paymentRef));
+  if (!r.applied) return res.status(400).json({ error: r.reason });
+  res.json({ ok: true });
+});
+
+// ---- the generated sites: /s/<key>, /s/<key>/sitemap.xml, /s/<key>/<article> ----
+function withSite(req: Request, res: Response, fn: (name: string, key: string, credit: boolean) => void) {
+  const key = String(req.params.key || "");
+  const tid = tenantForKey(key);
+  if (!tid) return res.status(404).send("Not found");
+  runAsTenant(tid, () => {
+    if (getSite().status !== "live") return res.status(404).send("Not found");
+    fn(businessNameOf(), key, tid !== DEFAULT_TENANT);
+  });
+}
+publicPlatform.get("/s/:key", (req, res) => withSite(req, res, (name, key, credit) => res.type("html").send(renderSiteHtml(name, getSite(), key, `/s/${key}`, credit))));
+publicPlatform.get("/s/:key/sitemap.xml", (req, res) =>
+  withSite(req, res, (_n, key) => {
+    const origin = (process.env.PUBLIC_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
+    const urls = [`${origin}/s/${key}`, ...getSite().articles.map((a) => `${origin}/s/${key}/${a.slug}`)];
+    res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((u) => `<url><loc>${u}</loc></url>`).join("")}</urlset>`);
+  })
+);
+publicPlatform.get("/s/:key/:slug", (req, res) =>
+  withSite(req, res, (name, key, credit) => {
+    const a = getSite().articles.find((x) => x.slug === req.params.slug);
+    if (!a) return res.status(404).send("Not found");
+    res.type("html").send(renderArticleHtml(name, a, `/s/${key}`, credit));
+  })
+);
+
+// ================= authenticated (inside the tenant context) =================
+export const platformRouter = Router();
+const err = (res: Response, e: any, code = 500) => res.status(code).json({ error: e?.message || String(e) });
+
+// ---- autopilot ----
+platformRouter.get("/api/autopilot", (_req, res) => {
+  const s = getSettings();
+  const tier = getTier();
+  const waiting = store.listPosts().filter((p) => p.status === "pending_approval");
+  res.json({ enabled: s.autopilotEnabled, available: isDefaultTenant() || tier.autopilot, lastRun: s.autopilotLastRun, waiting });
+});
+platformRouter.post("/api/autopilot", (req, res) => {
+  const enabled = !!req.body?.enabled;
+  if (enabled && !isDefaultTenant() && !getTier().autopilot) {
+    return res.status(402).json({ error: "הטייס האוטומטי זמין במנוי בתשלום. אפשר לשדרג בלשונית 'חבילות'.", code: "upgrade_required", feature: "autopilot", upgrade: "/#plans" });
+  }
+  res.json(saveSettings({ autopilotEnabled: enabled }));
+});
+platformRouter.post("/api/autopilot/run", requireFeature("autopilot"), async (_req, res) => {
+  try {
+    res.json(await runAutopilot({ force: true }));
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+// ---- settings (notifications) ----
+platformRouter.get("/api/settings", (_req, res) => res.json(getSettings()));
+platformRouter.post("/api/settings", (req, res) => {
+  const b = req.body || {};
+  const patch: any = {};
+  if (b.notifyEmail !== undefined) patch.notifyEmail = String(b.notifyEmail).slice(0, 160);
+  if (b.notifyWhatsapp !== undefined) patch.notifyWhatsapp = String(b.notifyWhatsapp).replace(/\D/g, "").slice(0, 15);
+  res.json(saveSettings(patch));
+});
+
+// ---- leads ----
+platformRouter.get("/api/leads", (_req, res) => {
+  const tid = currentTenantId();
+  const key = tid === DEFAULT_TENANT ? process.env.LEAD_KEY || "" : ensureLeadKey(tid);
+  res.json({ leads: listLeads(), leadKey: key, endpoint: "/api/leads/capture" });
+});
+platformRouter.post("/api/leads/:id/status", (req, res) => {
+  const st = String(req.body?.status) as LeadStatus;
+  if (!["new", "contacted", "won", "lost"].includes(st)) return res.status(400).json({ error: "סטטוס לא מוכר" });
+  const l = setLeadStatus(req.params.id, st);
+  l ? res.json(l) : res.status(404).json({ error: "לא נמצא" });
+});
+
+// ---- billing ----
+platformRouter.get("/api/billing/status", (_req, res) => {
+  const tier = getTier();
+  const t = isDefaultTenant() ? null : getTenant(currentTenantId());
+  const d = t ? withDefaults(t) : null;
+  res.json({
+    tier: tier.name, tierLabel: tier.label, kind: tier.kind,
+    credits: creditsLeft(), unlimited: creditsLeft() === null,
+    cycle: d?.subscriptionCycle ?? "none", commitmentMonths: d?.commitmentMonths ?? 0, expiresAt: d?.planExpiresAt,
+    features: { autopilot: isDefaultTenant() || tier.autopilot, customDomain: isDefaultTenant() || tier.customDomain, ads: isDefaultTenant() || tier.ads, leadBot: isDefaultTenant() || tier.leadBot },
+  });
+});
+platformRouter.post("/api/billing/create-checkout-session", (req, res) => {
+  if (isDefaultTenant()) return res.status(400).json({ error: "החשבון הראשי לא נרכש בתשלום" });
+  const sku = getSku(String(req.body?.sku || ""));
+  if (!sku) return res.status(400).json({ error: "מוצר לא מוכר" });
+  const c = checkoutUrl(currentTenantId(), sku.id);
+  if (!c) return res.status(501).json({ error: "הסליקה עדיין לא הוגדרה למוצר הזה. פנו אלינו ונפעיל את החבילה ידנית.", code: "checkout_not_configured" });
+  res.json({ url: c.url });
+});
+
+// ---- ads: smart budget allocation + transparent reports ----
+platformRouter.get("/api/ads/overview", requireFeature("ads"), (_req, res) => {
+  res.json({ settings: getSettings(), channels: AD_CHANNELS, stats: listStats().slice(-60), logs: listInsightLogs().slice(0, 12) });
+});
+platformRouter.post("/api/ads/settings", requireFeature("ads"), (req, res) => {
+  const b = req.body || {};
+  const patch: any = {};
+  if (b.adBudgetMonthly !== undefined) patch.adBudgetMonthly = Math.max(0, Math.min(1_000_000, Math.round(Number(b.adBudgetMonthly) || 0)));
+  if (b.adAutoDistribute !== undefined) patch.adAutoDistribute = !!b.adAutoDistribute;
+  if (Array.isArray(b.adPlatformsEnabled)) patch.adPlatformsEnabled = b.adPlatformsEnabled.filter((c: string) => (AD_CHANNELS as readonly string[]).includes(c));
+  res.json(saveSettings(patch));
+});
+platformRouter.post("/api/ads/stats", requireFeature("ads"), (req, res) => {
+  const b = req.body || {};
+  if (!(AD_CHANNELS as readonly string[]).includes(String(b.channel))) return res.status(400).json({ error: "ערוץ לא מוכר" });
+  const today = new Date().toISOString().slice(0, 10);
+  res.json(addStats({ channel: b.channel, spend: b.spend, impressions: b.impressions, clicks: b.clicks, leads: b.leads, periodStart: String(b.periodStart || today).slice(0, 10), periodEnd: String(b.periodEnd || today).slice(0, 10) }));
+});
+platformRouter.post("/api/ads/run", requireFeature("ads"), (_req, res) => {
+  const log = runWeeklyAllocation();
+  log ? res.json(log) : res.status(400).json({ error: "קבעו קודם תקציב חודשי וערוץ אחד לפחות" });
+});
+
+// ---- the business's site & SEO ----
+platformRouter.get("/api/site", (_req, res) => {
+  const tid = currentTenantId();
+  const key = tid === DEFAULT_TENANT ? process.env.LEAD_KEY || "" : ensureLeadKey(tid);
+  res.json({ site: getSite(), publicPath: key ? `/s/${key}` : "", canUseDomain: isDefaultTenant() || getTier().customDomain });
+});
+platformRouter.post("/api/site", (req, res) => {
+  const b = req.body || {};
+  const clip = (v: unknown, n: number) => String(v ?? "").slice(0, n);
+  const patch: any = {};
+  if (b.headline !== undefined) patch.headline = clip(b.headline, 160);
+  if (b.about !== undefined) patch.about = clip(b.about, 2000);
+  if (b.phone !== undefined) patch.phone = clip(b.phone, 40);
+  if (b.whatsapp !== undefined) patch.whatsapp = clip(b.whatsapp, 20).replace(/\D/g, "");
+  if (b.status === "live" || b.status === "draft") patch.status = b.status;
+  res.json(saveSite(patch));
+});
+platformRouter.post("/api/site/domain", requireFeature("customDomain"), (req, res) => {
+  const d = String(req.body?.domain || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
+  if (!validDomain(d)) return res.status(400).json({ error: "כתובת דומיין לא תקינה" });
+  if (!claimDomain(d, currentTenantId())) return res.status(409).json({ error: "הדומיין הזה כבר משויך לעסק אחר" });
+  // The operator points DNS / TLS at the service and flips this to "active" (see /api/admin/sites/:tenantId/domain/activate).
+  res.json(saveSite({ domain: d, domainStatus: "pending_dns" }));
+});
+platformRouter.post("/api/site/article", async (req, res) => {
+  try {
+    const topic = String(req.body?.topic || "").trim().slice(0, 200);
+    if (!topic) return res.status(400).json({ error: "חסר נושא למאמר" });
+    if (!getProfile()) return res.status(400).json({ error: "קודם צריך להגדיר את העסק בלשונית 'הגדרות'." });
+    const left = creditsLeft();
+    if (left !== null && left <= 0) return res.status(402).json({ error: "נגמרו הקרדיטים.", code: "no_credits", upgrade: "/#plans" });
+    const art = addArticle(await generateSeoArticle(topic));
+    if (left !== null) adjustCredits(currentTenantId(), -1);
+    res.json(art);
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+// ---- support ----
+platformRouter.get("/api/support/tickets", (_req, res) => res.json(listTickets()));
+platformRouter.post("/api/support/tickets", (req, res) => {
+  if (!String(req.body?.message || "").trim()) return res.status(400).json({ error: "כתבו את הפנייה" });
+  res.json(openTicket(req.body.subject, req.body.message));
+});
+platformRouter.post("/api/support/tickets/:id/reply", (req, res) => {
+  const t = replyTicket(req.params.id, "customer", req.body?.text);
+  t ? res.json(t) : res.status(404).json({ error: "לא נמצא" });
+});
+platformRouter.post("/api/support/chat", async (req, res) => {
+  if (rateLimited(`chat|${currentTenantId()}`, 30, 60 * 60 * 1000)) return res.status(429).json({ error: "הגעתם למגבלת ההודעות לשעה. אפשר לפתוח פנייה." });
+  try {
+    const q = String(req.body?.message || "").trim();
+    if (!q) return res.status(400).json({ error: "כתבו שאלה" });
+    const history = Array.isArray(req.body?.history) ? req.body.history.filter((h: any) => h && (h.role === "user" || h.role === "assistant")).map((h: any) => ({ role: h.role, text: String(h.text || "") })) : [];
+    res.json({ answer: await answerSupport(q, history) });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+// ---- reports ----
+platformRouter.get("/api/reports/summary", (_req, res) => {
+  const days = 30;
+  const day = (iso: string) => iso.slice(0, 10);
+  const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const reach: Record<string, number> = {};
+  const engagement: Record<string, number> = {};
+  for (const p of store.listPosts()) {
+    if (p.status !== "published") continue;
+    const d = day(p.scheduledFor || p.createdAt);
+    if (d < since) continue;
+    for (const pc of p.platforms) {
+      reach[d] = (reach[d] || 0) + (pc.metrics?.reach || 0);
+      engagement[d] = (engagement[d] || 0) + (pc.metrics?.engagement || 0);
+    }
+  }
+  const leads: Record<string, number> = {};
+  for (const l of listLeads()) {
+    const d = day(l.createdAt);
+    if (d >= since) leads[d] = (leads[d] || 0) + 1;
+  }
+  const series = Array.from({ length: days }, (_, i) => {
+    const d = new Date(Date.now() - (days - 1 - i) * 86400000).toISOString().slice(0, 10);
+    return { date: d, reach: reach[d] || 0, engagement: engagement[d] || 0, leads: leads[d] || 0 };
+  });
+  const logs = listInsightLogs();
+  const s = getSettings();
+  res.json({
+    series,
+    totals: { reach: series.reduce((a, x) => a + x.reach, 0), engagement: series.reduce((a, x) => a + x.engagement, 0), leads: series.reduce((a, x) => a + x.leads, 0), published: store.listPosts().filter((p) => p.status === "published").length },
+    budget: { monthly: s.adBudgetMonthly, shares: logs[0]?.shares || {}, latest: logs[0] || null },
+  });
+});
+
+// ---- operator-only ----
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!(req as any).auth?.isAdmin) return res.status(403).json({ error: "Admin only" });
+  next();
+}
+platformRouter.get("/api/admin/tickets", requireAdmin, (_req, res) => {
+  const rows: any[] = [];
+  for (const id of activeTenantIds()) {
+    runAsTenant(id, () => {
+      const name = id === DEFAULT_TENANT ? getProfile()?.businessName || "החשבון הראשי" : getTenant(id)?.name || id;
+      for (const t of listTickets()) if (t.status === "open") rows.push({ tenantId: id, tenantName: name, ...t });
+    });
+  }
+  res.json(rows);
+});
+platformRouter.post("/api/admin/tickets/:tenantId/:id/reply", requireAdmin, (req, res) => {
+  const t = runAsTenant(req.params.tenantId, () => replyTicket(req.params.id, "support", req.body?.text, req.body?.close ? true : undefined));
+  t ? res.json(t) : res.status(404).json({ error: "לא נמצא" });
+});
+platformRouter.post("/api/admin/sites/:tenantId/domain/activate", requireAdmin, (req, res) => {
+  if (!getTenant(req.params.tenantId)) return res.status(404).json({ error: "לא נמצא" });
+  res.json(runAsTenant(req.params.tenantId, () => (getSite().domain ? saveSite({ domainStatus: "active" }) : null)) || { error: "אין דומיין מבוקש" });
+});

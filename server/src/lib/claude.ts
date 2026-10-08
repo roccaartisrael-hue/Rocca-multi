@@ -1,6 +1,7 @@
 import { config, Platform } from "../config";
 import { assertWithinLimit, recordUsage } from "./usage";
 import { getProfile } from "./profile";
+import { isDefaultTenant } from "./tenantContext";
 import { llm } from "./ai";
 
 
@@ -25,12 +26,15 @@ const DEFAULT_BRAND_VOICE = `
 // A voice saved from the setup screen wins over BRAND_VOICE, which wins over the built-in ROCCA voice.
 function brandVoice(): string {
   const p = getProfile();
-  const base = p?.brandVoice || config.brandVoice || DEFAULT_BRAND_VOICE;
+  // Other tenants must never inherit the operator's (ROCCA) voice: they get their own, or a neutral fallback.
+  const base = isDefaultTenant()
+    ? p?.brandVoice || config.brandVoice || DEFAULT_BRAND_VOICE
+    : p?.brandVoice || "את/ה כותב/ת תוכן שיווקי בעברית עבור העסק של המשתמש. כתוב/כתבי בטון מקצועי וחם. אף פעם לא מחירים, הנחות או הבטחות שלא נמסרו.";
   // The learned market brief rides along in every prompt (capped so it stays cheap).
   return p?.market ? `${base}\n\nידע על השוק של העסק (להתאמת הזוויות, העונתיות והמסרים; לא להעתיק מילה במילה):\n${p.market.slice(0, 2500)}` : base;
 }
 function businessName(): string {
-  return getProfile()?.businessName || "ROCCA";
+  return getProfile()?.businessName || (isDefaultTenant() ? "ROCCA" : "העסק");
 }
 const IG_EXAMPLE_HASHTAGS = " (למשל #ROCCA #אוניקס #שיש #אבןטבעית #עיצובפנים)";
 
@@ -44,7 +48,7 @@ const PLATFORM_RULES_BASE: Record<Platform, string> = {
 
 /** Platform rules; the ROCCA-specific hashtag example is only used when no custom business is set up. */
 function platformRules(): Record<Platform, string> {
-  if (getProfile() || config.brandVoice) return PLATFORM_RULES_BASE;
+  if (getProfile() || config.brandVoice || !isDefaultTenant()) return PLATFORM_RULES_BASE;
   return { ...PLATFORM_RULES_BASE, instagram: PLATFORM_RULES_BASE.instagram.replace(/\.$/, "") + IG_EXAMPLE_HASHTAGS + "." };
 }
 
@@ -426,6 +430,47 @@ ${ctx.length ? "\n" + ctx.join("\n\n") + "\n" : ""}
 כללים: זו ידיעה כללית ולא נתוני שוק עדכניים. אל תמציא מספרים, אחוזים או שמות מתחרים. סמן הנחות במילה "הנחה:". בלי מחירים. החזר רק את התקציר.`,
       },
     ],
+  });
+  recordUsage(msg.usage);
+  return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
+}
+
+/** An SEO article for the business's own site (Hebrew, one clear topic, honest, no prices/promises). */
+export async function generateSeoArticle(topic: string): Promise<{ title: string; description: string; body: string }> {
+  assertWithinLimit();
+  const msg = await llm.messages.create({
+    task: "plan",
+    max_tokens: 4000,
+    system: brandVoice(),
+    messages: [
+      {
+        role: "user",
+        content: `כתוב/כתבי מאמר קידום אורגני (SEO) באתר של ${businessName()} על הנושא: "${topic}".
+דרישות: 450-700 מילים, כותרת מושכת עם מילת החיפוש העיקרית, תיאור מטא עד 155 תווים, 3-5 כותרות משנה, פסקאות קצרות, תועלת אמיתית לקורא, ובסוף הזמנה ליצור קשר. בלי מחירים, הנחות, הבטחות או עובדות שלא נמסרו, ובלי "!!!". אל תמציא נתונים.
+החזר אך ורק JSON תקין: {"title":"...","description":"...","body":"טקסט רגיל; כותרות משנה בשורה נפרדת שמתחילה ב-## ; פסקאות מופרדות בשורה ריקה"}`,
+      },
+    ],
+  });
+  recordUsage(msg.usage);
+  const out = extractJson(msg.content.map((b) => (b.type === "text" ? b.text : "")).join(""));
+  if (!out.title || !out.body) throw new Error("המאמר שהתקבל לא תקין, נסו שוב");
+  return { title: String(out.title).slice(0, 160), description: String(out.description || "").slice(0, 200), body: String(out.body).slice(0, 12000) };
+}
+
+const SUPPORT_KNOWLEDGE = `אתה עוזר התמיכה של BOOL — מערכת שיווק מבוססת בינה מלאכותית ("סוכנות שיווק בקופסה") לעסקים ולמפרסמים.
+מה המערכת עושה: מייצרת פוסטים ותוכניות שיווק, מפרסמת בפייסבוק ובאינסטגרם (כולל קרוסלה של כמה תמונות), מתזמנת, "טייס אוטומטי" שמכין פוסטים שבועיים לאישור מהיר (שום דבר לא מתפרסם בלי אישור), קליטת לידים עם התראה, חלוקת תקציב ממומן בין ערוצים עם הסבר, אתר קטן ומאמרי SEO, ודוחות.
+איך מתחברים לפייסבוק/אינסטגרם: לשונית "הגדרות" ← "התחברות עם פייסבוק" ← לאשר את העמוד. אינסטגרם חייב להיות חשבון עסקי המחובר לעמוד.
+קרדיטים: כל פעולת בינה מלאכותית (פוסט, תוכנית, קמפיין) עולה קרדיט אחד; בניסיון חינם יש 3 קרדיטים במתנה, אפשר לרכוש חבילות או מנוי בלשונית "חבילות". חבילות העסקים אינן מוגבלות בקרדיטים.
+אם אינך בטוח, אם מדובר בחיוב, תקלה טכנית שלא נפתרת, או בקשה שאינך יכול לבצע — הצע לפתוח פנייה בלשונית "תמיכה". אל תבטיח דבר שלא כתוב כאן, אל תמציא מחירים, ואל תבקש סיסמאות או מפתחות. ענה בעברית, קצר וברור, בשלבים.`;
+
+export async function answerSupport(question: string, history: { role: "user" | "assistant"; text: string }[] = []): Promise<string> {
+  assertWithinLimit();
+  const convo = history.slice(-6).map((h) => `${h.role === "user" ? "לקוח" : "תמיכה"}: ${h.text.slice(0, 600)}`).join("\n");
+  const msg = await llm.messages.create({
+    task: "reply",
+    max_tokens: 700,
+    system: SUPPORT_KNOWLEDGE,
+    messages: [{ role: "user", content: `${convo ? convo + "\n" : ""}לקוח: ${question.slice(0, 800)}\nתמיכה:` }],
   });
   recordUsage(msg.usage);
   return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();

@@ -2,6 +2,9 @@ import crypto from "crypto";
 import { Router, Request, Response } from "express";
 import { config } from "../config";
 import { saveConnection, getConnection, clearConnection } from "../lib/connection";
+import { authenticate } from "../lib/session";
+import { runAsTenant, isDefaultTenant, isValidTenantId, DEFAULT_TENANT } from "../lib/tenantContext";
+import { activeTenantIds, getTenant } from "../lib/tenants";
 
 export const auth = Router();
 
@@ -39,7 +42,17 @@ auth.post("/auth/facebook/data-deletion", (req, res) => {
     const expected = crypto.createHmac("sha256", config.meta.appSecret).update(payloadB64).digest();
     const given = Buffer.from(sigB64.replace(/-/g, "+").replace(/_/g, "/"), "base64");
     if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) return res.status(400).json({ error: "bad signature" });
-    clearConnection();
+    // The signed request names the Facebook user who removed the app: disconnect every tenant connected by that user.
+    let fbUserId = "";
+    try {
+      fbUserId = String(JSON.parse(Buffer.from(payloadB64, "base64url").toString()).user_id || "");
+    } catch {}
+    for (const id of activeTenantIds()) {
+      runAsTenant(id, () => {
+        const c = getConnection();
+        if (c && fbUserId && c.fbUserId === fbUserId) clearConnection();
+      });
+    }
     const code = crypto.randomBytes(8).toString("hex");
     res.json({ url: `${publicUrl(req)}/legal/data-deletion?code=${code}`, confirmation_code: code });
   } catch {
@@ -65,19 +78,21 @@ function publicUrl(req: Request): string {
   return (process.env.PUBLIC_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
 }
 
-const secret = () => config.meta.appSecret || config.dashboardToken || "dev";
+const secret = () => config.meta.appSecret || config.dashboardToken || "dev-secret";
 
-/** state = timestamp.signature — blocks forged callbacks and expires after 10 minutes. */
-function makeState(): string {
-  const ts = String(Date.now());
-  return `${ts}.${crypto.createHmac("sha256", secret()).update(ts).digest("hex")}`;
+/** state = tenantId.timestamp.signature — blocks forged callbacks, expires after 10 minutes, and says WHOSE connection this is. */
+function makeState(tenantId: string): string {
+  const body = `${tenantId}.${Date.now()}`;
+  return `${body}.${crypto.createHmac("sha256", secret()).update(body).digest("hex")}`;
 }
-function checkState(state: string): boolean {
-  const [ts, sig] = String(state || "").split(".");
-  if (!ts || !sig) return false;
-  const expected = crypto.createHmac("sha256", secret()).update(ts).digest("hex");
+function checkState(state: string): string | null {
+  const [tenantId, ts, sig] = String(state || "").split(".");
+  if (!tenantId || !ts || !sig || !isValidTenantId(tenantId)) return null;
+  const expected = crypto.createHmac("sha256", secret()).update(`${tenantId}.${ts}`).digest("hex");
   const ok = sig.length === expected.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
-  return ok && Date.now() - Number(ts) < 10 * 60 * 1000;
+  if (!ok || Date.now() - Number(ts) > 10 * 60 * 1000) return null;
+  if (tenantId !== DEFAULT_TENANT && !getTenant(tenantId)) return null;
+  return tenantId;
 }
 
 function page(res: Response, title: string, body: string) {
@@ -97,7 +112,8 @@ async function graph(path: string, params: Record<string, string>): Promise<any>
 // Step 1: the app asks (authenticated, via POST) for Facebook's consent-screen URL and navigates to it.
 // Returning the URL instead of taking the dashboard token in a query string keeps the token out of logs/history.
 auth.post("/api/connection/start", (req, res) => {
-  if (!requireAuthApi(req, res)) return;
+  const a = requireAuthApi(req, res);
+  if (!a) return;
   if (!config.meta.appId || !config.meta.appSecret) {
     return res.status(400).json({ error: "חסרה הגדרה: META_APP_ID ו-META_APP_SECRET ב-Render" });
   }
@@ -106,7 +122,7 @@ auth.post("/api/connection/start", (req, res) => {
   const params: Record<string, string> = {
     client_id: config.meta.appId,
     redirect_uri: `${publicUrl(req)}/auth/facebook/callback`,
-    state: makeState(),
+    state: makeState(a.tenantId),
     response_type: "code",
   };
   if (configId) params.config_id = configId;
@@ -118,7 +134,8 @@ auth.post("/api/connection/start", (req, res) => {
 auth.get("/auth/facebook/callback", async (req, res) => {
   try {
     if (req.query.error) return page(res, "החיבור בוטל", String(req.query.error_description || "לא אושרו ההרשאות."));
-    if (!checkState(String(req.query.state))) return page(res, "שגיאת אבטחה", "הבקשה פגה או לא תקינה. נסו שוב מהאפליקציה.");
+    const tenantId = checkState(String(req.query.state));
+    if (!tenantId) return page(res, "שגיאת אבטחה", "הבקשה פגה או לא תקינה. נסו שוב מהאפליקציה.");
 
     const redirect = `${publicUrl(req)}/auth/facebook/callback`;
     const short = await graph("/oauth/access_token", {
@@ -143,14 +160,19 @@ auth.get("/auth/facebook/callback", async (req, res) => {
     }
     // Prefer a page that already has an Instagram account attached.
     const chosen = pages.find((p) => p.instagram_business_account) || pages[0];
-    saveConnection({
+    let fbUserId = "";
+    try {
+      fbUserId = String((await graph("/me", { fields: "id", access_token: long.access_token })).id || "");
+    } catch {}
+    runAsTenant(tenantId, () => saveConnection({
+      fbUserId,
       pageId: chosen.id,
       pageName: chosen.name,
       pageAccessToken: chosen.access_token,
       igUserId: chosen.instagram_business_account?.id || "",
       igUsername: chosen.instagram_business_account?.username,
       connectedAt: new Date().toISOString(),
-    });
+    }));
     const ig = chosen.instagram_business_account ? ` ואינסטגרם @${chosen.instagram_business_account.username}` : " (לא נמצא אינסטגרם מחובר לעמוד)";
     page(res, "✓ התחברתם בהצלחה", `חובר העמוד <b>${chosen.name}</b>${ig}.`);
   } catch (err: any) {
@@ -158,34 +180,40 @@ auth.get("/auth/facebook/callback", async (req, res) => {
   }
 });
 
-function requireAuthApi(req: Request, res: Response): boolean {
-  if (!config.dashboardToken) return true;
-  const header = req.header("authorization") || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : req.query.token;
-  if (token !== config.dashboardToken) {
+function requireAuthApi(req: Request, res: Response) {
+  const a = authenticate(req);
+  if (!a) {
     res.status(401).json({ error: "Unauthorized" });
-    return false;
+    return null;
   }
-  return true;
+  if (a.suspended) {
+    res.status(403).json({ error: "החשבון מושהה. פנו אלינו להסדרה." });
+    return null;
+  }
+  return a;
 }
 
 // Connection status for the app (never returns the token).
 auth.get("/api/connection", (req, res) => {
-  if (!requireAuthApi(req, res)) return;
+  const a = requireAuthApi(req, res);
+  if (!a) return;
+  runAsTenant(a.tenantId, () => {
   const c = getConnection();
-  const manual = !c && !!(process.env.META_PAGE_ACCESS_TOKEN && process.env.META_PAGE_ID);
+  const manual = !c && isDefaultTenant() && !!(process.env.META_PAGE_ACCESS_TOKEN && process.env.META_PAGE_ID);
   res.json({
     connected: !!c || manual,
     via: c ? "facebook-login" : manual ? "manual" : "none",
     pageName: c?.pageName,
     igUsername: c?.igUsername,
-    igConnected: !!(c?.igUserId || process.env.META_IG_USER_ID),
+    igConnected: !!(c?.igUserId || (isDefaultTenant() && process.env.META_IG_USER_ID)),
     loginAvailable: !!(config.meta.appId && config.meta.appSecret),
+  });
   });
 });
 
 auth.delete("/api/connection", (req, res) => {
-  if (!requireAuthApi(req, res)) return;
-  clearConnection();
+  const a = requireAuthApi(req, res);
+  if (!a) return;
+  runAsTenant(a.tenantId, () => clearConnection());
   res.json({ ok: true });
 });

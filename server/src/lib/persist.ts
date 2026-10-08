@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { Pool } from "pg";
+import { currentTenantId, DEFAULT_TENANT, isValidTenantId } from "./tenantContext";
 
 /**
  * Durable storage for the JSON documents the bot keeps (posts, replies, usage, ...).
@@ -22,7 +23,18 @@ export function isReady(): boolean {
   return ready;
 }
 
-const nameOf = (file: string) => path.basename(file);
+/** Document name inside the current tenant. The default tenant keeps the original plain names. */
+function scopedName(file: string): string {
+  const base = path.basename(file);
+  const t = currentTenantId();
+  if (t === DEFAULT_TENANT) return base;
+  if (!isValidTenantId(t)) throw new Error("invalid tenant");
+  return `t/${t}/${base}`;
+}
+const globalName = (name: string) => `sys/${path.basename(name)}`;
+
+/** On disk (no database): where a document lives. */
+const filePath = (name: string): string => path.join(DATA_DIR, name);
 
 export async function initPersistence(): Promise<void> {
   const url = process.env.DATABASE_URL;
@@ -41,21 +53,20 @@ export async function initPersistence(): Promise<void> {
   console.log(`Persistent storage ready (${rows.length} documents loaded).`);
 }
 
-export function readDoc(file: string): string | undefined {
-  const name = nameOf(file);
+function readByName(name: string): string | undefined {
   if (pool) return cache.get(name);
   try {
-    return fs.readFileSync(file, "utf-8");
+    return fs.readFileSync(filePath(name), "utf-8");
   } catch {
     return undefined;
   }
 }
 
-export function writeDoc(file: string, body: string): void {
-  const name = nameOf(file);
+function writeByName(name: string, body: string): void {
   if (!pool) {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(file, body, "utf-8");
+    const full = filePath(name);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, body, "utf-8");
     return;
   }
   cache.set(name, body);
@@ -75,6 +86,28 @@ export function writeDoc(file: string, body: string): void {
       lastError = err.message;
       console.error(`Failed to persist ${name}:`, err.message);
     });
+}
+
+/** A document of the CURRENT tenant (the argument's file name is all that matters). */
+export const readDoc = (file: string) => readByName(scopedName(file));
+export const writeDoc = (file: string, body: string) => writeByName(scopedName(file), body);
+
+/** System-wide documents (tenant list, invites, secrets) — never tenant-scoped. */
+export const readGlobal = (name: string) => readByName(globalName(name));
+export const writeGlobal = (name: string, body: string) => writeByName(globalName(name), body);
+
+/** Removes every document of one tenant (account deletion). */
+export function deleteTenantDocs(tenantId: string): void {
+  if (!isValidTenantId(tenantId) || tenantId === DEFAULT_TENANT) throw new Error("invalid tenant");
+  const prefix = `t/${tenantId}/`;
+  for (const key of [...cache.keys()]) if (key.startsWith(prefix)) cache.delete(key);
+  if (pool) {
+    queue = queue
+      .then(() => pool!.query("DELETE FROM documents WHERE name LIKE $1", [prefix + "%"]).then(() => undefined))
+      .catch((err) => console.error(`Failed to delete documents of ${tenantId}:`, err.message));
+  } else {
+    fs.rmSync(path.join(DATA_DIR, "t", tenantId), { recursive: true, force: true });
+  }
 }
 
 /** Storage health for the Settings screen: where data lives, how many documents, last save/error. */

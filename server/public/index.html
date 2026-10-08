@@ -46,7 +46,7 @@
   }
   .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent); }
   label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
-  input[type=text], textarea, select, input[type=number], input[type=url], input[type=password], input[type=datetime-local] {
+  input[type=text], input[type=email], textarea, select, input[type=number], input[type=url], input[type=password], input[type=datetime-local] {
     width: 100%;
     background: var(--panel-2);
     border: 1px solid #3a342b;
@@ -94,29 +94,76 @@
   .muted-small { font-size: 12px; color: var(--muted); margin-top: 4px; }
   #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
   #loginScreen .card { width: 100%; max-width: 360px; }
+
+  nav.tabs { overflow-x: auto; scrollbar-width: none; }
+  nav.tabs::-webkit-scrollbar { display: none; }
+  nav.tabs button { flex: 0 0 auto; min-width: 78px; }
+  .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
+  .kpi { background: var(--panel-2); border-radius: 12px; padding: 12px; }
+  .kpi b { display: block; font-size: 26px; color: var(--accent); line-height: 1.1; }
+  .kpi span { font-size: 12px; color: var(--muted); }
+  .meter { height: 8px; background: var(--panel-2); border-radius: 8px; overflow: hidden; margin: 8px 0; }
+  .meter > i { display: block; height: 100%; background: var(--accent); border-radius: 8px; }
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  input.tg { appearance: none; -webkit-appearance: none; width: 48px; height: 28px; flex: 0 0 auto; border-radius: 28px; background: var(--panel-2); border: 1px solid #3a342b; position: relative; cursor: pointer; transition: background .15s; }
+  input.tg::after { content: ""; position: absolute; top: 3px; inset-inline-start: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); transition: all .15s; }
+  input.tg:checked { background: var(--accent); }
+  input.tg:checked::after { inset-inline-start: 23px; background: #14120f; }
+  .viz { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; direction: ltr; position: relative; }
+  .viz svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .viz .axis { stroke: #3a342b; stroke-width: 1; }
+  .viz .grid { stroke: #2c2822; stroke-width: 1; }
+  .viz text { fill: var(--muted); font-size: 11px; }
+  .viz-tip { position: absolute; pointer-events: none; background: #000d; border: 1px solid #3a342b; border-radius: 8px; padding: 6px 9px; font-size: 12px; color: var(--text); white-space: nowrap; transform: translate(-50%, -110%); z-index: 3; direction: rtl; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); direction: rtl; margin-top: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-inline-end: 5px; }
+  .stackbar { display: flex; height: 26px; gap: 2px; direction: ltr; }
+  .stackbar > div { border-radius: 4px; min-width: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; }
+  .lead-row { border-top: 1px solid #2c2822; padding: 10px 0; }
+  .lead-row:first-child { border-top: 0; }
+  .chat-log { max-height: 260px; overflow-y: auto; margin-bottom: 8px; }
+  .bubble { padding: 8px 12px; border-radius: 12px; margin: 6px 0; font-size: 14px; max-width: 90%; white-space: pre-wrap; }
+  .bubble.me { background: var(--panel-2); margin-inline-start: auto; }
+  .bubble.ai { background: #2c2822; }
+  .upgrade-banner { background: #2c2418; border: 1px solid var(--accent); border-radius: 12px; padding: 12px; margin-bottom: 12px; font-size: 14px; }
+  .plan-item { border: 1px solid #2c2822; border-radius: 12px; padding: 12px; margin: 8px 0; }
+  .plan-item h3 { margin: 0 0 4px; font-size: 15px; color: var(--accent); }
+  .plan-item ul { margin: 6px 0; padding-inline-start: 18px; color: var(--muted); font-size: 13px; }
+  .toast-up { position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%); background: #2c2418; border: 1px solid var(--accent); padding: 10px 16px; border-radius: 12px; z-index: 50; max-width: 90vw; font-size: 14px; }
 </style>
 </head>
 <body>
 
 <div id="loginScreen">
   <div class="card">
-    <h2>ROCCA Social — כניסה</h2>
-    <label for="tokenInput">קוד גישה (Dashboard Token)</label>
-    <input type="password" id="tokenInput" placeholder="הדבק כאן את הטוקן מהשרת" />
-    <button id="loginBtn" style="width:100%">כניסה</button>
-    <p class="muted-small">הטוקן נמצא בקובץ ה-.env של השרת (DASHBOARD_TOKEN). הוא נשמר רק על המכשיר הזה.</p>
+    <h2 id="loginTitle">ROCCA Social</h2>
+    <div class="platforms" id="authModes" style="margin-bottom:10px">
+      <div class="chip active" data-mode="login">כניסה</div>
+      <div class="chip hidden" data-mode="signup">פתיחת חשבון</div>
+      <div class="chip" data-mode="code">קוד גישה</div>
+    </div>
+    <div id="authForm">
+      <div id="fName" class="hidden"><label for="authName">שם העסק</label><input id="authName" autocomplete="organization" /></div>
+      <div id="fEmail"><label for="authEmail">אימייל</label><input id="authEmail" type="email" autocomplete="email" /></div>
+      <div id="fPass"><label for="authPass">סיסמה</label><input id="authPass" type="password" autocomplete="current-password" placeholder="לפחות 8 תווים" /></div>
+      <div id="fInvite" class="hidden"><label for="authInvite">קוד הזמנה</label><input id="authInvite" autocomplete="off" /></div>
+      <div id="fCode" class="hidden"><label for="tokenInput">קוד גישה</label><input type="password" id="tokenInput" placeholder="קוד הגישה שקיבלתם" /></div>
+      <button id="loginBtn" style="width:100%">כניסה</button>
+      <p class="muted-small" id="authMsg" style="color:#e07a6a"></p>
+    </div>
   </div>
 </div>
 
 <div id="app" class="hidden">
   <header>
-    <h1>ROCCA Social</h1>
-    <p>ניהול תוכן ורשתות חברתיות · מופעל בבינה מלאכותית</p>
+    <h1 id="appTitle">ROCCA Social</h1>
+    <p id="whoami">ניהול תוכן ורשתות חברתיות · מופעל בבינה מלאכותית</p>
+    <div id="trialBanner" class="hidden" style="margin-top:8px;font-size:13px;color:var(--accent)"></div>
     <div class="platforms" id="modelChips" style="justify-content:center;margin-top:8px"></div>
   </header>
 
   <main>
-    <section id="tab-new" class="tab">
+    <section id="tab-new" class="tab hidden">
       <div class="card">
         <h2>פוסט חדש</h2>
         <label for="topicInput">על מה כותבים?</label>
@@ -127,6 +174,9 @@
 
         <label for="imageInput">תמונה או סרטון (קישור ישיר, חובה לאינסטגרם/טיקטוק; סרטון MP4 הופך ל-Reel)</label>
         <input type="url" id="imageInput" placeholder="https://..." />
+        <div class="row-actions" style="margin:6px 0"><button type="button" class="secondary" id="multiImgBtn">🖼️ כמה תמונות (קרוסלה)</button><span class="muted-small" id="multiImgStatus"></span></div>
+        <input type="file" id="multiImgFile" accept="image/jpeg,image/png,image/webp" multiple class="hidden" />
+        <div id="multiImgThumbs" class="platforms"></div>
 
         <button id="generateBtn">✨ צור טיוטה עם Claude</button>
       </div>
@@ -148,6 +198,18 @@
     </section>
 
     <section id="tab-connect" class="tab hidden">
+      <div class="card" id="accountCard">
+        <h2>החשבון שלי</h2>
+        <p class="muted-small" id="accountInfo"></p>
+        <div id="accountPw">
+          <label for="pwCur">שינוי סיסמה</label>
+          <input id="pwCur" type="password" placeholder="סיסמה נוכחית" autocomplete="current-password" />
+          <input id="pwNew" type="password" placeholder="סיסמה חדשה (8 תווים לפחות)" autocomplete="new-password" />
+          <button id="pwBtn" class="secondary">עדכון סיסמה</button>
+        </div>
+        <button id="logoutBtn" class="secondary" style="margin-top:8px">יציאה</button>
+        <button id="delAccountBtn" class="secondary hidden" style="margin-top:8px;color:#e07a6a">מחיקת החשבון וכל הנתונים</button>
+      </div>
       <div class="card" id="profileCard">
         <h2>העסק שלי</h2>
         <p class="muted-small" id="profileStatus"></p>
@@ -197,6 +259,11 @@
     </section>
 
     <section id="tab-performance" class="tab hidden">
+      <div class="card" id="reportsBox"><h2>דוחות — 30 הימים האחרונים</h2><p class="empty">טוען…</p></div>
+      <div class="card hidden" id="adsBox">
+        <h2>תקציב ממומן וחלוקה חכמה</h2>
+        <div id="adsBody"></div>
+      </div>
       <div class="card">
         <h2>מה עובד הכי טוב</h2>
         <p class="muted-small">מבוסס על נתוני Insights מפייסבוק/אינסטגרם. מתעדכן אוטומטית פעם ביום לפוסטים שפורסמו ב-14 הימים האחרונים.</p>
@@ -272,16 +339,115 @@
       </div>
       <div id="historyContainer"></div>
     </section>
+    <section id="tab-home" class="tab">
+      <div class="card" id="planCard"><p class="empty">טוען…</p></div>
+      <div class="card">
+        <div class="switch">
+          <div><h2 style="margin:0">טייס אוטומטי</h2><p class="muted-small" style="margin:2px 0 0">פעם בשבוע מכין לך פוסטים לאישור. שום דבר לא מתפרסם בלי שאישרת.</p></div>
+          <input type="checkbox" class="tg" id="autopilotToggle" />
+        </div>
+        <p class="muted-small" id="autopilotNote"></p>
+      </div>
+      <div class="card">
+        <h2>ממתינים לאישור מהיר</h2>
+        <div id="approvalList"><p class="empty">אין פוסטים ממתינים.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-leads" class="tab hidden">
+      <div class="card">
+        <h2>פניות ולידים</h2>
+        <p class="muted-small">פניות מדף הנחיתה, מהאתר שלך ומטפסי מודעות מגיעות לכאן ומתריעות לך מיד.</p>
+        <div id="leadList"><p class="empty">טוען…</p></div>
+      </div>
+      <div class="card">
+        <h2>להתריע לי על פנייה חדשה</h2>
+        <label for="notifyEmail">אימייל להתראות</label><input type="text" id="notifyEmail" placeholder="name@example.com" />
+        <label for="notifyWhatsapp">וואטסאפ (מספר בינלאומי, ספרות בלבד)</label><input type="text" id="notifyWhatsapp" placeholder="9725XXXXXXXX" />
+        <button id="saveNotifyBtn" class="secondary">שמירה</button>
+        <p class="muted-small">לחיבור טופס בדף נחיתה שלך: שלח POST ל-<code>/api/leads/capture</code> עם <code>key</code> = <code id="leadKeyShown"></code>, ושדות <code>full_name</code>, <code>phone</code>, <code>email</code>, <code>source</code>.</p>
+      </div>
+    </section>
+
+    <section id="tab-site" class="tab hidden">
+      <div class="card">
+        <h2>האתר שלי</h2>
+        <p class="muted-small" id="siteLink"></p>
+        <label for="siteHeadline">כותרת</label><input type="text" id="siteHeadline" />
+        <label for="siteAbout">על העסק</label><textarea id="siteAbout"></textarea>
+        <label for="sitePhone">טלפון</label><input type="text" id="sitePhone" />
+        <label for="siteWhatsapp">וואטסאפ (ספרות, בינלאומי)</label><input type="text" id="siteWhatsapp" />
+        <div class="switch" style="margin-top:10px"><span>האתר פעיל (גלוי לכולם)</span><input type="checkbox" class="tg" id="siteLive" /></div>
+        <button id="saveSiteBtn">שמירה</button>
+      </div>
+      <div class="card">
+        <h2>קידום אורגני בגוגל (SEO)</h2>
+        <p class="muted-small">מאמרים שנכתבים לעסק שלך ומופיעים באתר ובמפת האתר לגוגל.</p>
+        <input type="text" id="articleTopic" placeholder="נושא למאמר, למשל: איך בוחרים כיור אבן" />
+        <button id="articleBtn">✨ כתוב מאמר</button>
+        <div id="articleList"></div>
+      </div>
+      <div class="card">
+        <h2>דומיין משלי</h2>
+        <p class="muted-small" id="domainInfo"></p>
+        <input type="text" id="domainInput" placeholder="www.example.co.il" />
+        <button id="domainBtn" class="secondary">בקשת חיבור דומיין</button>
+      </div>
+    </section>
+
+    <section id="tab-plans" class="tab hidden">
+      <div class="card" id="plansStatus"></div>
+      <div id="plansCatalog"></div>
+    </section>
+
+    <section id="tab-support" class="tab hidden">
+      <div class="card">
+        <h2>עוזר התמיכה (24/7)</h2>
+        <div class="chat-log" id="chatLog"></div>
+        <input type="text" id="chatInput" placeholder="שאלו כל דבר על המערכת…" />
+        <button id="chatBtn">שליחה</button>
+      </div>
+      <div class="card">
+        <h2>פתיחת פנייה לצוות</h2>
+        <input type="text" id="ticketSubject" placeholder="נושא" />
+        <textarea id="ticketMessage" placeholder="מה קרה?"></textarea>
+        <button id="ticketBtn" class="secondary">שליחת פנייה</button>
+      </div>
+      <div class="card"><h2>הפניות שלי</h2><div id="ticketList"><p class="empty">אין פניות.</p></div></div>
+    </section>
+
+    <section id="tab-admin" class="tab hidden">
+      <div class="card">
+        <h2>לקוחות</h2>
+        <div id="adminTenants" class="empty">טוען…</div>
+      </div>
+      <div class="card">
+        <h2>פניות תמיכה פתוחות</h2>
+        <div id="adminTickets"><p class="empty">אין.</p></div>
+      </div>
+      <div class="card">
+        <h2>קודי הזמנה</h2>
+        <input id="inviteNote" placeholder="הערה (למי זה מיועד)" />
+        <button id="inviteBtn">צור קוד הזמנה</button>
+        <div id="adminInvites"></div>
+      </div>
+    </section>
   </main>
 
   <nav class="tabs">
-    <button data-tab="tab-new" class="active">פוסט חדש</button>
+    <button data-tab="tab-home" class="active">ראשי</button>
+    <button data-tab="tab-new">פוסט חדש</button>
     <button data-tab="tab-posts">פוסטים</button>
     <button data-tab="tab-plan">תוכנית</button>
-    <button data-tab="tab-connect">הגדרות</button>
+    <button data-tab="tab-leads">לידים</button>
+    <button data-tab="tab-site">האתר שלי</button>
+    <button data-tab="tab-performance">דוחות</button>
     <button data-tab="tab-replies">תגובות</button>
-    <button data-tab="tab-performance">ביצועים</button>
     <button data-tab="tab-inspiration">השראה</button>
+    <button data-tab="tab-plans">חבילות</button>
+    <button data-tab="tab-support">תמיכה</button>
+    <button data-tab="tab-connect">הגדרות</button>
+    <button data-tab="tab-admin" id="adminTabBtn" class="hidden">ניהול</button>
   </nav>
 </div>
 
@@ -328,6 +494,8 @@ function apiOnce(path, opts = {}) {
     },
   }).then(async (r) => {
     const body = await r.json().catch(() => ({}));
+    if (r.status === 401 && token) { logout(); throw new Error("ההתחברות פגה. התחברו שוב."); }
+    if (r.status === 402) { const e = new Error(body.error || "נדרש שדרוג"); e.paywall = true; e.code = body.code; showUpgrade(e.message); throw e; }
     if (!r.ok) throw new Error(body.error || r.statusText);
     return body;
   });
@@ -339,23 +507,142 @@ function el(html) {
   return div.firstElementChild;
 }
 
-// ---- Login ----
-function showApp() {
-  document.getElementById("loginScreen").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
+// ---- Login / signup / session ----
+let me = null;
+let authMode = "login";
+let signupMode = "closed";
+const $ = (id) => document.getElementById(id);
+function logout() {
+  token = ""; me = null;
+  localStorage.removeItem("rocca_token");
+  location.reload();
+}
+function setAuthMode(m) {
+  authMode = m;
+  document.querySelectorAll("#authModes .chip").forEach((c) => c.classList.toggle("active", c.dataset.mode === m));
+  $("fName").classList.toggle("hidden", m !== "signup");
+  $("fEmail").classList.toggle("hidden", m === "code");
+  $("fPass").classList.toggle("hidden", m === "code");
+  $("fInvite").classList.toggle("hidden", !(m === "signup" && signupMode === "invite"));
+  $("fCode").classList.toggle("hidden", m !== "code");
+  $("loginBtn").textContent = m === "signup" ? "פתיחת חשבון" : "כניסה";
+  $("authPass").autocomplete = m === "signup" ? "new-password" : "current-password";
+  $("authMsg").textContent = "";
+}
+document.querySelectorAll("#authModes .chip").forEach((c) => c.addEventListener("click", () => setAuthMode(c.dataset.mode)));
+fetch("/api/auth/config").then((r) => r.json()).then((c) => {
+  signupMode = c.signupMode || "closed";
+  if (signupMode !== "closed") $("authModes").querySelector('[data-mode="signup"]').classList.remove("hidden");
+}).catch(() => {});
+
+if (/(^|\.)bool\.co\.il$/.test(location.hostname)) { $("loginTitle").textContent = "BOOL"; $("appTitle").textContent = "BOOL"; }
+async function showApp() {
+  try { me = await api("/api/me"); } catch (e) { if (!token) return; me = null; }
+  $("loginScreen").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  if (me) {
+    if (!me.isDefault) $("appTitle").textContent = "BOOL";
+    $("whoami").textContent = me.name + (me.isDefault ? "" : " · " + (me.planLabel || me.plan || ""));
+    const b = $("trialBanner");
+    if (me.credits != null) {
+      b.textContent = me.kind === "free" ? `ניסיון חינם: נותרו ${me.credits} פעולות במתנה` : `נותרו ${me.credits} קרדיטים`;
+      b.classList.remove("hidden");
+    } else if (me.trialDaysLeft != null) {
+      b.textContent = me.trialDaysLeft > 0 ? `תקופת ניסיון: נותרו ${me.trialDaysLeft} ימים` : "תקופת הניסיון הסתיימה — פנו אלינו להמשך";
+      b.classList.remove("hidden");
+    }
+    if (me.platforms) {
+      for (const k of Object.keys(PLATFORM_LABELS)) if (!me.platforms.includes(k)) { delete PLATFORM_LABELS[k]; selectedPlatforms.delete(k); }
+    }
+    if (me.isAdmin) $("adminTabBtn").classList.remove("hidden");
+    $("accountInfo").textContent = me.email ? `מחובר כ-${me.email}` : "חשבון ראשי (קוד גישה)";
+    $("accountPw").classList.toggle("hidden", me.isDefault);
+    $("delAccountBtn").classList.toggle("hidden", me.isDefault);
+  }
   renderPlatformChips();
   renderModelChips();
   loadReplies();
   loadHistory();
-  attachUpload(document.getElementById("imageInput"));
+  loadHome();
+  attachUpload($("imageInput"));
 }
 
-document.getElementById("loginBtn").addEventListener("click", () => {
-  const v = document.getElementById("tokenInput").value.trim();
-  if (!v) return;
-  token = v;
-  localStorage.setItem("rocca_token", v);
-  showApp();
+$("loginBtn").addEventListener("click", async () => {
+  const msg = $("authMsg");
+  msg.textContent = "";
+  try {
+    if (authMode === "code") {
+      const v = $("tokenInput").value.trim();
+      if (!v) return;
+      token = v;
+    } else {
+      const body = { email: $("authEmail").value.trim(), password: $("authPass").value };
+      if (authMode === "signup") { body.businessName = $("authName").value.trim(); body.invite = $("authInvite").value.trim(); }
+      const r = await fetch("/api/auth/" + authMode, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "הפעולה נכשלה");
+      token = j.token;
+    }
+    localStorage.setItem("rocca_token", token);
+    await showApp();
+  } catch (e) { token = authMode === "code" ? "" : token; msg.textContent = e.message; }
+});
+["authEmail", "authPass", "authName", "authInvite", "tokenInput"].forEach((id) => $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") $("loginBtn").click(); }));
+
+$("logoutBtn").addEventListener("click", logout);
+$("pwBtn").addEventListener("click", async () => {
+  try {
+    await api("/api/account/password", { method: "POST", body: JSON.stringify({ current: $("pwCur").value, next: $("pwNew").value }) });
+    $("pwCur").value = ""; $("pwNew").value = "";
+    alert("הסיסמה עודכנה");
+  } catch (e) { alert(e.message); }
+});
+$("delAccountBtn").addEventListener("click", async () => {
+  if (!confirm("למחוק את החשבון וכל הנתונים לצמיתות? אי אפשר לשחזר.")) return;
+  const pw = prompt("הקלידו את הסיסמה לאישור:");
+  if (!pw) return;
+  try { await api("/api/account", { method: "DELETE", body: JSON.stringify({ password: pw }) }); logout(); } catch (e) { alert(e.message); }
+});
+
+// ---- Operator admin ----
+async function loadAdmin() {
+  try {
+    const [rows, invites] = await Promise.all([api("/api/admin/tenants"), api("/api/admin/invites")]);
+    const box = $("adminTenants");
+    box.className = "";
+    box.innerHTML = "";
+    rows.forEach((t) => {
+      const u = t.usage || {};
+      const card = el(`<div class="card" style="margin:8px 0"><b>${esc(t.name)}</b> <span class="muted-small">${esc(t.email || "חשבון ראשי")}</span>
+        <p class="muted-small">מסלול: ${esc(t.plan)}${t.credits != null ? " · " + t.credits + " קרדיטים" : ""} · ${t.status === "active" ? "פעיל" : "מושהה"} · ${t.connected ? "מחובר לפייסבוק" : "לא מחובר"} · ${t.posts} פוסטים · עלות ${u.costIls ?? 0}/${u.costCapIls ?? "-"} ₪</p></div>`);
+      if (t.id !== "default") {
+        const sel = el(`<select><option value="">שינוי מסלול…</option>${["free_trial","creator_lite","creator_pro","starter_social","digital_core","digital_pro","total_dominance","basic","premium","vip"].map((k) => `<option value="${k}">${k}</option>`).join("")}</select>`);
+        sel.addEventListener("change", async () => { if (sel.value) { await api("/api/admin/tenants/" + t.id, { method: "POST", body: JSON.stringify({ plan: sel.value }) }); loadAdmin(); } });
+        const sus = el(`<button class="secondary">${t.status === "active" ? "השהיה" : "הפעלה"}</button>`);
+        sus.addEventListener("click", async () => { await api("/api/admin/tenants/" + t.id, { method: "POST", body: JSON.stringify({ status: t.status === "active" ? "suspended" : "active" }) }); loadAdmin(); });
+        const del = el('<button class="secondary" style="color:#e07a6a">מחיקה</button>');
+        del.addEventListener("click", async () => { if (confirm("למחוק את " + t.name + " וכל הנתונים שלו?")) { await api("/api/admin/tenants/" + t.id, { method: "DELETE" }); loadAdmin(); } });
+        const cr = el('<button class="secondary">+10 קרדיטים</button>');
+        cr.addEventListener("click", async () => { await api("/api/admin/tenants/" + t.id, { method: "POST", body: JSON.stringify({ creditsDelta: 10 }) }); loadAdmin(); });
+        card.append(sel, cr, sus, del);
+      }
+      box.appendChild(card);
+    });
+    try {
+      const tk = await api("/api/admin/tickets");
+      $("adminTickets").innerHTML = "";
+      if (!tk.length) $("adminTickets").innerHTML = `<p class="empty">אין.</p>`;
+      tk.forEach((t) => {
+        const row = el(`<div class="lead-row"><b>${esc(t.tenantName)}</b> · ${esc(t.subject)}<p class="muted-small" style="margin:2px 0">${esc(t.message)}</p><input type="text" placeholder="תשובה" /><div class="row-actions"><button>שליחה וסגירה</button></div></div>`);
+        row.querySelector("button").addEventListener("click", async () => { await api(`/api/admin/tickets/${t.tenantId}/${t.id}/reply`, { method: "POST", body: JSON.stringify({ text: row.querySelector("input").value, close: true }) }); loadAdmin(); });
+        $("adminTickets").appendChild(row);
+      });
+    } catch {}
+    $("adminInvites").innerHTML = invites.map((i) => `<p class="muted-small"><b>${esc(i.code)}</b> ${esc(i.note)} ${i.usedBy ? "· נוצל" : "· פנוי"}</p>`).join("");
+  } catch (e) { $("adminTenants").textContent = e.message; }
+}
+$("inviteBtn").addEventListener("click", async () => {
+  try { await api("/api/admin/invites", { method: "POST", body: JSON.stringify({ note: $("inviteNote").value }) }); $("inviteNote").value = ""; loadAdmin(); } catch (e) { alert(e.message); }
 });
 
 if (token) showApp();
@@ -375,7 +662,13 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
       loadInspirations();
       loadHistory();
     }
-    if (btn.dataset.tab === "tab-performance") loadPerformance();
+    if (btn.dataset.tab === "tab-performance") { loadPerformance(); loadReports(); }
+    if (btn.dataset.tab === "tab-admin") loadAdmin();
+    if (btn.dataset.tab === "tab-home") loadHome();
+    if (btn.dataset.tab === "tab-leads") loadLeads();
+    if (btn.dataset.tab === "tab-site") loadSite();
+    if (btn.dataset.tab === "tab-plans") loadPlans();
+    if (btn.dataset.tab === "tab-support") loadSupport();
   });
 });
 
@@ -855,12 +1148,14 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
   try {
     const post = await api("/api/posts/generate", {
       method: "POST",
-      body: JSON.stringify({ topic, platforms, imageUrl: imageUrl || undefined }),
+      body: JSON.stringify({ topic, platforms, imageUrl: carouselUrls.length > 1 ? carouselUrls[0] : imageUrl || undefined, imageUrls: carouselUrls.length > 1 ? carouselUrls : undefined }),
     });
     await refreshTierInfo();
     renderDraft(post);
     document.getElementById("topicInput").value = "";
+    carouselUrls = []; renderCarouselThumbs();
   } catch (err) {
+    if (err.paywall) return;
     alert("שגיאה: " + err.message);
   } finally {
     btn.disabled = false;
@@ -1127,7 +1422,7 @@ function applyPlatformResults(card, platforms) {
 }
 
 function statusLabel(s) {
-  return { pending: "ממתין", sent: "נשלח", failed: "נכשל", draft: "טיוטה", scheduled: "מתוזמן", published: "פורסם" }[s] || s;
+  return { pending: "ממתין", sent: "נשלח", failed: "נכשל", draft: "טיוטה", pending_approval: "ממתין לאישור", scheduled: "מתוזמן", published: "פורסם" }[s] || s;
 }
 
 function escapeHtml(str) {
@@ -1317,6 +1612,262 @@ async function loadInspirations() {
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
+// =====================  BOOL platform: home, leads, site, plans, support, reports  =====================
+function showUpgrade(msg) {
+  const t = el(`<div class="toast-up">${escapeHtml(msg)} <a href="#" style="color:var(--accent)">לחבילות ←</a></div>`);
+  t.querySelector("a").addEventListener("click", (e) => { e.preventDefault(); t.remove(); document.querySelector('nav.tabs button[data-tab="tab-plans"]').click(); });
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 7000);
+}
+const nf = (n) => Number(n || 0).toLocaleString("he-IL");
+const dayLabel = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
+
+// ---- multiple images (carousel) ----
+let carouselUrls = [];
+function renderCarouselThumbs() {
+  const box = $("multiImgThumbs");
+  box.innerHTML = "";
+  carouselUrls.forEach((u, i) => {
+    const c = el(`<div style="position:relative"><img src="${escapeHtml(u)}" style="width:64px;height:64px;object-fit:cover;border-radius:8px" alt="" /><span style="position:absolute;top:-6px;inset-inline-start:-6px;background:#000a;border-radius:50%;width:20px;height:20px;text-align:center;cursor:pointer;font-size:12px;line-height:20px">✕</span></div>`);
+    c.querySelector("span").addEventListener("click", () => { carouselUrls.splice(i, 1); renderCarouselThumbs(); });
+    box.appendChild(c);
+  });
+  $("multiImgStatus").textContent = carouselUrls.length > 1 ? `${carouselUrls.length} תמונות — יפורסמו כקרוסלה` : carouselUrls.length === 1 ? "הוסיפו עוד תמונה לקרוסלה" : "";
+}
+$("multiImgBtn").addEventListener("click", () => $("multiImgFile").click());
+$("multiImgFile").addEventListener("change", async () => {
+  const files = Array.from($("multiImgFile").files).slice(0, 10 - carouselUrls.length);
+  for (const f of files) {
+    $("multiImgStatus").textContent = "מעלה…";
+    try {
+      const r = await fetch("/api/media/upload", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": f.type || "application/octet-stream" }, body: f });
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(b.error || r.statusText);
+      carouselUrls.push(b.url);
+    } catch (e) { toast(e.message); }
+  }
+  $("multiImgFile").value = "";
+  renderCarouselThumbs();
+});
+
+// ---- home: plan/credits, autopilot, approval queue ----
+async function loadHome() {
+  try {
+    const [bill, ap] = await Promise.all([api("/api/billing/status"), api("/api/autopilot")]);
+    const card = $("planCard");
+    let body = `<h2 style="margin-bottom:6px">${escapeHtml(bill.tierLabel)}</h2>`;
+    if (bill.credits != null) {
+      const total = bill.kind === "free" ? 3 : Math.max(bill.credits, 1);
+      body += `<p style="margin:0"><b style="font-size:28px;color:var(--accent)">${bill.credits}</b> <span class="muted-small">${bill.kind === "free" ? "פעולות במתנה נשארו" : "קרדיטים נשארו"}</span></p><div class="meter"><i style="width:${Math.min(100, (bill.credits / total) * 100)}%"></i></div>`;
+      if (bill.kind === "free") body += `<div class="upgrade-banner">רוצים טייס אוטומטי, יותר פוסטים ואתר? <a href="#" id="homeUp" style="color:var(--accent)">לחבילות ←</a></div>`;
+    } else body += `<p class="muted-small" style="margin:0">ללא הגבלת קרדיטים — מוגבל רק בשימוש הוגן חודשי.</p>`;
+    if (bill.expiresAt) body += `<p class="muted-small">המנוי פעיל עד ${new Date(bill.expiresAt).toLocaleDateString("he-IL")}</p>`;
+    card.innerHTML = body;
+    const up = $("homeUp"); if (up) up.addEventListener("click", (e) => { e.preventDefault(); document.querySelector('nav.tabs button[data-tab="tab-plans"]').click(); });
+    $("autopilotToggle").checked = ap.enabled;
+    $("autopilotNote").textContent = ap.available ? (ap.lastRun ? "הריצה האחרונה: " + new Date(ap.lastRun).toLocaleDateString("he-IL") : "עדיין לא רץ.") : "זמין בחבילות בתשלום.";
+    renderApprovals(ap.waiting);
+  } catch (e) { $("planCard").innerHTML = `<p class="empty">${escapeHtml(e.message)}</p>`; }
+}
+$("autopilotToggle").addEventListener("change", async (e) => {
+  try { await api("/api/autopilot", { method: "POST", body: JSON.stringify({ enabled: e.target.checked }) }); if (e.target.checked) { const r = await api("/api/autopilot/run", { method: "POST", body: "{}" }).catch(() => null); if (r && r.created) toast(`הוכנו ${r.created} פוסטים לאישור`); } loadHome(); }
+  catch (err) { e.target.checked = false; if (!err.paywall) toast(err.message); }
+});
+function renderApprovals(list) {
+  const box = $("approvalList");
+  if (!list.length) { box.innerHTML = `<p class="empty">אין פוסטים ממתינים. כשהטייס האוטומטי יכין פוסטים הם יופיעו כאן.</p>`; return; }
+  box.innerHTML = "";
+  list.forEach((p) => {
+    const first = p.platforms[0] || {};
+    const needsImg = p.platforms.some((c) => (c.platform === "instagram" || c.platform === "tiktok") && !c.imageUrl);
+    const card = el(`<div class="post-block"><b>${escapeHtml(p.topic)}</b><p class="muted-small" style="margin:2px 0">${p.platforms.map((c) => PLATFORM_LABELS[c.platform] || c.platform).join(" · ")}${p.scheduledFor ? " · מוצע ל-" + new Date(p.scheduledFor).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }) : ""}</p><p style="font-size:14px;white-space:pre-wrap">${escapeHtml((first.text || "").slice(0, 260))}</p>${needsImg ? `<p class="muted-small" style="color:var(--err)">חסרה תמונה לאינסטגרם</p><button class="secondary imgBtn">📎 הוספת תמונה</button><input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" />` : ""}<div class="row-actions"><button class="okBtn">✓ אשר ותזמן</button><button class="danger delBtn">מחק</button></div></div>`);
+    const fi = card.querySelector('input[type=file]');
+    if (fi) {
+      card.querySelector(".imgBtn").addEventListener("click", () => fi.click());
+      fi.addEventListener("change", async () => {
+        const f = fi.files[0]; if (!f) return;
+        try {
+          const r = await fetch("/api/media/upload", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": f.type }, body: f });
+          const b = await r.json().catch(() => ({})); if (!r.ok) throw new Error(b.error || r.statusText);
+          await api("/api/posts/" + p.id, { method: "PATCH", body: JSON.stringify({ platforms: p.platforms.map((c) => ({ ...c, imageUrl: b.url })) }) });
+          loadHome();
+        } catch (e) { toast(e.message); }
+      });
+    }
+    card.querySelector(".okBtn").addEventListener("click", async () => { try { await api(`/api/posts/${p.id}/approve`, { method: "POST", body: "{}" }); toast("✓ תוזמן"); loadHome(); } catch (e) { toast(e.message); } });
+    card.querySelector(".delBtn").addEventListener("click", async () => { await api("/api/posts/" + p.id, { method: "DELETE" }); loadHome(); });
+    box.appendChild(card);
+  });
+}
+
+// ---- leads ----
+async function loadLeads() {
+  try {
+    const [d, s] = await Promise.all([api("/api/leads"), api("/api/settings")]);
+    $("leadKeyShown").textContent = d.leadKey || "(לא הוגדר)";
+    $("notifyEmail").value = s.notifyEmail || ""; $("notifyWhatsapp").value = s.notifyWhatsapp || "";
+    const box = $("leadList");
+    if (!d.leads.length) { box.innerHTML = `<p class="empty">עדיין אין פניות.</p>`; return; }
+    box.innerHTML = "";
+    const labels = { new: "חדש", contacted: "טיפלתי", won: "נסגר ✓", lost: "לא רלוונטי" };
+    d.leads.forEach((l) => {
+      const tel = (l.phone || "").replace(/[^\d+]/g, "");
+      const wa = tel.replace(/^\+/, "").replace(/^0/, "972");
+      const row = el(`<div class="lead-row"><b>${escapeHtml(l.fullName || "ללא שם")}</b> <span class="status ${l.status === "new" ? "pending" : "sent"}">${labels[l.status] || l.status}</span><p class="muted-small" style="margin:2px 0">${escapeHtml(l.phone)} ${escapeHtml(l.email)} · ${escapeHtml(l.source)} · ${new Date(l.createdAt).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}</p>${l.notes ? `<p style="font-size:14px;margin:2px 0">${escapeHtml(l.notes)}</p>` : ""}<div class="row-actions">${l.phone ? `<a href="tel:${escapeHtml(tel)}"><button>📞 חיוג</button></a><a href="https://wa.me/${escapeHtml(wa)}" target="_blank" rel="noopener"><button class="secondary">וואטסאפ</button></a>` : ""}<select class="stSel">${Object.entries(labels).map(([k, v]) => `<option value="${k}" ${k === l.status ? "selected" : ""}>${v}</option>`).join("")}</select></div></div>`);
+      row.querySelector(".stSel").addEventListener("change", async (e) => { await api(`/api/leads/${l.id}/status`, { method: "POST", body: JSON.stringify({ status: e.target.value }) }); loadLeads(); });
+      box.appendChild(row);
+    });
+  } catch (e) { $("leadList").innerHTML = `<p class="empty">${escapeHtml(e.message)}</p>`; }
+}
+$("saveNotifyBtn").addEventListener("click", async () => {
+  try { await api("/api/settings", { method: "POST", body: JSON.stringify({ notifyEmail: $("notifyEmail").value, notifyWhatsapp: $("notifyWhatsapp").value }) }); toast("נשמר ✓"); } catch (e) { toast(e.message); }
+});
+
+// ---- my site & SEO ----
+async function loadSite() {
+  try {
+    const d = await api("/api/site");
+    const s = d.site;
+    $("siteHeadline").value = s.headline || ""; $("siteAbout").value = s.about || ""; $("sitePhone").value = s.phone || ""; $("siteWhatsapp").value = s.whatsapp || ""; $("siteLive").checked = s.status === "live";
+    $("siteLink").innerHTML = d.publicPath && s.status === "live" ? `האתר שלך חי: <a href="${escapeHtml(d.publicPath)}" target="_blank" rel="noopener" style="color:var(--accent)">${escapeHtml(location.origin + d.publicPath)}</a>` : "האתר עדיין לא פעיל. מלאו פרטים והפעילו אותו.";
+    $("articleList").innerHTML = s.articles.map((a) => `<div class="lead-row"><b>${escapeHtml(a.title)}</b><p class="muted-small" style="margin:2px 0">${escapeHtml(a.description)}</p></div>`).join("");
+    $("domainInfo").textContent = !d.canUseDomain ? "חיבור דומיין עצמאי זמין מחבילת Core Presence ומעלה." : s.domain ? `${s.domain} — ${s.domainStatus === "active" ? "פעיל ✓" : "ממתין להפניית DNS ואישור הצוות"}` : "הכניסו את הדומיין שלכם ונחזור אליכם עם הוראות הפניה.";
+  } catch (e) { toast(e.message); }
+}
+$("saveSiteBtn").addEventListener("click", async () => {
+  try { await api("/api/site", { method: "POST", body: JSON.stringify({ headline: $("siteHeadline").value, about: $("siteAbout").value, phone: $("sitePhone").value, whatsapp: $("siteWhatsapp").value, status: $("siteLive").checked ? "live" : "draft" }) }); toast("נשמר ✓"); loadSite(); } catch (e) { toast(e.message); }
+});
+$("articleBtn").addEventListener("click", async () => {
+  const topic = $("articleTopic").value.trim(); if (!topic) return;
+  $("articleBtn").disabled = true; $("articleBtn").textContent = "כותב…";
+  try { await api("/api/site/article", { method: "POST", body: JSON.stringify({ topic }) }); $("articleTopic").value = ""; loadSite(); } catch (e) { if (!e.paywall) toast(e.message); }
+  $("articleBtn").disabled = false; $("articleBtn").textContent = "✨ כתוב מאמר";
+});
+$("domainBtn").addEventListener("click", async () => {
+  try { await api("/api/site/domain", { method: "POST", body: JSON.stringify({ domain: $("domainInput").value }) }); toast("הבקשה נשלחה ✓"); loadSite(); } catch (e) { if (!e.paywall) toast(e.message); }
+});
+
+// ---- plans & checkout ----
+async function loadPlans() {
+  try {
+    const [bill, cat] = await Promise.all([api("/api/billing/status"), fetch("/api/billing/catalog").then((r) => r.json())]);
+    $("plansStatus").innerHTML = `<h2>החבילה שלי: ${escapeHtml(bill.tierLabel)}</h2><p class="muted-small" style="margin:0">${bill.credits != null ? `נשארו ${bill.credits} קרדיטים` : "ללא הגבלת קרדיטים"}</p>${cat.vatNote ? `<p class="muted-small">${escapeHtml(cat.vatNote)}</p>` : ""}`;
+    const groups = [["credits", "קרדיטים (חד־פעמי)"], ["subscription", "מנויים ליוצרים"], ["package", "חבילות לעסקים (התחייבות 12 חודשים)"]];
+    const box = $("plansCatalog"); box.innerHTML = "";
+    for (const [kind, title] of groups) {
+      const card = el(`<div class="card"><h2>${title}</h2></div>`);
+      cat.items.filter((i) => i.kind === kind).forEach((i) => {
+        const per = i.cycle === "weekly" ? "לשבוע" : i.kind === "package" ? "לחודש" : i.cycle === "monthly" ? "לחודש" : "";
+        const it = el(`<div class="plan-item"><h3>${escapeHtml(i.label)} · ₪${nf(i.priceIls)} ${per}</h3>${i.includes ? `<ul>${i.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}<button>לרכישה</button></div>`);
+        it.querySelector("button").addEventListener("click", async () => {
+          try { const r = await api("/api/billing/create-checkout-session", { method: "POST", body: JSON.stringify({ sku: i.id }) }); location.href = r.url; } catch (e) { toast(e.message); }
+        });
+        card.appendChild(it);
+      });
+      box.appendChild(card);
+    }
+  } catch (e) { $("plansStatus").innerHTML = `<p class="empty">${escapeHtml(e.message)}</p>`; }
+}
+
+// ---- support ----
+let chatHistory = [];
+function chatAdd(role, text) {
+  const b = el(`<div class="bubble ${role === "user" ? "me" : "ai"}"></div>`); b.textContent = text; $("chatLog").appendChild(b); $("chatLog").scrollTop = 1e9;
+}
+async function sendChat() {
+  const q = $("chatInput").value.trim(); if (!q) return;
+  $("chatInput").value = ""; chatAdd("user", q);
+  try { const r = await api("/api/support/chat", { method: "POST", body: JSON.stringify({ message: q, history: chatHistory }) }); chatAdd("assistant", r.answer); chatHistory.push({ role: "user", text: q }, { role: "assistant", text: r.answer }); }
+  catch (e) { chatAdd("assistant", e.message + " — אפשר לפתוח פנייה לצוות למטה."); }
+}
+$("chatBtn").addEventListener("click", sendChat);
+$("chatInput").addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
+async function loadSupport() {
+  if (!$("chatLog").children.length) chatAdd("assistant", "שלום! אני עוזר התמיכה. במה אפשר לעזור?");
+  try {
+    const list = await api("/api/support/tickets");
+    $("ticketList").innerHTML = list.length ? list.map((t) => `<div class="lead-row"><b>${escapeHtml(t.subject)}</b> <span class="status ${t.status === "open" ? "pending" : "sent"}">${t.status === "open" ? "פתוחה" : "נסגרה"}</span><p class="muted-small" style="margin:2px 0">${escapeHtml(t.message)}</p>${t.replies.map((r) => `<p style="font-size:14px;margin:2px 0"><b>${r.from === "support" ? "הצוות" : "אני"}:</b> ${escapeHtml(r.text)}</p>`).join("")}</div>`).join("") : `<p class="empty">אין פניות.</p>`;
+  } catch (e) { toast(e.message); }
+}
+$("ticketBtn").addEventListener("click", async () => {
+  try { await api("/api/support/tickets", { method: "POST", body: JSON.stringify({ subject: $("ticketSubject").value, message: $("ticketMessage").value }) }); $("ticketSubject").value = ""; $("ticketMessage").value = ""; toast("הפנייה נשלחה ✓"); loadSupport(); } catch (e) { toast(e.message); }
+});
+
+// ---- reports (charts follow the dataviz rules: one axis, thin marks, hover tooltips, table view, validated dark palette) ----
+function vizTip(root) {
+  const tip = el(`<div class="viz-tip hidden"></div>`); root.appendChild(tip);
+  return { show(x, y, html) { tip.innerHTML = html; tip.style.left = x + "px"; tip.style.top = y + "px"; tip.classList.remove("hidden"); }, hide() { tip.classList.add("hidden"); } };
+}
+function lineChart(root, rows, key, label) {
+  const W = 600, H = 170, pl = 8, pr = 8, pt = 10, pb = 22;
+  const max = Math.max(1, ...rows.map((r) => r[key]));
+  const x = (i) => pl + (i * (W - pl - pr)) / Math.max(1, rows.length - 1);
+  const y = (v) => pt + (1 - v / max) * (H - pt - pb);
+  const pts = rows.map((r, i) => `${x(i).toFixed(1)},${y(r[key]).toFixed(1)}`).join(" ");
+  const area = `${x(0)},${H - pb} ${pts} ${x(rows.length - 1)},${H - pb}`;
+  root.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(label)}"><line class="grid" x1="${pl}" x2="${W - pr}" y1="${y(max / 2)}" y2="${y(max / 2)}"/><line class="axis" x1="${pl}" x2="${W - pr}" y1="${H - pb}" y2="${H - pb}"/><polygon points="${area}" fill="var(--accent)" opacity=".12"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><text x="${pl}" y="${H - 6}">${dayLabel(rows[0].date)}</text><text x="${W - pr}" y="${H - 6}" text-anchor="end">${dayLabel(rows[rows.length - 1].date)}</text><text x="${pl}" y="${pt + 2}">${nf(max)}</text><line class="axis hov" y1="${pt}" y2="${H - pb}" opacity="0"/><circle class="dot" r="4" fill="var(--accent)" stroke="var(--panel)" stroke-width="2" opacity="0"/><rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/></svg>`;
+  const tip = vizTip(root), svg = root.querySelector("svg"), dot = svg.querySelector(".dot"), v = svg.querySelector(".hov");
+  svg.querySelector(".hit").addEventListener("mousemove", (e) => {
+    const b = svg.getBoundingClientRect(); const px = ((e.clientX - b.left) / b.width) * W;
+    const i = Math.max(0, Math.min(rows.length - 1, Math.round(((px - pl) / (W - pl - pr)) * (rows.length - 1))));
+    dot.setAttribute("cx", x(i)); dot.setAttribute("cy", y(rows[i][key])); dot.setAttribute("opacity", 1);
+    v.setAttribute("x1", x(i)); v.setAttribute("x2", x(i)); v.setAttribute("opacity", 1);
+    tip.show((x(i) / W) * b.width, (y(rows[i][key]) / H) * b.height, `${dayLabel(rows[i].date)} · ${label}: <b>${nf(rows[i][key])}</b>`);
+  });
+  svg.querySelector(".hit").addEventListener("mouseleave", () => { dot.setAttribute("opacity", 0); v.setAttribute("opacity", 0); tip.hide(); });
+}
+function barChart(root, rows, key, label) {
+  const W = 600, H = 150, pb = 20, pt = 8, gap = 2;
+  const max = Math.max(1, ...rows.map((r) => r[key]));
+  const bw = (W - gap * (rows.length - 1)) / rows.length;
+  root.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(label)}"><line class="axis" x1="0" x2="${W}" y1="${H - pb}" y2="${H - pb}"/>${rows.map((r, i) => { const h = (r[key] / max) * (H - pb - pt); return `<g class="b"><rect x="${i * (bw + gap)}" y="0" width="${bw}" height="${H - pb}" fill="transparent"/><rect x="${i * (bw + gap)}" y="${H - pb - h}" width="${bw}" height="${h}" rx="3" fill="var(--viz-1)"/></g>`; }).join("")}<text x="0" y="${H - 5}">${dayLabel(rows[0].date)}</text><text x="${W}" y="${H - 5}" text-anchor="end">${dayLabel(rows[rows.length - 1].date)}</text></svg>`;
+  const tip = vizTip(root), svg = root.querySelector("svg");
+  svg.querySelectorAll(".b").forEach((g, i) => {
+    g.addEventListener("mousemove", () => { const b = svg.getBoundingClientRect(); tip.show(((i * (bw + gap) + bw / 2) / W) * b.width, 0, `${dayLabel(rows[i].date)} · ${label}: <b>${nf(rows[i][key])}</b>`); });
+    g.addEventListener("mouseleave", () => tip.hide());
+  });
+}
+const CH_COLOR = { facebook: "var(--viz-1)", instagram: "var(--viz-2)", google: "var(--viz-3)" };
+const CH_LABEL = { facebook: "פייסבוק", instagram: "אינסטגרם", google: "גוגל" };
+function budgetBar(root, shares, monthly) {
+  const keys = Object.keys(shares);
+  if (!keys.length) { root.innerHTML = `<p class="empty">עדיין אין חלוקה. הפעילו תקציב והרצה ראשונה.</p>`; return; }
+  root.innerHTML = `<div class="stackbar" role="img" aria-label="חלוקת תקציב">${keys.map((k) => `<div style="flex:${shares[k]};background:${CH_COLOR[k]}" data-k="${k}">${Math.round(shares[k] * 100)}%</div>`).join("")}</div><div class="legend">${keys.map((k) => `<span><i style="background:${CH_COLOR[k]}"></i>${CH_LABEL[k] || k} · ₪${nf(Math.round(monthly * shares[k]))}</span>`).join("")}</div>`;
+  const tip = vizTip(root);
+  root.querySelectorAll(".stackbar > div").forEach((d) => {
+    d.addEventListener("mousemove", (e) => { const b = root.getBoundingClientRect(); tip.show(e.clientX - b.left, 0, `${CH_LABEL[d.dataset.k] || d.dataset.k}: ₪${nf(Math.round(monthly * shares[d.dataset.k]))} (${Math.round(shares[d.dataset.k] * 100)}%)`); });
+    d.addEventListener("mouseleave", () => tip.hide());
+  });
+}
+async function loadReports() {
+  const box = $("reportsBox");
+  try {
+    const r = await api("/api/reports/summary");
+    const t = r.totals;
+    box.innerHTML = `<h2>דוחות — 30 הימים האחרונים</h2><div class="kpis"><div class="kpi"><b>${nf(t.reach)}</b><span>חשיפה</span></div><div class="kpi"><b>${nf(t.engagement)}</b><span>מעורבות</span></div><div class="kpi"><b>${nf(t.leads)}</b><span>פניות</span></div><div class="kpi"><b>${nf(t.published)}</b><span>פוסטים שפורסמו</span></div></div>${t.reach + t.engagement + t.leads === 0 ? `<p class="muted-small">עדיין אין נתונים. הנתונים יתמלאו אחרי שיתפרסמו פוסטים ויגיעו פניות.</p>` : ""}<p class="muted-small" style="margin:8px 0 2px">חשיפה ביום</p><div class="viz" id="chReach"></div><p class="muted-small" style="margin:12px 0 2px">פניות ביום</p><div class="viz" id="chLeads"></div><details style="margin-top:10px"><summary class="muted-small">הצגה כטבלה</summary><div style="max-height:220px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr><th>תאריך</th><th>חשיפה</th><th>מעורבות</th><th>פניות</th></tr>${r.series.filter((x) => x.reach || x.engagement || x.leads).map((x) => `<tr><td>${dayLabel(x.date)}</td><td>${nf(x.reach)}</td><td>${nf(x.engagement)}</td><td>${x.leads}</td></tr>`).join("")}</table></div></details>`;
+    lineChart($("chReach"), r.series, "reach", "חשיפה");
+    barChart($("chLeads"), r.series, "leads", "פניות");
+    loadAds(r.budget);
+  } catch (e) { box.innerHTML = `<h2>דוחות</h2><p class="empty">${escapeHtml(e.message)}</p>`; }
+}
+async function loadAds(budget) {
+  const card = $("adsBox");
+  if (!me || (!me.isDefault && !["digital_pro", "total_dominance"].includes(me.plan))) { card.classList.add("hidden"); return; }
+  card.classList.remove("hidden");
+  try {
+    const d = await api("/api/ads/overview");
+    const s = d.settings;
+    $("adsBody").innerHTML = `<label for="adBudget">תקציב חודשי (₪)</label><input type="number" id="adBudget" value="${s.adBudgetMonthly || 0}" min="0" /><div class="platforms" id="adChannels" style="margin:8px 0">${d.channels.map((c) => `<div class="chip ${s.adPlatformsEnabled.includes(c) ? "active" : ""}" data-c="${c}">${CH_LABEL[c] || c}</div>`).join("")}</div><div class="switch"><span>חלוקה אוטומטית בין הערוצים</span><input type="checkbox" class="tg" id="adAuto" ${s.adAutoDistribute ? "checked" : ""} /></div><button id="adSave" class="secondary" style="margin-top:8px">שמירה</button><p class="muted-small" style="margin-top:12px">חלוקה נוכחית</p><div class="viz" id="budgetViz"></div><div id="adLog"></div><details style="margin-top:12px"><summary class="muted-small">הזנת נתוני שבוע מערוץ</summary><label for="stCh">ערוץ</label><select id="stCh">${d.channels.map((c) => `<option value="${c}">${CH_LABEL[c] || c}</option>`).join("")}</select><label>הוצאה (₪)</label><input type="number" id="stSpend" /><label>קליקים</label><input type="number" id="stClicks" /><label>פניות</label><input type="number" id="stLeads" /><button id="stSave" class="secondary" style="margin-top:8px">הוספת נתונים</button></details>`;
+    const on = new Set(s.adPlatformsEnabled);
+    $("adChannels").querySelectorAll(".chip").forEach((ch) => ch.addEventListener("click", () => { on.has(ch.dataset.c) ? on.delete(ch.dataset.c) : on.add(ch.dataset.c); ch.classList.toggle("active"); }));
+    $("adSave").addEventListener("click", async () => { try { await api("/api/ads/settings", { method: "POST", body: JSON.stringify({ adBudgetMonthly: Number($("adBudget").value), adAutoDistribute: $("adAuto").checked, adPlatformsEnabled: [...on] }) }); const l = await api("/api/ads/run", { method: "POST", body: "{}" }).catch(() => null); toast("נשמר ✓"); loadReports(); } catch (e) { toast(e.message); } });
+    $("stSave").addEventListener("click", async () => { try { await api("/api/ads/stats", { method: "POST", body: JSON.stringify({ channel: $("stCh").value, spend: Number($("stSpend").value), clicks: Number($("stClicks").value), leads: Number($("stLeads").value) }) }); await api("/api/ads/run", { method: "POST", body: "{}" }); toast("נוסף ✓"); loadReports(); } catch (e) { toast(e.message); } });
+    budgetBar($("budgetViz"), budget.shares, s.adBudgetMonthly);
+    const log = d.logs[0];
+    $("adLog").innerHTML = log ? `<div class="upgrade-banner" style="margin-top:12px"><b>למה חילקנו ככה?</b><p style="margin:6px 0 0;font-size:14px">${escapeHtml(log.reasoning)}</p><p class="muted-small" style="margin:6px 0 0">ההמלצות מוצגות לאישורך ומבוצעות במנהל המודעות — המערכת לא מוציאה כסף בעצמה.</p></div>` : "";
+  } catch (e) { $("adsBody").innerHTML = `<p class="empty">${escapeHtml(e.message)}</p>`; }
 }
 </script>
 </body>

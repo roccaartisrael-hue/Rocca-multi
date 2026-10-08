@@ -8,7 +8,8 @@ const POSTS_FILE = path.join(DATA_DIR, "posts.json");
 const REPLIES_FILE = path.join(DATA_DIR, "replies.json");
 const INSPIRATIONS_FILE = path.join(DATA_DIR, "inspirations.json");
 
-export type PostStatus = "draft" | "scheduled" | "published" | "failed";
+/** pending_approval: prepared by the autopilot, waits for the owner's OK — never published on its own. */
+export type PostStatus = "draft" | "pending_approval" | "scheduled" | "published" | "failed";
 
 export interface PostMetrics {
   reach?: number;
@@ -22,6 +23,8 @@ export interface PlatformContent {
   platform: Platform;
   text: string;
   imageUrl?: string;
+  /** Several photos → a carousel / photo album (imageUrl stays the first one). */
+  imageUrls?: string[];
   status: "pending" | "sent" | "failed";
   error?: string;
   remoteId?: string;

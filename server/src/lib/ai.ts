@@ -214,9 +214,20 @@ async function withGeminiFallback(p: CreateParams): Promise<AiResult> {
   return viaClaude(p);
 }
 
+/** AI_MOCK=1 (tests only): canned answers so the whole flow can be exercised without calling a model or spending money. */
+function mockResult(p: CreateParams): AiResult {
+  const prompt = p.messages[0]?.content || "";
+  let text = "תשובת בדיקה";
+  if (/מאמר קידום/.test(prompt)) text = JSON.stringify({ title: "כך בוחרים אבן", description: "מדריך קצר", body: "## פתיח\n\nטקסט בדיקה.\n\n## סיכום\n\nצרו קשר." });
+  else if (p.task === "plan") text = JSON.stringify({ summary: "s", audience: "a", pillars: ["p"], adAdvice: "", items: [1, 2, 3].map((d) => ({ dayOffset: d, time: "19:00", topic: `נושא ${d}`, priority: 3, imageIdea: "", texts: { facebook: `פוסט ${d}`, instagram: `פוסט ${d} #בדיקה` } })) });
+  else if (p.task === "post") text = JSON.stringify(Object.fromEntries(["facebook", "instagram", "x", "tiktok", "website"].map((k) => [k, `טקסט בדיקה ל-${k}`])));
+  return { content: [{ type: "text", text }], usage: { input_tokens: 100, output_tokens: 100, cost_usd: 0.001, provider: "claude" } };
+}
+
 export const llm = {
   messages: {
     create(p: CreateParams): Promise<AiResult> {
+      if (process.env.AI_MOCK === "1") return Promise.resolve(mockResult(p));
       return activeProvider(p.task) === "gemini" ? withGeminiFallback(p) : viaClaude(p);
     },
   },

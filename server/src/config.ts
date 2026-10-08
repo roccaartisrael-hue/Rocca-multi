@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { getConnection } from "./lib/connection";
+import { isDefaultTenant } from "./lib/tenantContext";
 
 function bool(v: string | undefined, fallback: boolean): boolean {
   if (v === undefined) return fallback;
@@ -23,13 +24,13 @@ export const config = {
   // falling back to the META_* env vars (the original manual setup).
   meta: {
     get pageId() {
-      return getConnection()?.pageId || process.env.META_PAGE_ID || "";
+      return getConnection()?.pageId || (isDefaultTenant() ? process.env.META_PAGE_ID || "" : "");
     },
     get pageAccessToken() {
-      return getConnection()?.pageAccessToken || process.env.META_PAGE_ACCESS_TOKEN || "";
+      return getConnection()?.pageAccessToken || (isDefaultTenant() ? process.env.META_PAGE_ACCESS_TOKEN || "" : "");
     },
     get igUserId() {
-      return getConnection()?.igUserId || process.env.META_IG_USER_ID || "";
+      return getConnection()?.igUserId || (isDefaultTenant() ? process.env.META_IG_USER_ID || "" : "");
     },
     appId: process.env.META_APP_ID || "",
     appSecret: process.env.META_APP_SECRET || "",

@@ -21,17 +21,22 @@ import { getProfile, saveProfile } from "../lib/profile";
 import { storageStatus } from "../lib/persist";
 import { uploadMedia, mediaConfigured } from "../lib/media";
 import { PACKS, packLink, grantPack } from "../lib/credits";
+import { authenticate } from "../lib/session";
+import { runAsTenant, isDefaultTenant, allowedPlatforms, isValidTenantId, DEFAULT_TENANT } from "../lib/tenantContext";
+import { getTenant, tenantForAccount } from "../lib/tenants";
+import { accountRouter } from "./account";
+import { platformRouter } from "./platform";
+import { checkCredits } from "../lib/checkCredits";
 
 export const api = Router();
 
+/** Authenticates the caller and runs the rest of the request inside that tenant's own data context. */
 function requireAuth(req: Request, res: Response, next: NextFunction) {
-  if (!config.dashboardToken) return next(); // no token configured = open (local/dev use only)
-  const header = req.header("authorization") || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : req.query.token;
-  if (token !== config.dashboardToken) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  next();
+  const auth = authenticate(req);
+  if (!auth) return res.status(401).json({ error: "Unauthorized" });
+  if (auth.suspended) return res.status(403).json({ error: "החשבון מושהה. פנו אלינו להסדרה." });
+  (req as any).auth = auth;
+  runAsTenant(auth.tenantId, () => next());
 }
 
 api.get("/api/health", (_req, res) => {
@@ -43,14 +48,18 @@ api.get("/api/health", (_req, res) => {
 api.post("/api/payments/webhook", (req, res) => {
   const secret = process.env.PAYMENT_WEBHOOK_SECRET || "";
   if (!secret || req.header("x-webhook-secret") !== secret) return res.status(401).json({ error: "Unauthorized" });
-  const { packId, paymentRef } = req.body || {};
+  const { packId, paymentRef, tenantId } = req.body || {};
   if (!packId || !paymentRef) return res.status(400).json({ error: "packId and paymentRef are required" });
-  const purchase = grantPack(String(packId), String(paymentRef));
+  const tid = String(tenantId || DEFAULT_TENANT);
+  if (!isValidTenantId(tid) || (tid !== DEFAULT_TENANT && !getTenant(tid))) return res.status(400).json({ error: "Unknown tenant" });
+  const purchase = runAsTenant(tid, () => grantPack(String(packId), String(paymentRef)));
   if (!purchase) return res.status(400).json({ error: "Unknown pack" });
   res.json({ ok: true });
 });
 
 api.use("/api", requireAuth);
+api.use(platformRouter); // autopilot, leads, billing, ads, site, support, reports
+api.use(accountRouter); // /api/me, /api/admin/*, /api/account (needs the authenticated tenant context above)
 // The dashboard's model selector sends X-Model: auto | claude | gemini; every AI call in the request honours it.
 api.use("/api", (req, _res, next) => withModelChoice(req.header("x-model") || undefined, next));
 
@@ -68,12 +77,15 @@ api.get("/api/usage", (_req, res) => {
 // REQUIRE_PROFILE=true (customer deployments): no content is generated until the business is set up,
 // so a new customer never gets posts written in someone else's voice.
 function requireProfile(_req: Request, res: Response, next: NextFunction) {
-  if (process.env.REQUIRE_PROFILE === "true" && !getProfile()) {
+  if ((process.env.REQUIRE_PROFILE === "true" || !isDefaultTenant()) && !getProfile()) {
     return res.status(400).json({ error: "קודם צריך להגדיר את העסק בלשונית 'הגדרות'." });
   }
   next();
 }
 api.use(["/api/posts/generate", "/api/plan/generate", "/api/plan/review", "/api/campaign/generate"], requireProfile);
+// Credit-based tiers (free trial, creators): one credit per successful AI action; business packages are bounded by cost cap instead.
+// Business setup calls (profile generate / market) are free so onboarding never eats the gift credits.
+api.use(["/api/posts/generate", "/api/plan/generate", "/api/plan/review", "/api/campaign/generate"], (req, res, next) => (req.method === "POST" ? checkCredits(req, res, next) : next()));
 
 api.get("/api/ai/status", async (_req, res) => res.json(await geminiStatus()));
 
@@ -96,7 +108,7 @@ api.get("/api/profile", (_req, res) => {
   const p = getProfile();
   res.json({
     configured: !!p,
-    required: process.env.REQUIRE_PROFILE === "true",
+    required: process.env.REQUIRE_PROFILE === "true" || !isDefaultTenant(),
     profile: p,
   });
 });
@@ -155,7 +167,7 @@ api.post("/api/plan/generate", async (req, res) => {
   try {
     const b = req.body as { goal?: string; weeks?: number; postsPerWeek?: number; platforms?: Platform[]; weeklyBudget?: number; aggressive?: boolean; notes?: string };
     const tier = getTier();
-    const platforms = (b.platforms || []).filter((p) => ALL_PLATFORMS.includes(p));
+    const platforms = (b.platforms || []).filter((p) => allowedPlatforms(ALL_PLATFORMS).includes(p));
     if (!platforms.length) return res.status(400).json({ error: "בחר לפחות פלטפורמה אחת" });
     if (platforms.length > tier.maxPlatforms) {
       return res.status(400).json({ error: `במסלול ${tier.label} אפשר עד ${tier.maxPlatforms} פלטפורמות בתוכנית` });
@@ -257,7 +269,7 @@ api.post("/api/plan/approve", (req, res) => {
     let drafts = 0;
     for (const it of items) {
       const contents: PlatformContent[] = (Object.entries(it.texts || {}) as [Platform, string][])
-        .filter(([p, t]) => ALL_PLATFORMS.includes(p) && t)
+        .filter(([p, t]) => allowedPlatforms(ALL_PLATFORMS).includes(p) && t)
         .map(([p, t]) => ({ platform: p, text: t, imageUrl: it.imageUrl || undefined, status: "pending" as const }));
       if (!contents.length) continue;
       const [h, m] = String(it.time || "19:00").split(":").map(Number);
@@ -289,15 +301,19 @@ api.post("/api/plan/approve", (req, res) => {
 
 api.post("/api/posts/generate", async (req, res) => {
   try {
-    const { topic, platforms, imageUrl } = req.body as {
+    const { topic, platforms, imageUrl: singleUrl, imageUrls: manyUrls } = req.body as {
       topic: string;
       platforms: Platform[];
       imageUrl?: string;
+      imageUrls?: string[];
     };
+    // several photos → a carousel / photo album; imageUrl stays the first one for places that show a single image
+    const imageUrls = Array.isArray(manyUrls) ? manyUrls.filter((u) => typeof u === "string" && /^https?:\/\//.test(u)).slice(0, 10) : [];
+    const imageUrl = singleUrl || imageUrls[0];
     if (!topic || !platforms?.length) {
       return res.status(400).json({ error: "topic and platforms are required" });
     }
-    const invalid = platforms.filter((p) => !ALL_PLATFORMS.includes(p));
+    const invalid = platforms.filter((p) => !allowedPlatforms(ALL_PLATFORMS).includes(p));
     if (invalid.length) {
       return res.status(400).json({ error: `Unknown platforms: ${invalid.join(", ")}` });
     }
@@ -317,6 +333,7 @@ api.post("/api/posts/generate", async (req, res) => {
       platform: p,
       text: generated[p] || "",
       imageUrl,
+      imageUrls: imageUrls.length > 1 ? imageUrls : undefined,
       status: "pending",
     }));
 
@@ -391,6 +408,20 @@ api.post("/api/posts/auto-schedule-all", (_req, res) => {
     scheduled++;
   }
   res.json({ scheduled, skipped });
+});
+
+// Quick approval of a post prepared by the autopilot: it goes onto the schedule at the suggested time (or the next free slot).
+api.post("/api/posts/:id/approve", (req, res) => {
+  const post = store.getPost(req.params.id);
+  if (!post) return res.status(404).json({ error: "Not found" });
+  if (post.status !== "pending_approval") return res.status(400).json({ error: "הפוסט הזה לא ממתין לאישור" });
+  if (needsImage(post)) return res.status(400).json({ error: "חסרה תמונה לאינסטגרם/טיקטוק. הוסיפו תמונה ואז אשרו." });
+  let when: Date | null = post.scheduledFor && new Date(post.scheduledFor).getTime() > Date.now() + 5 * 60 * 1000 ? new Date(post.scheduledFor) : null;
+  if (when && scheduleProblem(when.toISOString(), post.id, false)) when = null;
+  if (!when) when = pickSlot(takenSlots(post.id), getTier(), store.listPosts().filter((p) => p.status === "published"));
+  const problem = when ? scheduleProblem(when.toISOString(), post.id, false) : "אין זמן פנוי בטווח של המסלול";
+  if (!when || problem) return res.status(400).json({ error: problem || "אין זמן פנוי" });
+  res.json(store.updatePost(post.id, { scheduledFor: when.toISOString(), status: "scheduled" }));
 });
 
 api.patch("/api/posts/:id", (req, res) => {
@@ -544,7 +575,7 @@ export async function handleIncoming(
 
   // Price questions always wait for a human, no matter AUTO_SEND_REPLIES — never let the bot
   // improvise or confirm a number on its own.
-  if (config.autoSendReplies && draftReply && !priceQuestion) {
+  if (isDefaultTenant() && config.autoSendReplies && draftReply && !priceQuestion) {
     try {
       await sendReply(source, targetId, draftReply);
       store.updateReply(reply.id, { status: "sent" });
@@ -571,13 +602,21 @@ api.post("/webhooks/meta", async (req, res) => {
   try {
     const events = parseMetaWebhook(req.body);
     for (const e of events) {
+      // Route by the Page / Instagram account the event is about. Unknown accounts are ignored, never guessed.
+      const tenantId =
+        tenantForAccount(e.accountId) ||
+        (e.accountId && [process.env.META_PAGE_ID, process.env.META_IG_USER_ID].includes(e.accountId) ? DEFAULT_TENANT : undefined);
+      if (!tenantId) {
+        console.warn(`Meta webhook for unknown account ${e.accountId}; ignored.`);
+        continue;
+      }
       const label =
         e.kind === "facebook_comment"
           ? "תגובה בפייסבוק"
           : e.kind === "instagram_comment"
           ? "תגובה באינסטגרם"
           : "הודעה בפייסבוק מסנג'ר";
-      await handleIncoming(e.kind, e.targetId, e.text, e.author, label);
+      await runAsTenant(tenantId, () => handleIncoming(e.kind, e.targetId, e.text, e.author, label));
     }
   } catch (err) {
     // Already responded 200 to Meta; log for the operator to see in the process logs.

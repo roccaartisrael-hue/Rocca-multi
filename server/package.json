@@ -9,7 +9,11 @@
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "smoke": "node scripts/smoke.js",
-    "ui-check": "node scripts/ui-check.js"
+    "ui-check": "node scripts/ui-check.js",
+    "tenant-check": "node scripts/tenant-check.js",
+    "tenant-unit": "tsx scripts/tenant-unit.ts",
+    "platform-check": "node scripts/platform-check.js",
+    "platform-unit": "tsx scripts/platform-unit.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

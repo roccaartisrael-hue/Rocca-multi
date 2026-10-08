@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BOOL — סוכנות שיווק בקופסה</title>
+<meta name="description" content="פוסטים, תוכניות שיווק, קידום אורגני, חלוקת תקציב ממומן חכמה ואיסוף לידים — הכול במקום אחד, מונע בינה מלאכותית. 3 פעולות במתנה, בלי כרטיס אשראי.">
+<meta name="theme-color" content="#14120f">
+<style>
+  :root { --bg:#14120f; --panel:#1f1c18; --panel-2:#2a251f; --text:#f3ede2; --muted:#a89c86; --accent:#d9c9a3; --line:#2c2822; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; line-height:1.7; }
+  a { color:var(--accent); }
+  .wrap { max-width:960px; margin:auto; padding:0 18px; }
+  header.top { display:flex; align-items:center; justify-content:space-between; padding:18px 0; }
+  .logo { font-size:26px; font-weight:800; letter-spacing:3px; color:var(--accent); }
+  .btn { display:inline-block; background:var(--accent); color:#14120f; font-weight:700; border-radius:12px; padding:13px 26px; text-decoration:none; border:0; font-size:16px; cursor:pointer; }
+  .btn.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .hero { padding:56px 0 40px; text-align:center; }
+  .hero h1 { font-size:clamp(32px,6vw,56px); line-height:1.15; margin:0 0 14px; }
+  .hero h1 span { color:var(--accent); }
+  .hero p { font-size:19px; color:var(--muted); max-width:640px; margin:0 auto 26px; }
+  .note { font-size:13px; color:var(--muted); margin-top:10px; }
+  section { padding:34px 0; }
+  h2 { font-size:28px; margin:0 0 6px; color:var(--accent); }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; }
+  .card h3 { margin:0 0 6px; font-size:18px; }
+  .card p { margin:0; color:var(--muted); font-size:15px; }
+  .steps { counter-reset:s; }
+  .steps .card::before { counter-increment:s; content:counter(s); display:inline-flex; width:34px; height:34px; border-radius:50%; background:var(--accent); color:#14120f; font-weight:800; align-items:center; justify-content:center; margin-bottom:10px; }
+  .price { font-size:34px; font-weight:800; color:var(--text); margin:6px 0; }
+  .price small { font-size:14px; font-weight:400; color:var(--muted); }
+  .card ul { padding-inline-start:20px; margin:10px 0 16px; color:var(--muted); font-size:15px; }
+  .tag { display:inline-block; font-size:12px; background:var(--panel-2); color:var(--accent); border-radius:20px; padding:2px 10px; margin-bottom:8px; }
+  details { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:8px 0; }
+  summary { cursor:pointer; font-weight:600; }
+  footer { border-top:1px solid var(--line); margin-top:40px; padding:24px 0 40px; color:var(--muted); font-size:14px; text-align:center; }
+  footer a { margin:0 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">BOOL</div>
+    <a class="btn ghost" data-app href="#">כניסה</a>
+  </header>
+
+  <div class="hero">
+    <h1>סוכנות שיווק <span>בקופסה</span></h1>
+    <p>פוסטים, תוכניות שיווק, קידום אורגני בגוגל, חלוקת תקציב ממומן חכמה ואיסוף פניות לוואטסאפ — הכול במקום אחד, מונע בינה מלאכותית. מהר ובמחיר שמתאים לעסק שלך.</p>
+    <a class="btn" data-app data-signup href="#">מתחילים בחינם — 3 פעולות במתנה</a>
+    <div class="note">בלי כרטיס אשראי. שום דבר לא מתפרסם בלי האישור שלך.</div>
+  </div>
+
+  <section>
+    <h2>מה בפנים</h2>
+    <p class="sub">כל מה שסוכנות עושה, בלי הפגישות וההמתנה.</p>
+    <div class="grid">
+      <div class="card"><h3>סושיאל מרובה ערוצים</h3><p>פוסטים, קרוסלות ותזמון לפייסבוק ולאינסטגרם, בקול של העסק שלך.</p></div>
+      <div class="card"><h3>טייס אוטומטי</h3><p>כל שבוע מוכנים פוסטים לאישור מהיר. אתה מאשר — המערכת מתזמנת.</p></div>
+      <div class="card"><h3>קידום אורגני וגוגל</h3><p>אתר תדמית ומאמרי SEO שנכתבים לעסק שלך ומוגשים לגוגל.</p></div>
+      <div class="card"><h3>תקציב ממומן חכם</h3><p>חלוקה בין ערוצים לפי מה שמביא פניות בזול יותר, עם הסבר בעברית פשוטה.</p></div>
+      <div class="card"><h3>לידים בזמן אמת</h3><p>כל פנייה מגיעה אליך מיד עם כפתור חיוג וכפתור וואטסאפ.</p></div>
+      <div class="card"><h3>דוחות שקופים</h3><p>חשיפות, פניות וחלוקת תקציב — ומה השתנה ולמה.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>איך זה עובד</h2>
+    <div class="grid steps">
+      <div class="card"><h3>נרשמים ומגדירים עסק</h3><p>שם, מה אתם מוכרים ולמי. המערכת בונה את קול המותג.</p></div>
+      <div class="card"><h3>מחברים פייסבוק ואינסטגרם</h3><p>בלחיצה אחת, דרך ההתחברות הרשמית של פייסבוק.</p></div>
+      <div class="card"><h3>מאשרים ומתפרסמים</h3><p>רואים את הפוסטים, מאשרים, והמערכת מתזמנת ומפרסמת.</p></div>
+    </div>
+  </section>
+
+  <section id="plans">
+    <h2>חבילות</h2>
+    <p class="sub" id="vatNote">התחילו בחינם ושדרגו כשצריך.</p>
+    <div class="grid" id="catalog"></div>
+  </section>
+
+  <section>
+    <h2>שאלות נפוצות</h2>
+    <details><summary>האם שום דבר לא מתפרסם בלי אישור?</summary><p>נכון. הטייס האוטומטי רק מכין טיוטות לאישור. פרסום קורה אחרי שאישרת.</p></details>
+    <details><summary>מה זה קרדיט?</summary><p>כל פעולת בינה מלאכותית (פוסט, תוכנית, קמפיין) עולה קרדיט אחד. חבילות העסקים אינן מוגבלות בקרדיטים.</p></details>
+    <details><summary>אפשר לבטל?</summary><p>מנויי יוצרים — בכל עת. חבילות עסקים הן בהתחייבות של 12 חודשים.</p></details>
+    <details><summary>המידע שלי מופרד מלקוחות אחרים?</summary><p>כן. לכל עסק נתונים נפרדים לגמרי, ואפשר למחוק את החשבון וכל הנתונים בלחיצה.</p></details>
+  </section>
+
+  <footer>
+    <div><a href="/legal/privacy">מדיניות פרטיות</a><a href="/legal/terms">תנאי שימוש</a><a href="/legal/data-deletion">מחיקת נתונים</a></div>
+    <p>BOOL · הלקוח הראשון: <a href="https://rocca.co.il" rel="noopener">ROCCA — אמנות באבן</a></p>
+  </footer>
+</div>
+<script>
+  // The dashboard lives on app.<domain>; on any other host (preview / Render URL) it is the same origin.
+  const appUrl = /(^|\.)bool\.co\.il$/.test(location.hostname) ? "https://app.bool.co.il/" : "/";
+  document.querySelectorAll("[data-app]").forEach((a) => (a.href = appUrl));
+  fetch("/api/billing/catalog").then((r) => r.json()).then((c) => {
+    if (c.vatNote) document.getElementById("vatNote").textContent = c.vatNote;
+    const per = (i) => (i.cycle === "weekly" ? "לשבוע" : i.kind === "package" || i.cycle === "monthly" ? "לחודש" : "חד־פעמי");
+    const tag = { credits: "קרדיטים", subscription: "יוצרים", package: "לעסקים · 12 חודשים" };
+    document.getElementById("catalog").innerHTML = c.items.map((i) => `<div class="card"><span class="tag">${tag[i.kind]}</span><h3>${i.label}</h3><div class="price">₪${i.priceIls.toLocaleString("he-IL")} <small>${per(i)}</small></div>${i.includes ? `<ul>${i.includes.map((x) => `<li>${x}</li>`).join("")}</ul>` : "<ul></ul>"}<a class="btn ghost" href="${appUrl}">להתחיל</a></div>`).join("");
+  }).catch(() => {});
+</script>
+</body>
+</html>

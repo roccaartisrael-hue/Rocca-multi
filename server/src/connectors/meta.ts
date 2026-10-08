@@ -23,10 +23,31 @@ async function graphPost(pathAndQuery: string, body: Record<string, string>): Pr
   return json;
 }
 
-export async function postToFacebook(text: string, imageUrl?: string): Promise<string> {
+/**
+ * Facebook multi-photo post: each photo is uploaded unpublished (published=false) to get a media id,
+ * then one feed post attaches them all (attached_media[n]).
+ */
+async function postPhotoAlbumToFacebook(text: string, imageUrls: string[]): Promise<string> {
+  if (imageUrls.some(isVideoUrl)) throw new Error("פוסט עם כמה תמונות לא יכול לכלול סרטון");
+  const ids: string[] = [];
+  for (const url of imageUrls) {
+    const photo = await graphPost(`/${config.meta.pageId}/photos`, { url, published: "false", access_token: config.meta.pageAccessToken });
+    if (!photo.id) throw new Error("Failed to upload a photo to Facebook");
+    ids.push(photo.id);
+  }
+  const body: Record<string, string> = { message: text, access_token: config.meta.pageAccessToken };
+  ids.forEach((id, i) => (body[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id })));
+  const post = await graphPost(`/${config.meta.pageId}/feed`, body);
+  return post.id || "unknown";
+}
+
+export async function postToFacebook(text: string, media?: string | string[]): Promise<string> {
   if (!config.meta.pageId || !config.meta.pageAccessToken) {
     throw new Error("META_PAGE_ID / META_PAGE_ACCESS_TOKEN not configured");
   }
+  const list = (Array.isArray(media) ? media : media ? [media] : []).filter(Boolean);
+  if (list.length > 1) return postPhotoAlbumToFacebook(text, list);
+  const imageUrl = list[0];
   const video = isVideoUrl(imageUrl);
   const endpoint = video ? `/${config.meta.pageId}/videos` : imageUrl ? `/${config.meta.pageId}/photos` : `/${config.meta.pageId}/feed`;
   const body: Record<string, string> = video
@@ -60,10 +81,31 @@ async function waitForInstagramContainer(containerId: string, tries = 20, delayM
   throw new Error("Instagram media processing timed out — try again in a minute");
 }
 
-export async function postToInstagram(caption: string, imageUrl: string): Promise<string> {
+/** Instagram carousel (2–10 photos): a child container per photo, then one CAROUSEL container that lists them. */
+async function postCarouselToInstagram(caption: string, imageUrls: string[]): Promise<string> {
+  if (imageUrls.length > 10) throw new Error("אינסטגרם מאפשר עד 10 תמונות בקרוסלה");
+  if (imageUrls.some(isVideoUrl)) throw new Error("קרוסלה באינסטגרם נתמכת כאן עם תמונות בלבד");
+  const children: string[] = [];
+  for (const url of imageUrls) {
+    const child = await graphPost(`/${config.meta.igUserId}/media`, { image_url: url, is_carousel_item: "true", access_token: config.meta.pageAccessToken });
+    if (!child.id) throw new Error("Failed to create an Instagram carousel item");
+    await waitForInstagramContainer(child.id);
+    children.push(child.id);
+  }
+  const parent = await graphPost(`/${config.meta.igUserId}/media`, { media_type: "CAROUSEL", children: children.join(","), caption, access_token: config.meta.pageAccessToken });
+  if (!parent.id) throw new Error("Failed to create the Instagram carousel");
+  await waitForInstagramContainer(parent.id);
+  const published = await graphPost(`/${config.meta.igUserId}/media_publish`, { creation_id: parent.id, access_token: config.meta.pageAccessToken });
+  return published.id || "unknown";
+}
+
+export async function postToInstagram(caption: string, media: string | string[]): Promise<string> {
   if (!config.meta.igUserId || !config.meta.pageAccessToken) {
     throw new Error("META_IG_USER_ID / META_PAGE_ACCESS_TOKEN not configured");
   }
+  const list = (Array.isArray(media) ? media : media ? [media] : []).filter(Boolean);
+  if (list.length > 1) return postCarouselToInstagram(caption, list);
+  const imageUrl = list[0] || "";
   if (!imageUrl) {
     throw new Error("Instagram requires an image (or video) URL — text-only posts are not supported");
   }
@@ -123,6 +165,7 @@ export function verifyWebhookChallenge(
 
 export interface NormalizedIncoming {
   kind: "facebook_comment" | "instagram_comment" | "facebook_message";
+  accountId: string; // the Page or Instagram account id the event belongs to (routes it to a tenant)
   targetId: string; // comment id, or sender PSID for messages
   text: string;
   author?: string;
@@ -143,6 +186,7 @@ export function parseMetaWebhook(body: any): NormalizedIncoming[] {
       if (change.field === "feed" && change.value?.item === "comment" && change.value?.verb === "add") {
         out.push({
           kind: "facebook_comment",
+          accountId: String(entry.id || ""),
           targetId: change.value.comment_id,
           text: change.value.message || "",
           author: change.value.from?.name,
@@ -152,6 +196,7 @@ export function parseMetaWebhook(body: any): NormalizedIncoming[] {
       if (change.field === "comments") {
         out.push({
           kind: "instagram_comment",
+          accountId: String(entry.id || ""),
           targetId: change.value.id,
           text: change.value.text || "",
           author: change.value.from?.username,
@@ -164,6 +209,7 @@ export function parseMetaWebhook(body: any): NormalizedIncoming[] {
       if (messaging.message?.text && !messaging.message?.is_echo) {
         out.push({
           kind: "facebook_message",
+          accountId: String(entry.id || ""),
           targetId: messaging.sender?.id,
           text: messaging.message.text,
         });

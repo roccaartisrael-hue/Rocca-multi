@@ -3,6 +3,7 @@ import { config } from "../config";
 import { getTier } from "./plans";
 import { totalPurchased } from "./credits";
 import { readDoc, writeDoc } from "./persist";
+import { isDefaultTenant } from "./tenantContext";
 
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const USAGE_FILE = path.join(DATA_DIR, "usage.json");
@@ -49,7 +50,7 @@ function costIls(u: MonthUsage): number {
 
 /** AI_MONTHLY_LIMIT, when set, overrides the tier's call allowance. */
 function callLimit(): number {
-  return config.aiMonthlyLimit > 0 ? config.aiMonthlyLimit : getTier().aiCalls;
+  return isDefaultTenant() && config.aiMonthlyLimit > 0 ? config.aiMonthlyLimit : getTier().aiCalls;
 }
 
 /**

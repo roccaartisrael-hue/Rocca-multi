@@ -4,16 +4,18 @@ import { postTweet } from "../connectors/x";
 import { postVideoToTikTok } from "../connectors/tiktok";
 import { appendWebsiteUpdate } from "../connectors/website";
 import { v4 as uuid } from "uuid";
+import { allowedPlatforms } from "./tenantContext";
 
 async function publishOne(pc: PlatformContent, topic: string): Promise<PlatformContent> {
   try {
+    if (!allowedPlatforms([pc.platform]).length) throw new Error(`הפלטפורמה ${pc.platform} לא זמינה בחשבון הזה`);
     let remoteId: string;
     switch (pc.platform) {
       case "facebook":
-        remoteId = await postToFacebook(pc.text, pc.imageUrl);
+        remoteId = await postToFacebook(pc.text, pc.imageUrls && pc.imageUrls.length > 1 ? pc.imageUrls : pc.imageUrl);
         break;
       case "instagram":
-        remoteId = await postToInstagram(pc.text, pc.imageUrl || "");
+        remoteId = await postToInstagram(pc.text, pc.imageUrls && pc.imageUrls.length > 1 ? pc.imageUrls : pc.imageUrl || "");
         break;
       case "x":
         remoteId = await postTweet(pc.text);

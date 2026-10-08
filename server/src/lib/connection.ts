@@ -1,5 +1,7 @@
 import path from "path";
 import { readDoc, writeDoc } from "./persist";
+import { currentTenantId } from "./tenantContext";
+import { indexAccounts, unindexTenant } from "./tenants";
 
 const FILE = path.join(__dirname, "..", "..", "data", "connection.json");
 
@@ -11,6 +13,7 @@ export interface MetaConnection {
   igUserId: string;
   igUsername?: string;
   connectedAt: string;
+  fbUserId?: string; // the Facebook user who connected — used to honour Meta data-deletion requests
 }
 
 export function getConnection(): MetaConnection | null {
@@ -24,8 +27,10 @@ export function getConnection(): MetaConnection | null {
 
 export function saveConnection(c: MetaConnection): void {
   writeDoc(FILE, JSON.stringify(c, null, 2));
+  indexAccounts(currentTenantId(), [c.pageId, c.igUserId]); // so webhooks for this page reach this tenant
 }
 
 export function clearConnection(): void {
   writeDoc(FILE, "null");
+  unindexTenant(currentTenantId());
 }
