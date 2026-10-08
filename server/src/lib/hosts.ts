@@ -18,7 +18,7 @@ const API_ONLY = () => list(process.env.API_HOSTS, [`api.${brandDomain()}`]);
 const hostOf = (req: Request) => String(req.hostname || "").toLowerCase();
 
 const PUBLIC_DIR = path.join(__dirname, "..", "..", "public");
-const API_PATHS = /^\/(api|auth|webhooks|legal|s)(\/|$)/;
+const API_PATHS = /^\/(api|auth|webhooks|legal|privacy|terms|data-deletion|s)(\/|$)/;
 
 export function hostRouting(req: Request, res: Response, next: NextFunction) {
   const h = hostOf(req);
@@ -58,7 +58,7 @@ const OPEN_PATHS = /^\/(api\/leads\/capture|api\/billing\/catalog|api\/auth\/con
 export const corsOptions = (req: Request, cb: (err: Error | null, o?: CorsOptions) => void) => {
   const extra = list(process.env.CORS_ORIGINS, []);
   const allowAll = extra.includes("*");
-  const allowed = new Set([...defaultOrigins(), ...extra, process.env.PUBLIC_URL || ""].map((o) => o.replace(/\/$/, "")));
+  const allowed = new Set([...defaultOrigins(), ...extra, process.env.PUBLIC_URL || "", process.env.APP_URL || ""].map((o) => o.replace(/\/$/, "")));
   cb(null, {
     origin: (origin, done) => {
       if (!origin || allowAll || OPEN_PATHS.test(req.path)) return done(null, true);

@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router, Request, Response, NextFunction } from "express";
 import { config, ALL_PLATFORMS, Platform } from "../config";
 import { store, PlatformContent } from "../lib/store";
@@ -597,7 +598,23 @@ api.get("/webhooks/meta", (req, res) => {
   res.sendStatus(403);
 });
 
+/** Meta signs every webhook POST: X-Hub-Signature-256 = sha256 HMAC of the raw body with the app secret. */
+function validMetaSignature(req: any): boolean {
+  const secret = config.meta.appSecret;
+  if (!secret) {
+    console.warn("META_APP_SECRET is not set: Meta webhook signatures are NOT being verified.");
+    return true;
+  }
+  const given = String(req.header("x-hub-signature-256") || "");
+  const raw: Buffer | undefined = req.rawBody;
+  if (!raw || !given.startsWith("sha256=")) return false;
+  const expected = "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
+  const a = Buffer.from(given), b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 api.post("/webhooks/meta", async (req, res) => {
+  if (!validMetaSignature(req)) return res.sendStatus(403);
   res.sendStatus(200); // ack immediately; Meta requires a fast response
   try {
     const events = parseMetaWebhook(req.body);
