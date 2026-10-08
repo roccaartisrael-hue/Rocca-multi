@@ -37,6 +37,7 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   check("business packages show the exact VAT-inclusive price (1,490→1,758.20 · 1,890→2,230.20 · 2,490→2,938.20)", byId.core_presence_annual.grossIls === 1758.2 && byId.digital_pro_annual.grossIls === 2230.2 && byId.total_dominance_annual.grossIls === 2938.2, cat.body.items.map((i) => [i.id, i.priceIls, i.grossIls]));
   check("Starter Social is in the catalog: ₪790 → ₪932.20, monthly, no commitment", byId.starter_social_monthly && byId.starter_social_monthly.priceIls === 790 && byId.starter_social_monthly.grossIls === 932.2 && !byId.starter_social_monthly.commitmentMonths, byId.starter_social_monthly);
   check("every tier that is sold has a catalog entry", ["creator_lite", "creator_pro", "starter_social", "digital_core", "digital_pro", "total_dominance"].every((t) => cat.body.items.some((i) => i.tier === t)));
+  check("the display defaults to Gross (the VAT-inclusive price is the prominent one)", cat.body.priceDisplay === "gross", cat.body.priceDisplay);
   check("every price carries net, VAT and gross that add up", cat.body.items.every((i) => i.priceIls + i.vatIls === i.grossIls && i.grossIls > i.priceIls));
   check("the VAT note defaults to the wording the owner chose", cat.body.vatNote === "המחירים כוללים מע״מ כחוק" && cat.body.vatRate === 0.18, cat.body.vatNote);
 

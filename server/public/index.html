@@ -1759,6 +1759,8 @@ $("domainBtn").addEventListener("click", async () => {
 
 // ---- plans & checkout ----
 const fmtIls = (n) => "₪" + (Number.isInteger(n) ? Number(n).toLocaleString("he-IL") : Number(n).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const isGross = (cat) => !cat || cat.priceDisplay !== "net";
+const vatDetail = (i, cat) => (isGross(cat) ? `מתוכם ${Math.round(cat.vatRate * 100)}% מע״מ: <b>${fmtIls(i.vatIls)}</b> (מחיר לפני מע״מ: ${fmtIls(i.priceIls)})` : `(<b style="color:var(--accent)">${fmtIls(i.grossIls)}</b> כולל מע״מ)`);
 const perLabel = (i) => (i.cycle === "weekly" ? "לשבוע" : i.cycle === "monthly" || i.cycle === "annual" ? "לחודש" : "");
 async function loadPlans() {
   try {
@@ -1770,7 +1772,7 @@ async function loadPlans() {
       const card = el(`<div class="card"><h2>${title}</h2></div>`);
       cat.items.filter((i) => i.kind === kind).forEach((i) => {
         const commit = i.kind === "package" ? (i.commitmentMonths ? `התחייבות ל-${i.commitmentMonths} חודשים` : "ללא התחייבות") : "";
-        const it = el(`<div class="plan-item"><h3><bdi>${escapeHtml(i.label)}</bdi> · ${fmtIls(i.priceIls)} ${perLabel(i)}</h3><p class="muted-small" style="margin:0 0 4px">(<b style="color:var(--accent)">${fmtIls(i.grossIls)}</b> כולל מע״מ)${commit ? " · " + commit : ""}</p>${i.includes ? `<ul>${i.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}${IS_STORE_APP ? `<p class="muted-small">את המנוי מנהלים באתר, בחשבון שלך.</p>` : `<button>לרכישה</button>`}</div>`);
+        const it = el(`<div class="plan-item"><h3><bdi>${escapeHtml(i.label)}</bdi> · ${fmtIls(isGross(cat) ? i.grossIls : i.priceIls)} ${perLabel(i)}</h3><p class="muted-small" style="margin:0 0 4px">${vatDetail(i, cat)}${commit ? " · " + commit : ""}</p>${i.includes ? `<ul>${i.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}${IS_STORE_APP ? `<p class="muted-small">את המנוי מנהלים באתר, בחשבון שלך.</p>` : `<button>לרכישה</button>`}</div>`);
         const btn = it.querySelector("button"); if (btn) btn.addEventListener("click", () => openCheckout(i));
         card.appendChild(it);
       });
@@ -1790,9 +1792,8 @@ async function openCheckout(item) {
   try { q = await api("/api/billing/quote", { method: "POST", body: JSON.stringify({ sku: item.id }) }); } catch (e) { toast(e.message); return; }
   const ov = el(`<div style="position:fixed;inset:0;background:#000b;z-index:80;display:flex;align-items:flex-end;justify-content:center"><div class="card" style="max-width:520px;width:100%;margin:0;border-radius:18px 18px 0 0;max-height:92vh;overflow:auto">
     <h2>אישור רכישה — <bdi>${escapeHtml(q.label)}</bdi></h2>
-    <div style="display:flex;justify-content:space-between"><span>מחיר${q.cycle ? " " + perLabel(q) : ""}</span><b>${fmtIls(q.netIls)}</b></div>
-    <div style="display:flex;justify-content:space-between"><span class="muted-small">מע״מ (${Math.round(q.vatRate * 100)}%)</span><span class="muted-small">${fmtIls(q.vatIls)}</span></div>
-    <div style="display:flex;justify-content:space-between;border-top:1px solid #3a342b;margin-top:6px;padding-top:6px;font-size:18px"><span>סה״כ לתשלום</span><b style="color:var(--accent)">${fmtIls(q.grossIls)} כולל מע״מ</b></div>
+    <div style="display:flex;justify-content:space-between;font-size:20px"><span>סה״כ לתשלום${q.cycle ? " " + perLabel(q) : ""}</span><b style="color:var(--accent)">${fmtIls(q.grossIls)}</b></div>
+    <p class="muted-small" style="margin:2px 0 8px">כולל מע״מ. מתוכם ${Math.round(q.vatRate * 100)}% מע״מ: ${fmtIls(q.vatIls)} (מחיר לפני מע״מ: ${fmtIls(q.netIls)})</p>
     ${q.includes.length ? `<ul class="muted-small">${q.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
     <ul class="muted-small">${q.terms.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
     <label style="display:flex;gap:8px;align-items:flex-start;color:var(--text)"><input type="checkbox" id="coTerms" style="width:auto;margin-top:4px" /><span>קראתי ואני מאשר/ת את תנאי הרכישה, <a href="/legal/terms" target="_blank" rel="noopener" style="color:var(--accent)">תנאי השימוש</a> ו<a href="/legal/privacy" target="_blank" rel="noopener" style="color:var(--accent)">מדיניות הפרטיות</a>.</span></label>

@@ -49,6 +49,9 @@ export function vatBreakdown(netIls: number) {
   return { netIls, vatIls: agorot(grossIls - netIls), grossIls };
 }
 
+/** gross (default): the prominent price is what the customer is charged, VAT included. net: base price first. */
+export const priceDisplay = (): "gross" | "net" => (String(process.env.PRICE_DISPLAY || "gross").toLowerCase() === "net" ? "net" : "gross");
+
 export const DEFAULT_VAT_NOTE = "המחירים כוללים מע״מ כחוק";
 
 /** What the customer must be told, and agree to, before paying. */
