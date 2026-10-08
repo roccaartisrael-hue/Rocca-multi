@@ -18,7 +18,7 @@ const API_ONLY = () => list(process.env.API_HOSTS, [`api.${brandDomain()}`]);
 const hostOf = (req: Request) => String(req.hostname || "").toLowerCase();
 
 const PUBLIC_DIR = path.join(__dirname, "..", "..", "public");
-const API_PATHS = /^\/(api|auth|webhooks|legal|privacy|terms|data-deletion|s)(\/|$)/;
+const API_PATHS = /^\/(api|auth|webhooks|legal|privacy|terms|data-deletion|support|s)(\/|$)/;
 
 export function hostRouting(req: Request, res: Response, next: NextFunction) {
   const h = hostOf(req);

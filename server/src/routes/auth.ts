@@ -27,6 +27,7 @@ function legalPage(file: string, extra: Record<string, string> = {}) {
 // Canonical Meta URLs: /privacy, /terms, /data-deletion (the older /legal/* paths keep working).
 auth.get(["/privacy", "/legal/privacy"], (_req, res) => res.send(legalPage("privacy.html")));
 auth.get(["/terms", "/legal/terms"], (_req, res) => res.send(legalPage("terms.html")));
+auth.get(["/support", "/legal/support"], (_req, res) => res.send(legalPage("support.html")));
 auth.get(["/data-deletion", "/legal/data-deletion"], (req, res) => {
   const code = String(req.query.code || "").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 64);
   res.send(legalPage("data-deletion.html", { STATUS: code ? `בקשת המחיקה התקבלה (קוד אישור: ${code}). החיבור והאסימון נמחקו.` : "" }));
