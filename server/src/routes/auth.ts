@@ -70,11 +70,11 @@ const SCOPES = [
   "pages_manage_posts",
   "pages_read_engagement",
   "pages_manage_engagement",
-  "pages_messaging",
   "instagram_basic",
   "instagram_content_publish",
   "instagram_manage_comments",
   "instagram_manage_insights",
+  "instagram_manage_messages",
 ].join(",");
 
 /** The public base URL of the app: APP_URL / PUBLIC_URL, else https://<BRAND_DOMAIN> (default boolai.co.il). Local dev uses the request host. */
