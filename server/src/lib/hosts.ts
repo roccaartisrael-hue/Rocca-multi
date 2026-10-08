@@ -43,7 +43,7 @@ export function siteHost(req: Request, res: Response, next: NextFunction) {
     if (site.status !== "live" || site.domainStatus !== "active") return next();
     const name = tid === DEFAULT_TENANT ? getProfile()?.businessName || "ROCCA" : getTenant(tid)?.name || "";
     const key = tid === DEFAULT_TENANT ? process.env.LEAD_KEY || "" : getTenant(tid)?.leadKey || "";
-    const credit = tid !== DEFAULT_TENANT;
+    const credit = tid !== DEFAULT_TENANT && !site.hideCredit;
     if (req.path === "/" || req.path === "") return res.type("html").send(renderSiteHtml(name, site, key, "", credit));
     const art = site.articles.find((a) => `/${a.slug}` === decodeURIComponent(req.path));
     if (art) return res.type("html").send(renderArticleHtml(name, art, "/", credit));

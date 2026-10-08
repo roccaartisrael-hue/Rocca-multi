@@ -81,7 +81,7 @@ function withSite(req: Request, res: Response, fn: (name: string, key: string, c
   if (!tid) return res.status(404).send("Not found");
   runAsTenant(tid, () => {
     if (getSite().status !== "live") return res.status(404).send("Not found");
-    fn(businessNameOf(), key, tid !== DEFAULT_TENANT);
+    fn(businessNameOf(), key, tid !== DEFAULT_TENANT && !getSite().hideCredit);
   });
 }
 publicPlatform.get("/s/:key", (req, res) => withSite(req, res, (name, key, credit) => res.type("html").send(renderSiteHtml(name, getSite(), key, `/s/${key}`, credit))));
@@ -223,6 +223,11 @@ platformRouter.post("/api/site", (req, res) => {
   if (b.phone !== undefined) patch.phone = clip(b.phone, 40);
   if (b.whatsapp !== undefined) patch.whatsapp = clip(b.whatsapp, 20).replace(/\D/g, "");
   if (b.status === "live" || b.status === "draft") patch.status = b.status;
+  if (b.hideCredit !== undefined) {
+    // white label is part of the higher packages
+    if (b.hideCredit && !isDefaultTenant() && !getTier().ads) return res.status(402).json({ error: "הסתרת הקרדיט זמינה מחבילת Digital Pro ומעלה.", code: "upgrade_required", feature: "ads", upgrade: "/#plans" });
+    patch.hideCredit = !!b.hideCredit;
+  }
   res.json(saveSite(patch));
 });
 platformRouter.post("/api/site/domain", requireFeature("customDomain"), (req, res) => {

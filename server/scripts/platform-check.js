@@ -167,11 +167,17 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   check("an SEO article is generated and stored", r.status === 200 && r.body.slug, r);
   const site = (await call("GET", "/api/site", F)).body;
   r = await call("GET", site.publicPath, null);
-  check("the public site renders with the BOOL credit pointing to rocca.co.il", r.status === 200 && /Powered by <a href="https:\/\/boolai\.co\.il"/.test(r.body._text) && /rocca\.co\.il/.test(r.body._text), r.body._text && r.body._text.slice(-400));
+  check("the public site carries only the BOOL credit (no link to ROCCA)", r.status === 200 && /Powered by <a href="https:\/\/boolai\.co\.il"/.test(r.body._text) && !/rocca\.co\.il/.test(r.body._text), r.body._text && r.body._text.slice(-400));
   r = await call("GET", `${site.publicPath}/${(await call("GET", "/api/site", F)).body.site.articles[0].slug}`, null);
   check("article pages render", r.status === 200 && /כך בוחרים אבן/.test(r.body._text), r.status);
   r = await call("GET", `${site.publicPath}/sitemap.xml`, null);
   check("sitemap lists the pages", /<urlset/.test(r.body._text) && (r.body._text.match(/<loc>/g) || []).length === 2, r.body._text);
+  r = await call("POST", "/api/site", other.body.token, { hideCredit: true });
+  check("hiding the credit is a paid-package feature", r.status === 402, r);
+  await call("POST", "/api/site", F, { hideCredit: true });
+  r = await call("GET", site.publicPath, null);
+  check("Digital Pro can white-label: no credit on the site", r.status === 200 && !/Powered by/.test(r.body._text), r.status);
+  await call("POST", "/api/site", F, { hideCredit: false });
   r = await call("GET", "/s/doesnotexist", null);
   check("unknown site key → 404", r.status === 404, r.status);
   r = await call("POST", "/api/site/domain", F, { domain: "boolai.co.il" });

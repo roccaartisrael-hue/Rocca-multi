@@ -378,6 +378,7 @@
         <label for="sitePhone">טלפון</label><input type="text" id="sitePhone" />
         <label for="siteWhatsapp">וואטסאפ (ספרות, בינלאומי)</label><input type="text" id="siteWhatsapp" />
         <div class="switch" style="margin-top:10px"><span>האתר פעיל (גלוי לכולם)</span><input type="checkbox" class="tg" id="siteLive" /></div>
+        <div class="switch" style="margin-top:10px"><span>הסתרת "Powered by BOOL" <span class="muted-small">(Digital Pro ומעלה)</span></span><input type="checkbox" class="tg" id="siteHideCredit" /></div>
         <button id="saveSiteBtn">שמירה</button>
       </div>
       <div class="card">
@@ -1738,14 +1739,14 @@ async function loadSite() {
   try {
     const d = await api("/api/site");
     const s = d.site;
-    $("siteHeadline").value = s.headline || ""; $("siteAbout").value = s.about || ""; $("sitePhone").value = s.phone || ""; $("siteWhatsapp").value = s.whatsapp || ""; $("siteLive").checked = s.status === "live";
+    $("siteHeadline").value = s.headline || ""; $("siteAbout").value = s.about || ""; $("sitePhone").value = s.phone || ""; $("siteWhatsapp").value = s.whatsapp || ""; $("siteLive").checked = s.status === "live"; $("siteHideCredit").checked = !!s.hideCredit;
     $("siteLink").innerHTML = d.publicPath && s.status === "live" ? `האתר שלך חי: <a href="${escapeHtml(d.publicPath)}" target="_blank" rel="noopener" style="color:var(--accent)">${escapeHtml(location.origin + d.publicPath)}</a>` : "האתר עדיין לא פעיל. מלאו פרטים והפעילו אותו.";
     $("articleList").innerHTML = s.articles.map((a) => `<div class="lead-row"><b>${escapeHtml(a.title)}</b><p class="muted-small" style="margin:2px 0">${escapeHtml(a.description)}</p></div>`).join("");
     $("domainInfo").textContent = !d.canUseDomain ? "חיבור דומיין עצמאי זמין מחבילת Core Presence ומעלה." : s.domain ? `${s.domain} — ${s.domainStatus === "active" ? "פעיל ✓" : "ממתין להפניית DNS ואישור הצוות"}` : "הכניסו את הדומיין שלכם ונחזור אליכם עם הוראות הפניה.";
   } catch (e) { toast(e.message); }
 }
 $("saveSiteBtn").addEventListener("click", async () => {
-  try { await api("/api/site", { method: "POST", body: JSON.stringify({ headline: $("siteHeadline").value, about: $("siteAbout").value, phone: $("sitePhone").value, whatsapp: $("siteWhatsapp").value, status: $("siteLive").checked ? "live" : "draft" }) }); toast("נשמר ✓"); loadSite(); } catch (e) { toast(e.message); }
+  try { await api("/api/site", { method: "POST", body: JSON.stringify({ headline: $("siteHeadline").value, about: $("siteAbout").value, phone: $("sitePhone").value, whatsapp: $("siteWhatsapp").value, status: $("siteLive").checked ? "live" : "draft", hideCredit: $("siteHideCredit").checked }) }); toast("נשמר ✓"); loadSite(); } catch (e) { if (!e.paywall) toast(e.message); loadSite(); }
 });
 $("articleBtn").addEventListener("click", async () => {
   const topic = $("articleTopic").value.trim(); if (!topic) return;
