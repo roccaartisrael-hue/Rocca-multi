@@ -5,6 +5,7 @@ import { saveConnection, getConnection, clearConnection } from "../lib/connectio
 import { authenticate } from "../lib/session";
 import { runAsTenant, isDefaultTenant, isValidTenantId, DEFAULT_TENANT } from "../lib/tenantContext";
 import { activeTenantIds, getTenant } from "../lib/tenants";
+import { brandDomain } from "../lib/brand";
 
 export const auth = Router();
 
@@ -23,9 +24,11 @@ function legalPage(file: string, extra: Record<string, string> = {}) {
   };
   return raw.replace(/\{\{(\w+)\}\}/g, (_m, k) => vars[k] ?? "");
 }
-auth.get("/legal/privacy", (_req, res) => res.send(legalPage("privacy.html")));
-auth.get("/legal/terms", (_req, res) => res.send(legalPage("terms.html")));
-auth.get("/legal/data-deletion", (req, res) => {
+// Canonical Meta URLs: /privacy, /terms, /data-deletion (the older /legal/* paths keep working).
+auth.get(["/privacy", "/legal/privacy"], (_req, res) => res.send(legalPage("privacy.html")));
+auth.get(["/terms", "/legal/terms"], (_req, res) => res.send(legalPage("terms.html")));
+auth.get(["/support", "/legal/support"], (_req, res) => res.send(legalPage("support.html")));
+auth.get(["/data-deletion", "/legal/data-deletion"], (req, res) => {
   const code = String(req.query.code || "").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 64);
   res.send(legalPage("data-deletion.html", { STATUS: code ? `בקשת המחיקה התקבלה (קוד אישור: ${code}). החיבור והאסימון נמחקו.` : "" }));
 });
@@ -54,7 +57,7 @@ auth.post("/auth/facebook/data-deletion", (req, res) => {
       });
     }
     const code = crypto.randomBytes(8).toString("hex");
-    res.json({ url: `${publicUrl(req)}/legal/data-deletion?code=${code}`, confirmation_code: code });
+    res.json({ url: `${publicUrl(req)}/data-deletion?code=${code}`, confirmation_code: code });
   } catch {
     res.status(400).json({ error: "invalid request" });
   }
@@ -74,8 +77,12 @@ const SCOPES = [
   "instagram_manage_insights",
 ].join(",");
 
+/** The public base URL of the app: APP_URL / PUBLIC_URL, else https://<BRAND_DOMAIN> (default boolai.co.il). Local dev uses the request host. */
 function publicUrl(req: Request): string {
-  return (process.env.PUBLIC_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
+  const fixed = process.env.APP_URL || process.env.PUBLIC_URL;
+  if (fixed) return fixed.replace(/\/$/, "");
+  if (process.env.NODE_ENV !== "production" && /^(localhost|127\.0\.0\.1)/.test(req.get("host") || "")) return `${req.protocol}://${req.get("host")}`;
+  return `https://${brandDomain()}`;
 }
 
 const secret = () => config.meta.appSecret || config.dashboardToken || "dev-secret";
