@@ -14,7 +14,8 @@ const app = express();
 app.set("trust proxy", 1); // behind Render's proxy: correct client IPs for rate limits
 
 app.use(cors(corsOptions));
-app.use(express.json());
+// keep the raw body: payment providers sign it (HMAC) and the signature must be checked against the exact bytes
+app.use(express.json({ verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 // Raw binary body for media uploads only (photos/videos): /api/media/upload
 app.use("/api/media/upload", express.raw({ type: ["image/*", "video/*"], limit: "60mb" }));
 app.use(express.urlencoded({ extended: false }));

@@ -1761,7 +1761,7 @@ $("domainBtn").addEventListener("click", async () => {
 // ---- plans & checkout ----
 const fmtIls = (n) => "₪" + (Number.isInteger(n) ? Number(n).toLocaleString("he-IL") : Number(n).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const isGross = (cat) => !cat || cat.priceDisplay !== "net";
-const vatDetail = (i, cat) => (isGross(cat) ? `מתוכם ${Math.round(cat.vatRate * 100)}% מע״מ: <b>${fmtIls(i.vatIls)}</b> (מחיר לפני מע״מ: ${fmtIls(i.netIls)})` : `(<b style="color:var(--accent)">${fmtIls(i.grossIls)}</b> כולל מע״מ)`);
+const vatDetail = (i, cat) => (isGross(cat) ? `(מתוכם ${Math.round(cat.vatRate * 100)}% מע״מ: <b>${fmtIls(i.vatIls)}</b>)` : `(<b style="color:var(--accent)">${fmtIls(i.grossIls)}</b> כולל מע״מ)`);
 const perLabel = (i) => (i.cycle === "weekly" ? "לשבוע" : i.cycle === "monthly" || i.cycle === "annual" ? "לחודש" : "");
 async function loadPlans() {
   try {
@@ -1794,7 +1794,7 @@ async function openCheckout(item) {
   const ov = el(`<div style="position:fixed;inset:0;background:#000b;z-index:80;display:flex;align-items:flex-end;justify-content:center"><div class="card" style="max-width:520px;width:100%;margin:0;border-radius:18px 18px 0 0;max-height:92vh;overflow:auto">
     <h2>אישור רכישה — <bdi>${escapeHtml(q.label)}</bdi></h2>
     <div style="display:flex;justify-content:space-between;font-size:20px"><span>סה״כ לתשלום${q.cycle ? " " + perLabel(q) : ""}</span><b style="color:var(--accent)">${fmtIls(q.grossIls)}</b></div>
-    <p class="muted-small" style="margin:2px 0 8px">כולל מע״מ. מתוכם ${Math.round(q.vatRate * 100)}% מע״מ: ${fmtIls(q.vatIls)} (מחיר לפני מע״מ: ${fmtIls(q.netIls)})</p>
+    <p class="muted-small" style="margin:2px 0 8px">(מתוכם ${Math.round(q.vatRate * 100)}% מע״מ: ${fmtIls(q.vatIls)})</p>
     ${q.includes.length ? `<ul class="muted-small">${q.includes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
     <ul class="muted-small">${q.terms.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
     <label style="display:flex;gap:8px;align-items:flex-start;color:var(--text)"><input type="checkbox" id="coTerms" style="width:auto;margin-top:4px" /><span>קראתי ואני מאשר/ת את תנאי הרכישה, <a href="/legal/terms" target="_blank" rel="noopener" style="color:var(--accent)">תנאי השימוש</a> ו<a href="/legal/privacy" target="_blank" rel="noopener" style="color:var(--accent)">מדיניות הפרטיות</a>.</span></label>

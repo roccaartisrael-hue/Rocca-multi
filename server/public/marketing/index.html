@@ -109,7 +109,7 @@
     const tag = (i) => (i.kind === "credits" ? "קרדיטים" : i.kind === "subscription" ? "יוצרים" : i.commitmentMonths ? `לעסקים · התחייבות ${i.commitmentMonths} חודשים` : "לעסקים · ללא התחייבות");
     const gross = c.priceDisplay !== "net";
     const pct = Math.round(c.vatRate * 100);
-    const detail = (i) => (gross ? `מתוכם ${pct}% מע״מ: <b>${fmt(i.vatIls)}</b> (מחיר לפני מע״מ: ${fmt(i.netIls)})` : `(<b>${fmt(i.grossIls)}</b> כולל מע״מ)`);
+    const detail = (i) => (gross ? `(מתוכם ${pct}% מע״מ: <b>${fmt(i.vatIls)}</b>)` : `(<b>${fmt(i.grossIls)}</b> כולל מע״מ)`);
     document.getElementById("catalog").innerHTML = c.items.map((i) => `<div class="card"><span class="tag">${tag(i)}</span><h3>${i.label}</h3><div class="price">${fmt(gross ? i.grossIls : i.netIls)} <small>${per(i)}</small></div><div class="vat">${detail(i)}</div>${i.includes ? `<ul>${i.includes.map((x) => `<li>${x}</li>`).join("")}</ul>` : "<ul></ul>"}<a class="btn ghost" href="${appUrl}">להתחיל</a></div>`).join("");
   }).catch(() => {});
 </script>

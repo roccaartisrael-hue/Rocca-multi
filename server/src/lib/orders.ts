@@ -52,7 +52,14 @@ export const findOrderByRef = (ref: string): Order | undefined => (ref ? read().
 export function recordPaid(sku: Sku, paymentRef: string, opts: { ref?: string; method: "web" | "manual"; note?: string }): Order {
   const all = read();
   let o = opts.ref ? all.find((x) => x.ref === opts.ref) : undefined;
-  if (o && o.status === "paid") return o;
+  if (o && o.status === "paid") {
+    if (o.paymentRef === paymentRef) return o;
+    // a later payment on the same subscription (renewal): its own paid record, so the history shows every charge
+    const renewal: Order = { ...o, id: uuid(), ref: undefined, paymentRef, note: (opts.note ? opts.note + " · " : "") + "חידוש", createdAt: new Date().toISOString(), paidAt: new Date().toISOString() };
+    all.unshift(renewal);
+    write(all);
+    return renewal;
+  }
   if (!o) {
     const b = vatBreakdown(sku.priceIls);
     o = { id: uuid(), sku: sku.id, label: sku.label, ...b, vatRate: vatRate(), cycle: sku.cycle, commitmentMonths: sku.commitmentMonths ?? 0, status: "pending", method: opts.method, createdAt: new Date().toISOString() };

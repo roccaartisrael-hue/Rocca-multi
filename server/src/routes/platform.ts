@@ -7,6 +7,7 @@ import { addLead, listLeads, setLeadStatus, LeadStatus } from "../lib/leads";
 import { notifyLead } from "../lib/notify";
 import { CATALOG, getSku, checkoutUrl, parseRef, applyPayment, vatBreakdown, vatRate, DEFAULT_VAT_NOTE, termsFor, priceDisplay } from "../lib/billing";
 import { createOrder, listOrders, findOrderByRef } from "../lib/orders";
+import { verifyLemonSignature, parseLemonEvent } from "../lib/mor";
 import { addStats, listStats, listInsightLogs, runWeeklyAllocation, AD_CHANNELS } from "../lib/adBudget";
 import { getSite, saveSite, addArticle, claimDomain, validDomain, renderSiteHtml, renderArticleHtml } from "../lib/sites";
 import { listTickets, openTicket, replyTicket } from "../lib/support";
@@ -72,6 +73,30 @@ publicPlatform.post("/api/billing/webhook", (req, res) => {
   const r = applyPayment(parsed.tenantId, parsed.sku, String(paymentRef), { ref: ref ? String(ref) : undefined, method: "web" });
   if (!r.applied) return res.status(400).json({ error: r.reason });
   res.json({ ok: true });
+});
+
+// Merchant of Record (Lemon Squeezy): the provider charges, handles tax and issues the receipt; its SIGNED webhook activates the package.
+// Fails closed: unsigned / unknown / unmapped products change nothing. Needs LEMONSQUEEZY_WEBHOOK_SECRET and CHECKOUT_PRODUCT_<SKU> = the variant id.
+publicPlatform.post("/api/billing/webhook/lemonsqueezy", (req, res) => {
+  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "";
+  if (!secret) return res.status(503).json({ error: "not configured" });
+  if (!verifyLemonSignature((req as any).rawBody, req.header("x-signature"), secret)) return res.status(401).json({ error: "bad signature" });
+  const pay = parseLemonEvent(req.body);
+  if (!pay) return res.json({ ok: true, ignored: true }); // events we do not act on (still acknowledged so the provider stops retrying)
+  const parsed = parseRef(pay.ref);
+  if (!parsed) return res.status(400).json({ error: "invalid ref" });
+  const wanted = process.env[`CHECKOUT_PRODUCT_${parsed.sku.toUpperCase()}`] || "";
+  if (!pay.renewal) {
+    // the product that was really bought must be the one this order is for (stops "pay for the cheap one, get the big one")
+    if (!wanted) return res.status(400).json({ error: `product mapping missing for ${parsed.sku}` });
+    if (pay.variantId !== wanted) return res.status(400).json({ error: "product mismatch" });
+  } else {
+    // a renewal must belong to a package that was already bought and verified here
+    const hadFirst = runAsTenant(parsed.tenantId, () => listOrders().some((o) => o.sku === parsed.sku && o.status === "paid"));
+    if (!hadFirst) return res.json({ ok: true, ignored: true });
+  }
+  const r = applyPayment(parsed.tenantId, parsed.sku, pay.paymentRef, { ref: pay.ref, method: "web", note: "Lemon Squeezy" });
+  r.applied ? res.json({ ok: true }) : res.status(400).json({ error: r.reason });
 });
 
 // ---- the generated sites: /s/<key>, /s/<key>/sitemap.xml, /s/<key>/<article> ----

@@ -6,7 +6,7 @@ const path = require("path");
 const DATA = path.join(__dirname, "..", "data");
 let srv, hook, hookHits = [];
 const start = async (port, env) => {
-  srv = spawn("npx", ["tsx", "src/index.ts"], { env: { ...process.env, PORT: port, ANTHROPIC_API_KEY: "x", AI_MOCK: "1", DATABASE_URL: process.env.TEST_DATABASE_URL || "", DASHBOARD_TOKEN: "admin-secret-code", SIGNUP_MODE: "open", PAYMENT_WEBHOOK_SECRET: "whsec", CHECKOUT_LINK_CREDITS_10: "https://pay.example/c10", LEAD_KEY: "rocca-lead-key", LEAD_WEBHOOK_URL: "http://localhost:4290/hook", ...env }, stdio: "ignore", detached: true });
+  srv = spawn("npx", ["tsx", "src/index.ts"], { env: { ...process.env, PORT: port, ANTHROPIC_API_KEY: "x", AI_MOCK: "1", DATABASE_URL: process.env.TEST_DATABASE_URL || "", DASHBOARD_TOKEN: "admin-secret-code", SIGNUP_MODE: "open", PAYMENT_WEBHOOK_SECRET: "whsec", CHECKOUT_LINK_CREDITS_10: "https://pay.example/c10", CHECKOUT_LINK_CREDITS_35: "https://pay.example/c35", CHECKOUT_REF_PARAM: "checkout[custom][ref]", LEMONSQUEEZY_WEBHOOK_SECRET: "lssecret", CHECKOUT_PRODUCT_CREDITS_35: "v35", CHECKOUT_PRODUCT_CREDITS_10: "v10", LEAD_KEY: "rocca-lead-key", LEAD_WEBHOOK_URL: "http://localhost:4290/hook", ...env }, stdio: "ignore", detached: true });
   for (let i = 0; i < 60; i++) { try { if ((await fetch(`http://localhost:${port}/api/health`)).ok) return; } catch {} await new Promise((r) => setTimeout(r, 500)); }
   throw new Error("server did not start");
 };
@@ -25,6 +25,7 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
     return { status: r.status, body: j };
   };
   const ADM = "admin-secret-code";
+  const makeRefFor = (x) => `${"a".repeat(12)}.credits_35.${x}.${"0".repeat(24)}`;
   // fetch() ignores a custom Host header, so use plain http for the host-routing checks
   const asHost = (host, p = "/", method = "GET", headers = {}) => new Promise((resolve, reject) => {
     const q = http.request({ host: "localhost", port: PORT, path: encodeURI(p), method, headers: { host, ...headers } }, (res) => { let b = ""; res.on("data", (c) => (b += c)); res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, text: b })); });
@@ -75,8 +76,8 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "credits_10", acceptTerms: true }, { "x-store-app": "1" });
   check("a store build never links out to a web checkout", r.status === 403 && r.body.code === "store_policy", r);
   r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "credits_10", acceptTerms: true });
-  check("checkout returns the hosted payment link with a signed ref", r.status === 200 && r.body.url.startsWith("https://pay.example/c10?ref=") && r.body.grossIls === 22, r);
-  const ref = decodeURIComponent(r.body.url.split("ref=")[1]);
+  check("checkout returns the hosted payment link with a signed ref", r.status === 200 && r.body.url.startsWith("https://pay.example/c10?checkout[custom][ref]=") && r.body.grossIls === 22, r);
+  const ref = decodeURIComponent(r.body.url.split("[ref]=")[1]);
   let orders = (await call("GET", "/api/billing/orders", F)).body;
   check("a pending order is recorded with the frozen price and the accepted terms", orders.length === 1 && orders[0].status === "pending" && orders[0].grossIls === 22 && !!orders[0].termsAcceptedAt, orders);
   r = await call("POST", "/api/billing/webhook", null, { ref, paymentRef: "pay-short", amount: 19 }, { "x-webhook-secret": "whsec" });
@@ -96,15 +97,51 @@ const check = (name, ok, extra) => { console.log(`${ok ? "PASS" : "FAIL"}  ${nam
   r = await call("POST", "/api/posts/generate", F, { topic: "t5", platforms: ["facebook"] });
   check("generation works again after buying credits", r.status === 200, r);
 
+  // ---- Merchant of Record (Lemon Squeezy): signed webhook
+  const crypto = require("crypto");
+  const lsPost = async (payload, secret = "lssecret") => {
+    const raw = JSON.stringify(payload);
+    const sig = crypto.createHmac("sha256", secret).update(raw).digest("hex");
+    const r = await fetch(`http://localhost:${PORT}/api/billing/webhook/lemonsqueezy`, { method: "POST", headers: { "content-type": "application/json", "x-signature": sig }, body: raw });
+    return { status: r.status, body: await r.json().catch(() => ({})) };
+  };
+  r = await call("POST", "/api/billing/create-checkout-session", F, { sku: "credits_35", acceptTerms: true });
+  const ref35 = decodeURIComponent(r.body.url.split("[ref]=")[1]);
+  const credBefore = (await call("GET", "/api/me", F)).body.credits;
+  const ev = (name, id, attrs, ref = ref35) => ({ meta: { event_name: name, custom_data: { ref } }, data: { id, attributes: attrs } });
+  r = await lsPost(ev("order_created", "1001", { status: "paid", first_order_item: { variant_id: "v35" } }), "wrong-secret");
+  check("MoR webhook: a bad signature is rejected", r.status === 401, r);
+  r = await fetch(`http://localhost:${PORT}/api/billing/webhook/lemonsqueezy`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  check("MoR webhook: an unsigned request is rejected", r.status === 401);
+  r = await lsPost(ev("order_created", "1001", { status: "paid", first_order_item: { variant_id: "v10" } }));
+  check("MoR webhook: paying for the cheap product never unlocks the big one", r.status === 400 && /mismatch/.test(r.body.error) && (await call("GET", "/api/me", F)).body.credits === credBefore, r);
+  r = await lsPost(ev("order_created", "1001", { status: "refunded", first_order_item: { variant_id: "v35" } }));
+  check("MoR webhook: an order that is not paid changes nothing", r.body.ignored === true && (await call("GET", "/api/me", F)).body.credits === credBefore, r);
+  r = await lsPost(ev("order_created", "1001", { status: "paid", first_order_item: { variant_id: "v35" } }));
+  check("MoR webhook: a paid order for the right product adds the credits", r.status === 200 && (await call("GET", "/api/me", F)).body.credits === credBefore + 35, r);
+  await lsPost(ev("order_created", "1001", { status: "paid", first_order_item: { variant_id: "v35" } }));
+  check("MoR webhook: a retried delivery never double-credits", (await call("GET", "/api/me", F)).body.credits === credBefore + 35);
+  orders = (await call("GET", "/api/billing/orders", F)).body;
+  check("MoR webhook: the pending order became a paid one", orders.some((o) => o.sku === "credits_35" && o.status === "paid" && o.note === "Lemon Squeezy"), orders.map((o) => [o.sku, o.status]));
+  r = await lsPost(ev("subscription_payment_success", "2001", { billing_reason: "initial" }));
+  check("MoR webhook: the initial subscription charge is not counted twice", r.body.ignored === true && (await call("GET", "/api/me", F)).body.credits === credBefore + 35, r);
+  r = await lsPost(ev("subscription_payment_success", "2002", { billing_reason: "renewal" }));
+  check("MoR webhook: a renewal of a verified package is applied", r.status === 200 && (await call("GET", "/api/me", F)).body.credits === credBefore + 70, r);
+  r = await lsPost(ev("subscription_payment_success", "2003", { billing_reason: "renewal" }, makeRefFor("x")));
+  check("MoR webhook: a forged ref is rejected", r.status === 400, r);
+  r = await lsPost({ meta: { event_name: "license_key_created" }, data: { id: "1" } });
+  check("MoR webhook: unrelated events are acknowledged and ignored", r.status === 200 && r.body.ignored === true, r);
+
   // ---- creator subscription → autopilot + approval queue
   const tid = (await call("GET", "/api/admin/tenants", ADM)).body.find((t) => t.name === "Free Biz").id;
+  const credBeforeSub = (await call("GET", "/api/me", F)).body.credits;
   r = await call("POST", "/api/billing/webhook", null, { tenantId: tid, sku: "creator_pro_monthly", paymentRef: "pay-2" }, { "x-webhook-secret": "whsec" });
   r = await call("GET", "/api/billing/status", F);
-  check("a subscription payment activates the tier, cycle and credits", r.body.tier === "creator_pro" && r.body.cycle === "monthly" && r.body.credits === 109 && !!r.body.expiresAt, r.body);
+  check("a subscription payment activates the tier, cycle and credits", r.body.tier === "creator_pro" && r.body.cycle === "monthly" && r.body.credits === credBeforeSub + 100 && !!r.body.expiresAt, r.body);
   r = await call("POST", "/api/autopilot", F, { enabled: true });
   check("autopilot can be switched on after upgrading", r.status === 200 && r.body.autopilotEnabled === true, r);
   r = await call("POST", "/api/autopilot/run", F, {});
-  check("autopilot prepares drafts and spends one credit", r.status === 200 && r.body.created === 3 && (await call("GET", "/api/me", F)).body.credits === 108, r);
+  check("autopilot prepares drafts and spends one credit", r.status === 200 && r.body.created === 3 && (await call("GET", "/api/me", F)).body.credits === credBeforeSub + 99, r);
   const waiting = (await call("GET", "/api/autopilot", F)).body.waiting;
   check("drafts wait for approval — nothing is scheduled or published", waiting.length === 3 && waiting.every((p) => p.status === "pending_approval"), waiting.map((p) => p.status));
   r = await call("POST", `/api/posts/${waiting[0].id}/approve`, F, {});
