@@ -458,5 +458,17 @@
  "ד׳": "Wed",
  "ה׳": "Thu",
  "ו׳": "Fri",
- "שבת": "Sat"
+ "שבת": "Sat",
+ "העוזר האישי שלך (24/7)": "Your personal assistant (24/7)",
+ "הסוכן מטפל בהכל: שאלות, רעיונות לתוכן, תזמון והדרכה — בלי להמתין לאף אחד.": "The agent handles everything: questions, content ideas, scheduling and guidance — no waiting on anyone.",
+ "דיווח על תקלה / בעיה טכנית": "Report a fault / technical issue",
+ "רק לתקלה אמיתית שהעוזר לא פתר. את כל השאר העוזר מטפל בעצמו.": "Only for a real fault the assistant couldn't solve. The assistant handles everything else.",
+ "תקלה במערכת": "System bug",
+ "בעיית תשלום": "Payment problem",
+ "בעיית חיבור לפייסבוק / אינסטגרם": "Facebook / Instagram connection problem",
+ "שליחת דיווח": "Send report",
+ "הדיווח נשלח ✓": "Report sent ✓",
+ "הדיווחים שלי": "My reports",
+ "העוזר": "Assistant",
+ "תקלות פתוחות (Backoffice)": "Open faults (Backoffice)"
 }

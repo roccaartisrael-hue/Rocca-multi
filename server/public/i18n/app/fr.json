@@ -458,5 +458,17 @@
  "ד׳": "Mer",
  "ה׳": "Jeu",
  "ו׳": "Ven",
- "שבת": "Sam"
+ "שבת": "Sam",
+ "העוזר האישי שלך (24/7)": "Votre assistant personnel (24h/24)",
+ "הסוכן מטפל בהכל: שאלות, רעיונות לתוכן, תזמון והדרכה — בלי להמתין לאף אחד.": "L'agent s'occupe de tout : questions, idées de contenu, planification et conseils, sans attendre personne.",
+ "דיווח על תקלה / בעיה טכנית": "Signaler une panne / un problème technique",
+ "רק לתקלה אמיתית שהעוזר לא פתר. את כל השאר העוזר מטפל בעצמו.": "Uniquement pour une vraie panne que l'assistant n'a pas résolue. L'assistant gère tout le reste.",
+ "תקלה במערכת": "Bug du système",
+ "בעיית תשלום": "Problème de paiement",
+ "בעיית חיבור לפייסבוק / אינסטגרם": "Problème de connexion Facebook / Instagram",
+ "שליחת דיווח": "Envoyer le signalement",
+ "הדיווח נשלח ✓": "Signalement envoyé ✓",
+ "הדיווחים שלי": "Mes signalements",
+ "העוזר": "Assistant",
+ "תקלות פתוחות (Backoffice)": "Pannes ouvertes (Backoffice)"
 }

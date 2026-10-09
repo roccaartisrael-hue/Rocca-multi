@@ -8,6 +8,8 @@ export interface Ticket {
   id: string;
   subject: string;
   message: string;
+  kind?: "bug" | "payment" | "connection";
+  plan?: string;
   status: "open" | "closed";
   createdAt: string;
   replies: { from: "customer" | "support"; text: string; at: string }[];
@@ -25,8 +27,12 @@ const clip = (v: unknown, n: number) => String(v ?? "").replace(/[\u0000-\u0008\
 
 export const listTickets = (): Ticket[] => read();
 
-export function openTicket(subject: unknown, message: unknown): Ticket {
-  const t: Ticket = { id: uuid(), subject: clip(subject, 140) || "פנייה", message: clip(message, 3000), status: "open", createdAt: new Date().toISOString(), replies: [] };
+const KINDS = ["bug", "payment", "connection"] as const;
+
+/** A technical-fault report (bug, payment or connection problem). Day-to-day questions are answered by the AI assistant, not tickets. */
+export function openTicket(subject: unknown, message: unknown, kind?: unknown, plan?: string): Ticket {
+  const k = KINDS.find((x) => x === kind) || "bug";
+  const t: Ticket = { id: uuid(), subject: clip(subject, 140) || "דיווח על תקלה", message: clip(message, 3000), kind: k, plan: plan ? clip(plan, 60) : undefined, status: "open", createdAt: new Date().toISOString(), replies: [] };
   const all = read();
   all.unshift(t);
   write(all);
