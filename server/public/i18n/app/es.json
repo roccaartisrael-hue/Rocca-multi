@@ -470,5 +470,9 @@
  "הדיווח נשלח ✓": "Reporte enviado ✓",
  "הדיווחים שלי": "Mis reportes",
  "העוזר": "Asistente",
- "תקלות פתוחות (Backoffice)": "Fallos abiertos (Backoffice)"
+ "תקלות פתוחות (Backoffice)": "Fallos abiertos (Backoffice)",
+ "שמור כטיוטה": "Guardar como borrador",
+ "נשמר בטיוטות ✓": "Guardado en borradores ✓",
+ " — אם זו תקלה טכנית, אפשר לדווח עליה למטה.": " — si es un fallo técnico, puedes reportarlo abajo.",
+ "שאלו או בקשו כל דבר — למשל: כתוב לי פוסט על מבצע סוף שבוע": "Pregunta o pide lo que quieras, p. ej.: escríbeme una publicación sobre una oferta de fin de semana"
 }

@@ -470,5 +470,9 @@
  "הדיווח נשלח ✓": "Report sent ✓",
  "הדיווחים שלי": "My reports",
  "העוזר": "Assistant",
- "תקלות פתוחות (Backoffice)": "Open faults (Backoffice)"
+ "תקלות פתוחות (Backoffice)": "Open faults (Backoffice)",
+ "שמור כטיוטה": "Save as draft",
+ "נשמר בטיוטות ✓": "Saved to drafts ✓",
+ " — אם זו תקלה טכנית, אפשר לדווח עליה למטה.": " — if this is a technical fault, you can report it below.",
+ "שאלו או בקשו כל דבר — למשל: כתוב לי פוסט על מבצע סוף שבוע": "Ask or request anything — e.g. write me a post about a weekend sale"
 }
