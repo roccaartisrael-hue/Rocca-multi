@@ -26,7 +26,7 @@ export interface Sku {
 export const CATALOG: Sku[] = [
   { id: "credits_10", kind: "credits", label: "10 קרדיטים", priceIls: 19, credits: 10 },
   { id: "credits_35", kind: "credits", label: "35 קרדיטים", priceIls: 49, credits: 35 },
-  { id: "creator_weekly", kind: "subscription", label: "יוצרים — שבועי", priceIls: 29, tier: "creator_lite", cycle: "weekly", credits: 10, includes: ["10 קרדיטים בכל שבוע"] },
+  { id: "creator_weekly", kind: "subscription", label: "יוצרים — שבועי", priceIls: 17, tier: "creator_lite", cycle: "weekly", credits: 10, includes: ["10 קרדיטים בכל שבוע"] },
   { id: "creator_lite_monthly", kind: "subscription", label: "יוצרים לייט — חודשי", priceIls: 69, tier: "creator_lite", cycle: "monthly", credits: 40, includes: ["40 קרדיטים בחודש", "פייסבוק + אינסטגרם", "טייס אוטומטי"] },
   { id: "creator_pro_monthly", kind: "subscription", label: "יוצרים פרו — חודשי", priceIls: 129, tier: "creator_pro", cycle: "monthly", credits: 100, includes: ["100 קרדיטים בחודש", "תזמון מדויק", "המלצות לקידום ממומן"] },
   { id: "starter_social_monthly", kind: "package", label: "Starter Social", priceIls: 790, tier: "starter_social", cycle: "monthly", commitmentMonths: 0, includes: ["פייסבוק + אינסטגרם אורגני", "טייס אוטומטי: פוסטים שבועיים לאישור", "תוכניות שיווק חודשיות ודוחות"] },
