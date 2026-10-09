@@ -12,7 +12,8 @@ import { verifyLemonSignature, parseLemonEvent } from "../lib/mor";
 import { addStats, listStats, listInsightLogs, runWeeklyAllocation, AD_CHANNELS } from "../lib/adBudget";
 import { getSite, saveSite, addArticle, claimDomain, validDomain, renderSiteHtml, renderArticleHtml } from "../lib/sites";
 import { listTickets, openTicket, replyTicket } from "../lib/support";
-import { generateSeoArticle, answerSupport } from "../lib/claude";
+import { generateSeoArticle, answerSupport, answerAssistant } from "../lib/claude";
+import { listReminders, addReminder, deleteReminder } from "../lib/reminders";
 import { getProfile } from "../lib/profile";
 import { creditsLeft, requireFeature } from "../lib/checkCredits";
 import { rateLimited } from "../lib/ratelimit";
@@ -295,15 +296,47 @@ platformRouter.post("/api/support/chat", async (req, res) => {
     const q = String(req.body?.message || "").trim();
     if (!q) return res.status(400).json({ error: "כתבו שאלה" });
     const history = Array.isArray(req.body?.history) ? req.body.history.filter((h: any) => h && (h.role === "user" || h.role === "assistant")).map((h: any) => ({ role: h.role, text: String(h.text || "") })) : [];
-    res.json(await answerSupport(q, history));
+    res.json({ answer: await answerSupport(q, history) });
   } catch (e) {
     err(res, e);
   }
 });
 
-// The customer approved an action the assistant proposed. Only drafts are created — nothing is published or scheduled here.
-platformRouter.post("/api/support/action", (req, res) => {
+// ---- personal executive assistant ----
+const todayIL = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+
+function assistantContext(): string {
+  const p = getProfile();
+  const posts = store.listPosts();
+  const upcoming = posts.filter((x) => x.status === "scheduled" && x.scheduledFor).sort((a, b) => String(a.scheduledFor).localeCompare(String(b.scheduledFor))).slice(0, 6);
+  const rem = listReminders().filter((r) => r.date >= todayIL()).slice(0, 8);
+  return [
+    `תאריך היום: ${todayIL()} (ישראל)`,
+    p ? `העסק: ${p.businessName} · מוכר: ${p.whatYouSell} · קהל: ${p.audience} · מיקום: ${p.location} · טון: ${p.tone}${p.neverSay ? ` · לא להגיד: ${p.neverSay}` : ""}` : "פרופיל העסק עדיין לא מולא — עודד למלא בלשונית הגדרות.",
+    `פוסטים מתוזמנים קרובים: ${upcoming.length ? upcoming.map((x) => `${String(x.scheduledFor).slice(0, 10)} ${x.topic}`).join("; ") : "אין"}`,
+    `טיוטות פתוחות: ${posts.filter((x) => x.status === "draft").length}`,
+    `תזכורות קרובות: ${rem.length ? rem.map((r) => `${r.date} ${r.text}`).join("; ") : "אין"}`,
+  ].join("\n");
+}
+
+platformRouter.post("/api/assistant/chat", async (req, res) => {
+  if (rateLimited(`assistant|${currentTenantId()}`, 40, 60 * 60 * 1000)) return res.status(429).json({ error: "הגעתם למגבלת ההודעות לשעה, נסו שוב מאוחר יותר." });
+  try {
+    const q = String(req.body?.message || "").trim();
+    if (!q) return res.status(400).json({ error: "כתבו הודעה" });
+    const history = Array.isArray(req.body?.history) ? req.body.history.filter((h: any) => h && (h.role === "user" || h.role === "assistant")).map((h: any) => ({ role: h.role, text: String(h.text || "") })) : [];
+    res.json(await answerAssistant(q, history, assistantContext()));
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+// The owner approved an action the assistant proposed. Drafts only — nothing is published or scheduled here.
+platformRouter.post("/api/assistant/action", (req, res) => {
   const a = req.body || {};
+  if (a.type === "reminder" && /^\d{4}-\d{2}-\d{2}$/.test(String(a.date)) && String(a.text || "").trim()) {
+    return res.json({ ok: true, reminder: addReminder(a.date, String(a.text)) });
+  }
   if (a.type !== "draft_post" || !String(a.text || "").trim()) return res.status(400).json({ error: "פעולה לא נתמכת" });
   const platforms = (["facebook", "instagram"] as Platform[]).filter((p) => allowedPlatforms(ALL_PLATFORMS).includes(p));
   if (!platforms.length) return res.status(400).json({ error: "אין פלטפורמה זמינה" });
@@ -311,6 +344,8 @@ platformRouter.post("/api/support/action", (req, res) => {
   const post = store.createPost(String(a.topic || "פוסט").slice(0, 120), platforms.map((p) => ({ platform: p, text, status: "pending" as const })));
   res.json({ ok: true, id: post.id });
 });
+platformRouter.get("/api/assistant/reminders", (_req, res) => res.json(listReminders()));
+platformRouter.delete("/api/assistant/reminders/:id", (req, res) => (deleteReminder(req.params.id) ? res.json({ ok: true }) : res.status(404).json({ error: "לא נמצא" })));
 
 // ---- reports ----
 platformRouter.get("/api/reports/summary", (_req, res) => {
