@@ -208,6 +208,11 @@
   .asst-rem { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
   .asst-rem span { font-size: 12px; padding: 4px 9px; border-radius: 999px; background: var(--accent-soft); border: 1px solid rgba(99,102,241,.3); color: var(--accent-text); }
   .asst-rem span b { cursor: pointer; margin-inline-start: 6px; opacity: .7; }
+  .asst-wa { font-size: 13px; margin-bottom: 6px; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; background: var(--panel-2); }
+  .asst-wa summary { cursor: pointer; color: var(--accent-text); }
+  .asst-wa label { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; font-size: 12.5px; }
+  .asst-wa label input[type=checkbox] { width: auto; margin-top: 3px; }
+  .asst-wa select { margin: 4px 0; }
   .asst-log { flex: 1; overflow-y: auto; padding: 4px 0; }
   .asst-row { display: flex; gap: 8px; margin-top: 8px; }
   .asst-row input { flex: 1; margin: 0; }
@@ -672,6 +677,7 @@
   <div class="asst-sheet" id="asstSheet" role="dialog" aria-label="האסיסטנט האישי" aria-modal="true">
     <div class="asst-head"><h3>האסיסטנט האישי</h3><button class="secondary" id="asstClose">סגירה</button></div>
     <div class="asst-rem" id="asstRem"></div>
+    <details class="asst-wa" id="asstWa"><summary>📲 חיבור לוואטסאפ</summary><div id="asstWaBody"></div></details>
     <div class="asst-log chat-log" id="asstLog"></div>
     <div class="asst-row"><input type="text" id="asstInput" placeholder="דברו איתי על העסק — רעיון, פוסט, תזכורת…" /><button id="asstSend">שליחה</button></div>
   </div>
@@ -1011,7 +1017,7 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     input.value = ""; add("user", q);
     const wait = add("assistant", "…");
     try {
-      const r = await api("/api/assistant/chat", { method: "POST", body: JSON.stringify({ message: q, history }) });
+      const r = await api("/api/assistant/chat", { method: "POST", body: JSON.stringify({ message: q, history, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
       wait.textContent = r.answer; history.push({ role: "user", text: q }, { role: "assistant", text: r.answer });
       if (r.action) {
         const label = r.action.type === "reminder" ? "הוסף תזכורת" : "שמור כטיוטה";
@@ -1025,6 +1031,55 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
       }
     } catch (e) { wait.textContent = e.message; }
   }
+
+  // ---- WhatsApp connection ----
+  const LANG = () => (window.I18N_LANG || "he");
+  let waPoll = null;
+  async function renderWa() {
+    const box = $("asstWaBody");
+    let st; try { st = await api("/api/assistant/whatsapp"); } catch (e) { box.textContent = e.message; return; }
+    box.innerHTML = "";
+    const p = (t) => { const n = el(`<p class="muted-small" style="margin:6px 0"></p>`); n.textContent = t; box.appendChild(n); return n; };
+    if (!st.tierAllowed) { p("האסיסטנט בוואטסאפ זמין מפרימיום ומעלה."); return; }
+    if (!st.configured) { p("החיבור לוואטסאפ ייפתח בקרוב."); return; }
+    const hours = Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${h === (st.briefHour ?? 8) ? "selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("");
+    if (st.enabled) {
+      p("מחובר: " + st.phone);
+      const sel = el(`<select>${hours}</select>`);
+      p("שעת תדריך הבוקר:"); box.appendChild(sel);
+      sel.addEventListener("change", async () => { try { await api("/api/assistant/whatsapp", { method: "PUT", body: JSON.stringify({ briefHour: Number(sel.value), tz: Intl.DateTimeFormat().resolvedOptions().timeZone }) }); toast("נשמר ✓"); } catch (e) { toast(e.message); } });
+      const off = el(`<button class="secondary" style="margin-top:6px">נתק וואטסאפ</button>`);
+      off.addEventListener("click", async () => { try { await api("/api/assistant/whatsapp/disable", { method: "POST" }); renderWa(); } catch (e) { toast(e.message); } });
+      box.appendChild(off);
+      return;
+    }
+    p("האסיסטנט יפנה אליך בוואטסאפ עם תדריך בוקר, ואפשר לענות לו שם: לאשר פוסט, להזיז שעה או להוסיף תזכורת.");
+    const sel = el(`<select>${hours}</select>`);
+    p("באיזו שעה לשלוח את תדריך הבוקר?"); box.appendChild(sel);
+    const cg = el(`<label><input type="checkbox" checked /><span>מועדי שיווק בינלאומיים (בלאק פריידיי, חגים ועוד)</span></label>`);
+    const ci = el(`<label><input type="checkbox" /><span>חגי ישראל</span></label>`);
+    const consent = el(`<label><input type="checkbox" /><span>אני מאשר/ת לקבל הודעות מהאסיסטנט בוואטסאפ, ואפשר להפסיק בכל רגע בכתיבת STOP.</span></label>`);
+    box.append(cg, ci, consent);
+    const go = el(`<button style="margin-top:6px">חבר לוואטסאפ</button>`);
+    go.addEventListener("click", async () => {
+      if (!consent.querySelector("input").checked) { toast("יש לאשר קבלת הודעות"); return; }
+      go.disabled = true;
+      try {
+        const cals = [cg.querySelector("input").checked && "global", ci.querySelector("input").checked && "il"].filter(Boolean);
+        const r = await api("/api/assistant/whatsapp/pair", { method: "POST", body: JSON.stringify({ consent: true, briefHour: Number(sel.value), lang: LANG(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone, calendars: cals }) });
+        box.innerHTML = "";
+        p("לחצו כדי לפתוח וואטסאפ ולשלוח את ההודעה המוכנה (זה מאמת שהמספר שלכם):");
+        const a = el(`<a class="btn" target="_blank" rel="noopener" style="display:inline-block;padding:10px 16px;border-radius:12px;background:#25d366;color:#04210f;font-weight:600;text-decoration:none">פתח וואטסאפ</a>`);
+        a.href = r.link; box.appendChild(a);
+        p("ממתין לחיבור…");
+        clearInterval(waPoll);
+        let tries = 0;
+        waPoll = setInterval(async () => { tries++; try { const s2 = await api("/api/assistant/whatsapp"); if (s2.enabled) { clearInterval(waPoll); renderWa(); toast("מחובר ✓"); } } catch {} if (tries > 150) clearInterval(waPoll); }, 4000);
+      } catch (e) { go.disabled = false; toast(e.message); }
+    });
+    box.appendChild(go);
+  }
+  $("asstWa").addEventListener("toggle", (e) => { if (e.target.open) renderWa(); else clearInterval(waPoll); });
   $("asstSend").addEventListener("click", send);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
   // keep the bubble out of the way while typing in other screens (iOS keyboard)

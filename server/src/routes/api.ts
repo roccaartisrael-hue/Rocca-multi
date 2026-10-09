@@ -17,6 +17,7 @@ import { currentUsage, assertWithinLimit, consumePlan } from "../lib/usage";
 import { getTier } from "../lib/plans";
 import { withModelChoice, geminiAvailable, geminiStatus } from "../lib/ai";
 import { israelTime, pickSlot } from "../lib/autoschedule";
+import { scheduleProblem, needsImage } from "../lib/scheduleRules";
 import { campaigns } from "../lib/campaigns";
 import { getProfile, saveProfile } from "../lib/profile";
 import { storageStatus } from "../lib/persist";
@@ -363,29 +364,9 @@ api.get("/api/posts", (_req, res) => {
   res.json(store.listPosts());
 });
 
-/** Scheduling limits by tier: how many at once, how far ahead, and which times (Israel time). Returns an error message or null. */
-function scheduleProblem(whenIso: string, excludePostId: string | null, checkSlot: boolean): string | null {
-  const tier = getTier();
-  const when = new Date(whenIso);
-  if (isNaN(when.getTime())) return "תאריך לא תקין";
-  const now = Date.now();
-  if (when.getTime() < now + 60 * 1000) return "בחרו זמן עתידי";
-  if (when.getTime() > now + (tier.horizonDays + 1) * 86400000) return `במסלול ${tier.label} אפשר לתזמן עד ${tier.horizonDays} ימים קדימה`;
-  const alreadyScheduled = store.listPosts().filter((p) => p.status === "scheduled" && p.id !== excludePostId).length;
-  if (alreadyScheduled >= tier.maxScheduled) return `במסלול ${tier.label} אפשר לתזמן עד ${tier.maxScheduled} פוסטים במקביל. אפשר לשדרג מסלול.`;
-  if (checkSlot && !tier.exactTime) {
-    const hhmm = when.toLocaleTimeString("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" });
-    if (!tier.slots.includes(hhmm)) return `במסלול ${tier.label} אפשר לבחור אחת מהשעות: ${tier.slots.join(", ")}`;
-  }
-  return null;
-}
-
 function takenSlots(excludeId?: string): string[] {
   return store.listPosts().filter((p) => p.status === "scheduled" && p.scheduledFor && p.id !== excludeId).map((p) => p.scheduledFor!);
 }
-
-const needsImage = (p: { platforms: PlatformContent[] }) =>
-  p.platforms.some((c) => (c.platform === "instagram" || c.platform === "tiktok") && !c.imageUrl);
 
 // Automatic scheduling of one post: the system picks the next best free time inside the tier's limits.
 api.post("/api/posts/:id/auto-schedule", (req, res) => {
