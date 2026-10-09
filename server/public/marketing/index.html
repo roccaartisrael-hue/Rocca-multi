@@ -97,6 +97,34 @@ footer{border-top:1px solid var(--border);margin-top:72px;padding:28px 0 44px;co
 footer .wrap{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center;justify-content:space-between}
 footer a{color:var(--muted);text-decoration:none;margin-inline-end:18px}footer a:hover{color:var(--text)}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+/* ---- Polish: typography, glow, hairline borders, footer ---- */
+body{font-feature-settings:"ss01","cv11";letter-spacing:.005em}
+.wrap{max-width:1120px;padding:0 max(20px,env(safe-area-inset-right))}
+.nav{background:rgba(9,9,11,.72);backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border-bottom:1px solid rgba(255,255,255,.07)}
+.hero{padding:96px 0 72px}
+.hero h1{font-size:clamp(38px,7vw,72px);line-height:1.05;letter-spacing:-.035em;font-weight:700}
+.hero p.lead{font-size:clamp(16px,2.3vw,20px);line-height:1.65;color:var(--muted)}
+h2{font-size:clamp(28px,4.4vw,42px);letter-spacing:-.03em;line-height:1.12}
+.eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:12px}
+section{padding:88px 0}
+.btn{border-radius:10px;padding:12px 24px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#7276f6,#5558ec);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 8px 24px -8px rgba(99,102,241,.7),0 0 0 1px rgba(99,102,241,.35);transition:box-shadow .2s,transform .12s,filter .15s}
+.btn:hover{background:linear-gradient(180deg,#7f83f8,#6063ef);box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 10px 32px -6px rgba(99,102,241,.85),0 0 0 1px rgba(129,140,248,.55)}
+.btn.ghost{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.12);box-shadow:none;color:var(--text2)}
+.btn.ghost:hover{background:rgba(255,255,255,.07);box-shadow:none;border-color:rgba(255,255,255,.22)}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:26px}
+.card:hover{border-color:rgba(129,140,248,.4);transform:translateY(-2px);box-shadow:0 18px 40px -22px rgba(99,102,241,.5)}
+.fi{border-radius:11px;width:42px;height:42px}
+.preview{border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:0 40px 100px -40px rgba(99,102,241,.45),0 30px 80px -30px rgba(0,0,0,.85)}
+details{border:1px solid rgba(255,255,255,.08);border-radius:14px}
+.final{border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:64px 20px;box-shadow:0 30px 80px -40px rgba(99,102,241,.5)}
+footer{padding:40px 0 calc(48px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.07)}
+footer .wrap{align-items:flex-start}
+footer .fcol{display:flex;flex-direction:column;gap:10px}
+footer .fcol b{color:var(--text2);font-weight:600;font-size:13px;letter-spacing:.04em}
+footer .fcol a{margin:0;font-size:14px}
+footer .copy{font-size:13px;color:var(--faint);width:100%;border-top:1px solid rgba(255,255,255,.06);padding-top:20px;margin-top:6px}
+@media(max-width:720px){section{padding:64px 0}.hero{padding:64px 0 48px}.cta .btn{width:100%}.nav .wrap{height:58px}.final{padding:44px 18px}}
 </style>
 </head>
 <body>
@@ -160,8 +188,10 @@ footer a{color:var(--muted);text-decoration:none;margin-inline-end:18px}footer a
 </div></div>
 
 <footer><div class="wrap">
-  <div>© BOOL</div>
-  <div><a href="/legal/privacy">מדיניות פרטיות</a><a href="/legal/terms">תנאי שימוש</a><a href="/legal/data-deletion">מחיקת נתונים</a></div>
+  <div class="fcol"><a class="brand" href="/"><span class="logo">B</span>BOOL</a><span style="color:var(--faint);font-size:14px;max-width:260px">סוכנות שיווק בקופסה. מונעת בינה מלאכותית.</span></div>
+  <div class="fcol"><b>מוצר</b><a href="#features">יכולות</a><a href="#plans">חבילות</a><a href="#faq">שאלות נפוצות</a></div>
+  <div class="fcol"><b>משפטי ותמיכה</b><a href="/privacy">מדיניות פרטיות</a><a href="/terms">תנאי שימוש</a><a href="/support">תמיכה</a><a href="/data-deletion">מחיקת מידע</a></div>
+  <div class="copy">© BOOL · כל הזכויות שמורות</div>
 </div></footer>
 <script>
   // The dashboard lives on app.<domain>; on any other host (preview / Render URL) it is the same origin.
