@@ -444,5 +444,19 @@
  "✓ תוזמן": "✓ Scheduled",
  "✕ התעלם": "✕ Ignore",
  "למשל: \"מבצע סוף שבוע על כל המוצרים\"": "e.g. \"Weekend sale on all products\"",
- "למשל: \"אהבתי את הזוית והתאורה האחורית\"": "e.g. \"I loved the angle and the backlight\""
+ "למשל: \"אהבתי את הזוית והתאורה האחורית\"": "e.g. \"I loved the angle and the backlight\"",
+ "איך לתזמן?": "How to schedule?",
+ "אוטומטי — ה-AI בוחר את הימים והשעות הכי טובים": "Automatic — AI picks the best days and times",
+ "ידני — אני בוחר ימים ושעות": "Manual — I choose days and times",
+ "ידני — בחירת ימים ושעות (זמין מפרימיום ומעלה)": "Manual — choose days and times (Premium and above)",
+ "באילו ימים?": "On which days?",
+ "באילו שעות? (עד 3, מופרדות בפסיק)": "At what times? (up to 3, comma-separated)",
+ "מספר הפוסטים נקבע לפי הבחירה שלכם (ימים × שעות).": "The number of posts follows your choice (days × times).",
+ "א׳": "Sun",
+ "ב׳": "Mon",
+ "ג׳": "Tue",
+ "ד׳": "Wed",
+ "ה׳": "Thu",
+ "ו׳": "Fri",
+ "שבת": "Sat"
 }

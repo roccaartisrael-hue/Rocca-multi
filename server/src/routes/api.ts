@@ -166,14 +166,19 @@ api.post("/api/profile", (req, res) => {
 // ---- Marketing plan ----
 api.post("/api/plan/generate", async (req, res) => {
   try {
-    const b = req.body as { goal?: string; weeks?: number; postsPerWeek?: number; platforms?: Platform[]; weeklyBudget?: number; aggressive?: boolean; notes?: string };
+    const b = req.body as { goal?: string; weeks?: number; postsPerWeek?: number; platforms?: Platform[]; weeklyBudget?: number; aggressive?: boolean; notes?: string; days?: number[]; times?: string[] };
     const tier = getTier();
     const platforms = (b.platforms || []).filter((p) => allowedPlatforms(ALL_PLATFORMS).includes(p));
     if (!platforms.length) return res.status(400).json({ error: "בחר לפחות פלטפורמה אחת" });
     if (platforms.length > tier.maxPlatforms) {
       return res.status(400).json({ error: `במסלול ${tier.label} אפשר עד ${tier.maxPlatforms} פלטפורמות בתוכנית` });
     }
-    const postsPerWeek = Math.min(tier.maxPostsPerWeek, Math.max(1, Math.round(Number(b.postsPerWeek) || 3)));
+    // Manual schedule (exact days + hours) is a higher-tier feature
+    const manualDays = Array.from(new Set((b.days || []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)));
+    const manualTimes = Array.from(new Set((b.times || []).map(String).filter((t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t)))).slice(0, 3);
+    const manual = manualDays.length > 0 && manualTimes.length > 0;
+    if (manual && !tier.exactTime) return res.status(403).json({ error: `בחירת ימים ושעות מדויקים זמינה במסלול פרימיום ומעלה` });
+    const postsPerWeek = Math.min(tier.maxPostsPerWeek, Math.max(1, manual ? manualDays.length * manualTimes.length : Math.round(Number(b.postsPerWeek) || 3)));
     // one plan = at most 21 posts, so output stays within a single reliable Claude response
     const weeks = Math.max(1, Math.min(tier.maxWeeks, Math.round(Number(b.weeks) || 2), Math.floor(21 / postsPerWeek)));
     assertWithinLimit(); // check before consuming a plan so a blocked request doesn't burn the allowance
@@ -184,6 +189,15 @@ api.post("/api/plan/generate", async (req, res) => {
       { goal: (b.goal || "יותר פניות וחשיפה").slice(0, 300), weeks, postsPerWeek, platforms, weeklyBudget: tier.adAdvice ? Math.max(0, Number(b.weeklyBudget) || 0) : 0, aggressive: !!b.aggressive && tier.adAdvice, notes: (b.notes || "").slice(0, 500) },
       { topPerformers, inspirationNotes }
     );
+    if (manual) {
+      // the user's own days/hours win over whatever the AI suggested
+      const slots: { dayOffset: number; time: string }[] = [];
+      for (let d = 1; d <= weeks * 7 + 1; d++) {
+        const wd = new Date(israelTime(d, 12, 0).toLocaleString("en-US", { timeZone: "Asia/Jerusalem" })).getDay();
+        if (manualDays.includes(wd)) manualTimes.sort().forEach((t) => slots.push({ dayOffset: d, time: t }));
+      }
+      plan.items = plan.items.slice(0, slots.length).map((it, i) => ({ ...it, ...slots[i] }));
+    }
     res.json(plan);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
