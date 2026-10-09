@@ -581,18 +581,21 @@
 
     <section id="tab-support" class="tab hidden">
       <div class="card">
-        <h2>עוזר התמיכה (24/7)</h2>
+        <h2>העוזר האישי שלך (24/7)</h2>
+        <p class="muted-small">הסוכן מטפל בהכל: שאלות, רעיונות לתוכן, תזמון והדרכה — בלי להמתין לאף אחד.</p>
         <div class="chat-log" id="chatLog"></div>
         <input type="text" id="chatInput" placeholder="שאלו כל דבר על המערכת…" />
         <button id="chatBtn">שליחה</button>
       </div>
       <div class="card">
-        <h2>פתיחת פנייה לצוות</h2>
+        <h2>דיווח על תקלה / בעיה טכנית</h2>
+        <p class="muted-small">רק לתקלה אמיתית שהעוזר לא פתר. את כל השאר העוזר מטפל בעצמו.</p>
+        <select id="ticketKind"><option value="bug">תקלה במערכת</option><option value="payment">בעיית תשלום</option><option value="connection">בעיית חיבור לפייסבוק / אינסטגרם</option></select>
         <input type="text" id="ticketSubject" placeholder="נושא" />
         <textarea id="ticketMessage" placeholder="מה קרה?"></textarea>
-        <button id="ticketBtn" class="secondary">שליחת פנייה</button>
+        <button id="ticketBtn" class="secondary">שליחת דיווח</button>
       </div>
-      <div class="card"><h2>הפניות שלי</h2><div id="ticketList"><p class="empty">אין פניות.</p></div></div>
+      <div class="card"><h2>הדיווחים שלי</h2><div id="ticketList"><p class="empty">אין פניות.</p></div></div>
     </section>
 
     <section id="tab-admin" class="tab hidden">
@@ -601,7 +604,7 @@
         <div id="adminTenants" class="empty">טוען…</div>
       </div>
       <div class="card">
-        <h2>פניות תמיכה פתוחות</h2>
+        <h2>תקלות פתוחות (Backoffice)</h2>
         <div id="adminTickets"><p class="empty">אין.</p></div>
       </div>
       <div class="card">
@@ -624,7 +627,7 @@
     <button data-tab="tab-replies"><svg class="ic" aria-hidden="true"><use href="#i-replies"/></svg><span>תגובות</span></button>
     <button data-tab="tab-inspiration"><svg class="ic" aria-hidden="true"><use href="#i-inspiration"/></svg><span>השראה</span></button>
     <button data-tab="tab-plans"><svg class="ic" aria-hidden="true"><use href="#i-plans"/></svg><span>חבילות</span></button>
-    <button data-tab="tab-support"><svg class="ic" aria-hidden="true"><use href="#i-support"/></svg><span>תמיכה</span></button>
+    <button data-tab="tab-support"><svg class="ic" aria-hidden="true"><use href="#i-support"/></svg><span>העוזר</span></button>
     <button data-tab="tab-connect"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg><span>הגדרות</span></button>
     <button data-tab="tab-admin" id="adminTabBtn" class="hidden"><svg class="ic" aria-hidden="true"><use href="#i-admin"/></svg><span>ניהול</span></button>
   </nav>
@@ -854,7 +857,7 @@ async function loadAdmin() {
       $("adminTickets").innerHTML = "";
       if (!tk.length) $("adminTickets").innerHTML = `<p class="empty">אין.</p>`;
       tk.forEach((t) => {
-        const row = el(`<div class="lead-row"><b>${esc(t.tenantName)}</b> · ${esc(t.subject)}<p class="muted-small" style="margin:2px 0">${esc(t.message)}</p><input type="text" placeholder="תשובה" /><div class="row-actions"><button>שליחה וסגירה</button></div></div>`);
+        const row = el(`<div class="lead-row"><b>${esc(t.tenantName)}</b> · ${esc(({ bug: "תקלה", payment: "תשלום", connection: "חיבור" })[t.kind] || "תקלה")}${t.plan ? " · " + esc(t.plan) : ""} · ${esc(t.subject)}<p class="muted-small" style="margin:2px 0">${esc(t.message)}</p><input type="text" placeholder="תשובה" /><div class="row-actions"><button>שליחה וסגירה</button></div></div>`);
         row.querySelector("button").addEventListener("click", async () => { await api(`/api/admin/tickets/${t.tenantId}/${t.id}/reply`, { method: "POST", body: JSON.stringify({ text: row.querySelector("input").value, close: true }) }); loadAdmin(); });
         $("adminTickets").appendChild(row);
       });
@@ -2108,7 +2111,7 @@ async function loadSupport() {
   } catch (e) { toast(e.message); }
 }
 $("ticketBtn").addEventListener("click", async () => {
-  try { await api("/api/support/tickets", { method: "POST", body: JSON.stringify({ subject: $("ticketSubject").value, message: $("ticketMessage").value }) }); $("ticketSubject").value = ""; $("ticketMessage").value = ""; toast("הפנייה נשלחה ✓"); loadSupport(); } catch (e) { toast(e.message); }
+  try { await api("/api/support/tickets", { method: "POST", body: JSON.stringify({ kind: $("ticketKind").value, subject: $("ticketSubject").value, message: $("ticketMessage").value }) }); $("ticketSubject").value = ""; $("ticketMessage").value = ""; toast("הדיווח נשלח ✓"); loadSupport(); } catch (e) { toast(e.message); }
 });
 
 // ---- reports (charts follow the dataviz rules: one axis, thin marks, hover tooltips, table view, validated dark palette) ----

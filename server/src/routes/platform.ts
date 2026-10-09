@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { store } from "../lib/store";
 import { getTier } from "../lib/plans";
+import { tierMargins } from "../lib/margins";
 import { getSettings, saveSettings } from "../lib/settings";
 import { runAutopilot } from "../lib/autopilot";
 import { addLead, listLeads, setLeadStatus, LeadStatus } from "../lib/leads";
@@ -281,7 +282,7 @@ platformRouter.post("/api/site/article", async (req, res) => {
 platformRouter.get("/api/support/tickets", (_req, res) => res.json(listTickets()));
 platformRouter.post("/api/support/tickets", (req, res) => {
   if (!String(req.body?.message || "").trim()) return res.status(400).json({ error: "כתבו את הפנייה" });
-  res.json(openTicket(req.body.subject, req.body.message));
+  res.json(openTicket(req.body.subject, req.body.message, req.body.kind, getTier().label));
 });
 platformRouter.post("/api/support/tickets/:id/reply", (req, res) => {
   const t = replyTicket(req.params.id, "customer", req.body?.text);
@@ -338,6 +339,7 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!(req as any).auth?.isAdmin) return res.status(403).json({ error: "Admin only" });
   next();
 }
+platformRouter.get("/api/admin/margins", requireAdmin, (_req, res) => res.json(tierMargins()));
 platformRouter.get("/api/admin/tickets", requireAdmin, (_req, res) => {
   const rows: any[] = [];
   for (const id of activeTenantIds()) {

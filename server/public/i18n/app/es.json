@@ -444,5 +444,17 @@
  "✓ תוזמן": "✓ Programada",
  "✕ התעלם": "✕ Ignorar",
  "למשל: \"מבצע סוף שבוע על כל המוצרים\"": "p. ej.: \"Oferta de fin de semana en todos los productos\"",
- "למשל: \"אהבתי את הזוית והתאורה האחורית\"": "p. ej.: \"Me encantó el ángulo y la luz de fondo\""
+ "למשל: \"אהבתי את הזוית והתאורה האחורית\"": "p. ej.: \"Me encantó el ángulo y la luz de fondo\"",
+ "העוזר האישי שלך (24/7)": "Tu asistente personal (24/7)",
+ "הסוכן מטפל בהכל: שאלות, רעיונות לתוכן, תזמון והדרכה — בלי להמתין לאף אחד.": "El agente se encarga de todo: preguntas, ideas de contenido, programación y guía, sin esperar a nadie.",
+ "דיווח על תקלה / בעיה טכנית": "Reportar un fallo / problema técnico",
+ "רק לתקלה אמיתית שהעוזר לא פתר. את כל השאר העוזר מטפל בעצמו.": "Solo para un fallo real que el asistente no resolvió. El asistente se encarga de todo lo demás.",
+ "תקלה במערכת": "Fallo del sistema",
+ "בעיית תשלום": "Problema de pago",
+ "בעיית חיבור לפייסבוק / אינסטגרם": "Problema de conexión con Facebook / Instagram",
+ "שליחת דיווח": "Enviar reporte",
+ "הדיווח נשלח ✓": "Reporte enviado ✓",
+ "הדיווחים שלי": "Mis reportes",
+ "העוזר": "Asistente",
+ "תקלות פתוחות (Backoffice)": "Fallos abiertos (Backoffice)"
 }
