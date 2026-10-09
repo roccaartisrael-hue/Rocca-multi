@@ -928,6 +928,11 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
   let startY = null;
   sheet.addEventListener("touchstart", (e) => { startY = e.touches[0].clientY; }, { passive: true });
   sheet.addEventListener("touchend", (e) => { if (startY !== null && e.changedTouches[0].clientY - startY > 70 && sheet.scrollTop <= 0) closeSheet(); startY = null; }, { passive: true });
+  // hide the floating bar while typing (iOS keyboard pushes it mid-screen)
+  const pillEl = document.getElementById("pillNav");
+  const isField = (el) => el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+  document.addEventListener("focusin", (e) => { if (isField(e.target)) pillEl.style.display = "none"; });
+  document.addEventListener("focusout", () => setTimeout(() => { if (!isField(document.activeElement)) pillEl.style.display = ""; }, 100));
   window.syncPill("tab-home");
 })();
 

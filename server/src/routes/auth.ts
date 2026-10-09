@@ -105,7 +105,7 @@ function checkState(state: string): string | null {
 function page(res: Response, title: string, body: string) {
   res.status(200).send(`<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <body style="font-family:system-ui;background:#161412;color:#f3ead7;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">
-<div style="max-width:420px;padding:24px;text-align:center"><h2>${title}</h2><p>${body}</p><p><a style="color:#d4b56a" href="/">חזרה לאפליקציה</a></p></div></body></html>`);
+<div style="max-width:420px;padding:24px;text-align:center"><h2>${title}</h2><p>${body}</p><p><a style="color:#d4b56a" href="${process.env.APP_URL || "/"}">חזרה לאפליקציה</a></p></div></body></html>`);
 }
 
 async function graph(path: string, params: Record<string, string>): Promise<any> {
