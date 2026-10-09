@@ -120,3 +120,23 @@ export function storageStatus() {
     lastError,
   };
 }
+
+/** True when images can be kept in Postgres (DATABASE_URL set). */
+export const blobsAvailable = (): boolean => !!pool;
+
+/** Stores a small binary file (a photo) in Postgres; returns its id. */
+export async function saveBlob(id: string, contentType: string, data: Buffer): Promise<void> {
+  if (!pool) throw new Error("no database");
+  await pool.query("CREATE TABLE IF NOT EXISTS media (id text PRIMARY KEY, content_type text NOT NULL, data bytea NOT NULL, created_at timestamptz NOT NULL DEFAULT now())");
+  await pool.query("INSERT INTO media (id, content_type, data) VALUES ($1, $2, $3)", [id, contentType, data]);
+}
+
+export async function loadBlob(id: string): Promise<{ contentType: string; data: Buffer } | null> {
+  if (!pool) return null;
+  try {
+    const { rows } = await pool.query("SELECT content_type, data FROM media WHERE id = $1", [id]);
+    return rows[0] ? { contentType: rows[0].content_type, data: rows[0].data } : null;
+  } catch {
+    return null;
+  }
+}
