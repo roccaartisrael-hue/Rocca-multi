@@ -471,6 +471,15 @@
         <select id="planWeeks"><option value="1">שבוע</option><option value="2" selected>שבועיים</option><option value="4">חודש</option></select>
         <label for="planPer">כמה פוסטים?</label>
         <select id="planPer"><option value="3" selected>3 בשבוע</option><option value="7">פוסט ביום</option><option value="14">2 ביום</option><option value="21">3 ביום</option></select>
+        <label>איך לתזמן?</label>
+        <select id="planMode"><option value="auto" selected>אוטומטי — ה-AI בוחר את הימים והשעות הכי טובים</option><option value="manual">ידני — אני בוחר ימים ושעות</option></select>
+        <div id="planManual" class="hidden">
+          <label>באילו ימים?</label>
+          <div class="platforms" id="planDays"></div>
+          <label for="planTimes">באילו שעות? (עד 3, מופרדות בפסיק)</label>
+          <input type="text" id="planTimes" value="19:00" placeholder="19:00, 09:30" dir="ltr" />
+          <p class="muted-small">מספר הפוסטים נקבע לפי הבחירה שלכם (ימים × שעות).</p>
+        </div>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="planAggr" style="width:auto" /> מצב תקיפה אגרסיבי (מסרים חדים, בדיקות A/B)</label>
         <label>איפה לפרסם?</label>
         <div class="platforms" id="planPlatforms"></div>
@@ -1237,6 +1246,23 @@ function renderPlanChips() {
 }
 renderPlanChips();
 
+const planDays = new Set();
+function renderPlanDays() {
+  const wrap = document.getElementById("planDays");
+  wrap.innerHTML = "";
+  ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "שבת"].forEach((label, i) => {
+    const chip = el(`<div class="chip ${planDays.has(i) ? "active" : ""}">${label}</div>`);
+    chip.addEventListener("click", () => { planDays.has(i) ? planDays.delete(i) : planDays.add(i); renderPlanDays(); });
+    wrap.appendChild(chip);
+  });
+}
+renderPlanDays();
+document.getElementById("planMode").addEventListener("change", (e) => {
+  const manual = e.target.value === "manual";
+  document.getElementById("planManual").classList.toggle("hidden", !manual);
+  document.getElementById("planPer").disabled = manual;
+});
+
 async function loadTier() {
   try {
     const u = await api("/api/usage");
@@ -1249,6 +1275,9 @@ async function loadTier() {
     const per = document.getElementById("planPer");
     [...per.options].forEach((o) => { o.disabled = Number(o.value) > t.maxPostsPerWeek; });
     if (per.selectedOptions[0].disabled) per.value = "3";
+    const modeSel = document.getElementById("planMode");
+    modeSel.options[1].disabled = !t.exactTime;
+    if (!t.exactTime) modeSel.options[1].textContent = "ידני — בחירת ימים ושעות (זמין מפרימיום ומעלה)";
     document.getElementById("planAggr").disabled = !t.adAdvice;
     document.getElementById("planBudget").disabled = !t.adAdvice;
     if (!t.adAdvice) document.getElementById("planBudget").placeholder = "זמין במסלול פרימיום ומעלה";
@@ -1270,6 +1299,9 @@ document.getElementById("planBtn").addEventListener("click", async () => {
         goal: document.getElementById("planGoal").value,
         weeks: Number(document.getElementById("planWeeks").value),
         postsPerWeek: Number(document.getElementById("planPer").value),
+        ...(document.getElementById("planMode").value === "manual"
+          ? { days: [...planDays], times: document.getElementById("planTimes").value.split(/[,\s]+/).map((x) => x.trim()).filter(Boolean).map((x) => x.replace(/^(\d):/, "0$1:")) }
+          : {}),
         platforms: [...planSelected],
         weeklyBudget: Number(document.getElementById("planBudget").value) || 0,
         aggressive: document.getElementById("planAggr").checked,
