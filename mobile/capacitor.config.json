@@ -1,0 +1,16 @@
+{
+  "appId": "co.il.boolai.app",
+  "appName": "BOOL AI",
+  "webDir": "www",
+  "server": {
+    "url": "https://app.boolai.co.il",
+    "cleartext": false,
+    "allowNavigation": ["app.boolai.co.il", "boolai.co.il", "www.facebook.com", "m.facebook.com", "facebook.com"]
+  },
+  "android": { "backgroundColor": "#0a0e2e" },
+  "ios": { "backgroundColor": "#0a0e2e", "contentInset": "always" },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 800, "backgroundColor": "#0a0e2e", "showSpinner": false },
+    "StatusBar": { "style": "DARK", "backgroundColor": "#0a0e2e" }
+  }
+}

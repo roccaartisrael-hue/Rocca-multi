@@ -1,0 +1,26 @@
+{
+  "name": "bool-ai-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BOOL AI store app (Capacitor wrapper around app.boolai.co.il)",
+  "scripts": {
+    "add:android": "npx cap add android",
+    "add:ios": "npx cap add ios",
+    "assets": "npx @capacitor/assets generate --iconBackgroundColor '#0a0e2e' --splashBackgroundColor '#0a0e2e'",
+    "sync": "npx cap sync",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/ios": "^6.1.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.1.0"
+  }
+}
