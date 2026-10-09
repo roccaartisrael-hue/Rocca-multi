@@ -12,8 +12,12 @@ import { verifyLemonSignature, parseLemonEvent } from "../lib/mor";
 import { addStats, listStats, listInsightLogs, runWeeklyAllocation, AD_CHANNELS } from "../lib/adBudget";
 import { getSite, saveSite, addArticle, claimDomain, validDomain, renderSiteHtml, renderArticleHtml } from "../lib/sites";
 import { listTickets, openTicket, replyTicket } from "../lib/support";
-import { generateSeoArticle, answerSupport, answerAssistant } from "../lib/claude";
-import { listReminders, addReminder, deleteReminder } from "../lib/reminders";
+import { generateSeoArticle, answerSupport, answerAssistant, AssistantAction } from "../lib/claude";
+import { listReminders, deleteReminder } from "../lib/reminders";
+import { getAssistant, saveWhatsApp, validTz, createPairingCode, unbindPhone } from "../lib/assistantSettings";
+import { assistantContext, executeAssistantAction } from "../lib/assistantOps";
+import { waConfigured, waDisplayNumber, maskPhone, parseInbound, validWaSignature, verifyWaChallenge } from "../lib/whatsapp";
+import { handleWhatsAppInbound } from "../lib/assistantWhatsApp";
 import { getProfile } from "../lib/profile";
 import { creditsLeft, requireFeature } from "../lib/checkCredits";
 import { rateLimited } from "../lib/ratelimit";
@@ -32,6 +36,22 @@ const businessNameOf = (): string => (isDefaultTenant() ? getProfile()?.business
 
 // ================= public (no login) =================
 export const publicPlatform = Router();
+
+publicPlatform.get("/webhooks/whatsapp", (req, res) => {
+  const c = verifyWaChallenge(req.query["hub.mode"] as string, req.query["hub.verify_token"] as string, req.query["hub.challenge"] as string);
+  c ? res.status(200).send(c) : res.sendStatus(403);
+});
+publicPlatform.post("/webhooks/whatsapp", async (req, res) => {
+  if (!validWaSignature(req)) return res.sendStatus(403);
+  res.sendStatus(200); // ack fast; Meta retries on slow responses
+  for (const m of parseInbound(req.body)) {
+    try {
+      await handleWhatsAppInbound(m);
+    } catch (e) {
+      console.error("WhatsApp inbound error:", e);
+    }
+  }
+});
 
 publicPlatform.get("/api/billing/catalog", (_req, res) => {
   res.json({ vatNote: process.env.PRICES_VAT_NOTE || DEFAULT_VAT_NOTE, vatRate: vatRate(), priceDisplay: priceDisplay(), items: CATALOG.map((i) => ({ ...i, ...vatBreakdown(i.priceIls) })) });
@@ -303,21 +323,15 @@ platformRouter.post("/api/support/chat", async (req, res) => {
 });
 
 // ---- personal executive assistant ----
-const todayIL = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
-
-function assistantContext(): string {
-  const p = getProfile();
-  const posts = store.listPosts();
-  const upcoming = posts.filter((x) => x.status === "scheduled" && x.scheduledFor).sort((a, b) => String(a.scheduledFor).localeCompare(String(b.scheduledFor))).slice(0, 6);
-  const rem = listReminders().filter((r) => r.date >= todayIL()).slice(0, 8);
-  return [
-    `תאריך היום: ${todayIL()} (ישראל)`,
-    p ? `העסק: ${p.businessName} · מוכר: ${p.whatYouSell} · קהל: ${p.audience} · מיקום: ${p.location} · טון: ${p.tone}${p.neverSay ? ` · לא להגיד: ${p.neverSay}` : ""}` : "פרופיל העסק עדיין לא מולא — עודד למלא בלשונית הגדרות.",
-    `פוסטים מתוזמנים קרובים: ${upcoming.length ? upcoming.map((x) => `${String(x.scheduledFor).slice(0, 10)} ${x.topic}`).join("; ") : "אין"}`,
-    `טיוטות פתוחות: ${posts.filter((x) => x.status === "draft").length}`,
-    `תזכורות קרובות: ${rem.length ? rem.map((r) => `${r.date} ${r.text}`).join("; ") : "אין"}`,
-  ].join("\n");
-}
+const tzOf = (req: Request): string => {
+  const ws = getAssistant().whatsapp;
+  const sent = req.body?.tz;
+  if (validTz(sent)) {
+    if (ws.tz === "UTC" || ws.tz !== sent) saveWhatsApp({ tz: sent }); // remember the business's own time zone
+    return sent;
+  }
+  return ws.tz;
+};
 
 platformRouter.post("/api/assistant/chat", async (req, res) => {
   if (rateLimited(`assistant|${currentTenantId()}`, 40, 60 * 60 * 1000)) return res.status(429).json({ error: "הגעתם למגבלת ההודעות לשעה, נסו שוב מאוחר יותר." });
@@ -325,27 +339,68 @@ platformRouter.post("/api/assistant/chat", async (req, res) => {
     const q = String(req.body?.message || "").trim();
     if (!q) return res.status(400).json({ error: "כתבו הודעה" });
     const history = Array.isArray(req.body?.history) ? req.body.history.filter((h: any) => h && (h.role === "user" || h.role === "assistant")).map((h: any) => ({ role: h.role, text: String(h.text || "") })) : [];
-    res.json(await answerAssistant(q, history, assistantContext()));
+    res.json(await answerAssistant(q, history, assistantContext(tzOf(req))));
   } catch (e) {
     err(res, e);
   }
 });
 
-// The owner approved an action the assistant proposed. Drafts only — nothing is published or scheduled here.
+// The owner approved an action the assistant proposed (button). Drafts/reminders/scheduling within the plan's limits.
 platformRouter.post("/api/assistant/action", (req, res) => {
   const a = req.body || {};
-  if (a.type === "reminder" && /^\d{4}-\d{2}-\d{2}$/.test(String(a.date)) && String(a.text || "").trim()) {
-    return res.json({ ok: true, reminder: addReminder(a.date, String(a.text)) });
-  }
-  if (a.type !== "draft_post" || !String(a.text || "").trim()) return res.status(400).json({ error: "פעולה לא נתמכת" });
-  const platforms = (["facebook", "instagram"] as Platform[]).filter((p) => allowedPlatforms(ALL_PLATFORMS).includes(p));
-  if (!platforms.length) return res.status(400).json({ error: "אין פלטפורמה זמינה" });
-  const text = String(a.text).slice(0, 2200);
-  const post = store.createPost(String(a.topic || "פוסט").slice(0, 120), platforms.map((p) => ({ platform: p, text, status: "pending" as const })));
-  res.json({ ok: true, id: post.id });
+  const tz = tzOf(req);
+  let action: AssistantAction | undefined;
+  if (a.type === "reminder" && /^\d{4}-\d{2}-\d{2}$/.test(String(a.date)) && String(a.text || "").trim()) action = { type: "reminder", date: a.date, text: String(a.text) };
+  else if (a.type === "draft_post" && String(a.text || "").trim()) action = { type: "draft_post", topic: String(a.topic || "פוסט"), text: String(a.text) };
+  else if (a.type === "schedule_post" && typeof a.postId === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(String(a.when))) action = { type: "schedule_post", postId: a.postId, when: a.when };
+  if (!action) return res.status(400).json({ error: "פעולה לא נתמכת" });
+  const r = executeAssistantAction(action, tz);
+  r.ok ? res.json(r) : res.status(400).json({ error: r.message });
 });
 platformRouter.get("/api/assistant/reminders", (_req, res) => res.json(listReminders()));
 platformRouter.delete("/api/assistant/reminders/:id", (req, res) => (deleteReminder(req.params.id) ? res.json({ ok: true }) : res.status(404).json({ error: "לא נמצא" })));
+
+// ---- WhatsApp connection (customer side) ----
+const LANGS = ["he", "en", "es", "fr"];
+const waStatus = () => {
+  const ws = getAssistant().whatsapp;
+  return {
+    tierAllowed: getTier().whatsappAssistant,
+    configured: waConfigured() && !!waDisplayNumber(),
+    enabled: ws.optIn && !!ws.phone,
+    phone: ws.phone ? maskPhone(ws.phone) : "",
+    briefHour: ws.briefHour,
+    lang: ws.lang,
+    calendars: ws.calendars,
+    tz: ws.tz,
+  };
+};
+const waPatch = (b: any) => {
+  const patch: Record<string, unknown> = {};
+  if (Number.isInteger(b?.briefHour) && b.briefHour >= 0 && b.briefHour <= 23) patch.briefHour = b.briefHour;
+  if (LANGS.includes(b?.lang)) patch.lang = b.lang;
+  if (validTz(b?.tz)) patch.tz = b.tz;
+  if (Array.isArray(b?.calendars)) patch.calendars = b.calendars.filter((c: unknown) => c === "global" || c === "il");
+  return patch;
+};
+platformRouter.get("/api/assistant/whatsapp", (_req, res) => res.json(waStatus()));
+platformRouter.post("/api/assistant/whatsapp/pair", (req, res) => {
+  if (!getTier().whatsappAssistant) return res.status(403).json({ error: "חיבור וואטסאפ זמין מפרימיום ומעלה" });
+  if (!waConfigured() || !waDisplayNumber()) return res.status(503).json({ error: "חיבור הוואטסאפ עדיין לא פעיל" });
+  if (req.body?.consent !== true) return res.status(400).json({ error: "יש לאשר קבלת הודעות" });
+  saveWhatsApp({ ...waPatch(req.body), consentAt: new Date().toISOString(), optIn: false });
+  const code = createPairingCode();
+  res.json({ code, link: `https://wa.me/${waDisplayNumber()}?text=${encodeURIComponent("BOOL " + code)}` });
+});
+platformRouter.put("/api/assistant/whatsapp", (req, res) => {
+  saveWhatsApp(waPatch(req.body));
+  res.json(waStatus());
+});
+platformRouter.post("/api/assistant/whatsapp/disable", (_req, res) => {
+  saveWhatsApp({ optIn: false, phone: undefined });
+  unbindPhone(currentTenantId());
+  res.json(waStatus());
+});
 
 // ---- reports ----
 platformRouter.get("/api/reports/summary", (_req, res) => {

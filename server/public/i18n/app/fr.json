@@ -479,5 +479,22 @@
  "סגירה": "Fermer",
  "דברו איתי על העסק — רעיון, פוסט, תזכורת…": "Parlez-moi de votre activité : une idée, une publication, un rappel…",
  "היי! אני האסיסטנט האישי של העסק שלך. אפשר לבקש ממני רעיון לפוסט, לנסח מבצע, או להזכיר לך על מועד חשוב.": "Bonjour ! Je suis l'assistant personnel de votre entreprise. Demandez-moi une idée de publication, la rédaction d'une promo ou un rappel de date importante.",
- "הוסף תזכורת": "Ajouter un rappel"
+ "הוסף תזכורת": "Ajouter un rappel",
+ "📲 חיבור לוואטסאפ": "📲 Connecter WhatsApp",
+ "האסיסטנט בוואטסאפ זמין מפרימיום ומעלה.": "L'assistant WhatsApp est disponible à partir de Premium.",
+ "החיבור לוואטסאפ ייפתח בקרוב.": "La connexion WhatsApp arrive bientôt.",
+ "מחובר: ": "Connecté : ",
+ "שעת תדריך הבוקר:": "Heure du point du matin :",
+ "נתק וואטסאפ": "Déconnecter WhatsApp",
+ "האסיסטנט יפנה אליך בוואטסאפ עם תדריך בוקר, ואפשר לענות לו שם: לאשר פוסט, להזיז שעה או להוסיף תזכורת.": "L'assistant vous écrira sur WhatsApp avec un point du matin, et vous pouvez y répondre : valider une publication, décaler une heure ou ajouter un rappel.",
+ "באיזו שעה לשלוח את תדריך הבוקר?": "À quelle heure envoyer le point du matin ?",
+ "מועדי שיווק בינלאומיים (בלאק פריידיי, חגים ועוד)": "Dates marketing internationales (Black Friday, fêtes et plus)",
+ "חגי ישראל": "Fêtes israéliennes",
+ "אני מאשר/ת לקבל הודעות מהאסיסטנט בוואטסאפ, ואפשר להפסיק בכל רגע בכתיבת STOP.": "J'accepte de recevoir des messages de l'assistant sur WhatsApp et je peux arrêter à tout moment en écrivant STOP.",
+ "חבר לוואטסאפ": "Connecter à WhatsApp",
+ "יש לאשר קבלת הודעות": "Veuillez accepter de recevoir des messages",
+ "לחצו כדי לפתוח וואטסאפ ולשלוח את ההודעה המוכנה (זה מאמת שהמספר שלכם):": "Appuyez pour ouvrir WhatsApp et envoyer le message prêt (cela vérifie votre numéro) :",
+ "פתח וואטסאפ": "Ouvrir WhatsApp",
+ "ממתין לחיבור…": "En attente de connexion…",
+ "מחובר ✓": "Connecté ✓"
 }

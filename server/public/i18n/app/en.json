@@ -479,5 +479,22 @@
  "סגירה": "Close",
  "דברו איתי על העסק — רעיון, פוסט, תזכורת…": "Talk to me about your business — an idea, a post, a reminder…",
  "היי! אני האסיסטנט האישי של העסק שלך. אפשר לבקש ממני רעיון לפוסט, לנסח מבצע, או להזכיר לך על מועד חשוב.": "Hi! I'm your business's personal assistant. Ask me for a post idea, to word a promotion, or to remind you of an important date.",
- "הוסף תזכורת": "Add reminder"
+ "הוסף תזכורת": "Add reminder",
+ "📲 חיבור לוואטסאפ": "📲 Connect WhatsApp",
+ "האסיסטנט בוואטסאפ זמין מפרימיום ומעלה.": "The WhatsApp assistant is available from Premium and above.",
+ "החיבור לוואטסאפ ייפתח בקרוב.": "WhatsApp connection is coming soon.",
+ "מחובר: ": "Connected: ",
+ "שעת תדריך הבוקר:": "Morning brief time:",
+ "נתק וואטסאפ": "Disconnect WhatsApp",
+ "האסיסטנט יפנה אליך בוואטסאפ עם תדריך בוקר, ואפשר לענות לו שם: לאשר פוסט, להזיז שעה או להוסיף תזכורת.": "The assistant will message you on WhatsApp with a morning brief, and you can reply there: approve a post, move a time or add a reminder.",
+ "באיזו שעה לשלוח את תדריך הבוקר?": "At what time should I send the morning brief?",
+ "מועדי שיווק בינלאומיים (בלאק פריידיי, חגים ועוד)": "International marketing dates (Black Friday, holidays and more)",
+ "חגי ישראל": "Israeli holidays",
+ "אני מאשר/ת לקבל הודעות מהאסיסטנט בוואטסאפ, ואפשר להפסיק בכל רגע בכתיבת STOP.": "I agree to receive messages from the assistant on WhatsApp, and can stop any time by writing STOP.",
+ "חבר לוואטסאפ": "Connect to WhatsApp",
+ "יש לאשר קבלת הודעות": "Please accept receiving messages",
+ "לחצו כדי לפתוח וואטסאפ ולשלוח את ההודעה המוכנה (זה מאמת שהמספר שלכם):": "Tap to open WhatsApp and send the prepared message (this verifies your number):",
+ "פתח וואטסאפ": "Open WhatsApp",
+ "ממתין לחיבור…": "Waiting for connection…",
+ "מחובר ✓": "Connected ✓"
 }

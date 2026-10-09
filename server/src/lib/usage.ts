@@ -133,3 +133,14 @@ export function recordUsage(usage?: { input_tokens?: number; output_tokens?: num
   all[month] = cur;
   write(all);
 }
+
+/** Adds an external per-message cost (e.g. a WhatsApp template) to this month's spend without counting an AI call. */
+export function recordCost(usd: number): void {
+  const all = read();
+  const month = monthKey();
+  const cur = all[month] || { calls: 0, inputTokens: 0, outputTokens: 0 };
+  const before = cur.costUsd ?? tokenCostUsd(cur);
+  cur.costUsd = before + Math.max(0, usd);
+  all[month] = cur;
+  write(all);
+}

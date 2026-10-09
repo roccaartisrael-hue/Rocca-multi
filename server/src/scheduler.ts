@@ -11,6 +11,7 @@ import { runAutopilot } from "./lib/autopilot";
 import { runWeeklyAllocation } from "./lib/adBudget";
 import { getSettings } from "./lib/settings";
 import { getTier } from "./lib/plans";
+import { sendBriefIfDue } from "./lib/assistantWhatsApp";
 
 const INSIGHTS_MAX_AGE_DAYS = 14;
 
@@ -95,7 +96,15 @@ async function runAdAllocations() {
   });
 }
 
+/** Morning brief on WhatsApp for every business that connected it (each in its own time zone). */
+async function runWhatsAppBriefs() {
+  await forEachTenant(async () => {
+    await sendBriefIfDue();
+  });
+}
+
 export function startScheduler() {
+  cron.schedule("*/10 * * * *", () => runWhatsAppBriefs().catch((err) => console.error("WhatsApp brief error:", err)));
   cron.schedule("11 6 * * *", () => runAutopilots().catch((err) => console.error("Autopilot error:", err)));
   cron.schedule("31 5 * * 1", () => runAdAllocations().catch((err) => console.error("Ad allocation error:", err)));
   cron.schedule("41 3 * * *", () => {
