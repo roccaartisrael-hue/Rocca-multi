@@ -319,6 +319,7 @@
       </div>
     </div>
     <p class="auth-foot">חיבור מוצפן · הגישה למורשים בלבד</p>
+    <p style="text-align:center;margin-top:10px"><select id="langSelAuth" aria-label="Language" style="background:transparent;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:6px 10px;font:inherit;font-size:13px"><option value="he">עברית</option><option value="en">English</option><option value="es">Español</option><option value="fr">Français</option></select></p>
   </div>
 </div>
 
@@ -334,6 +335,7 @@
     <div class="hdr-end">
       <div id="trialBanner" class="hidden"></div>
       <div class="platforms" id="modelChips"></div>
+      <select id="langSel" aria-label="Language" title="Language" style="background:var(--panel2,#18181b);color:inherit;border:1px solid var(--border,#27272a);border-radius:10px;padding:6px 8px;font:inherit;font-size:13px;margin-inline-end:8px"><option value="he">עברית</option><option value="en">English</option><option value="es">Español</option><option value="fr">Français</option></select>
       <span class="live" id="liveStatus" title="סטטוס חיבור לשירות"><i></i><span id="liveText">השירות פעיל</span></span>
     </div>
   </header>
@@ -1312,7 +1314,7 @@ document.getElementById("reviewBtn").addEventListener("click", async () => {
 });
 
 function renderPlan(plan, box) {
-  const dateOf = (d) => new Date(Date.now() + d * 86400000).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "numeric" });
+  const dateOf = (d) => new Date(Date.now() + d * 86400000).toLocaleDateString((window.I18N_LOC || "he-IL"), { weekday: "long", day: "numeric", month: "numeric" });
   const head = el(`<div class="card"><h2>התוכנית שלכם</h2>
     <p>${esc(plan.summary)}</p>
     <p class="muted-small"><b>קהל יעד:</b> ${esc(plan.audience)}</p>
@@ -1511,7 +1513,7 @@ function renderDraft(post, container = document.getElementById("draftContainer")
       post.status = updated.status;
       post.scheduledFor = updated.scheduledFor;
       updatePostHeaderStatus(card, post);
-      toast(`תוזמן אוטומטית ל-${new Date(updated.scheduledFor).toLocaleString("he-IL", { weekday: "long", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+      toast(`תוזמן אוטומטית ל-${new Date(updated.scheduledFor).toLocaleString((window.I18N_LOC || "he-IL"), { weekday: "long", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}`);
       scheduleRow.classList.add("hidden");
     } catch (err) {
       toast(err.message);
@@ -1602,7 +1604,7 @@ function setupSchedulePicker(row) {
   }
   for (let i = 0; i <= Math.min(t.horizonDays, 30); i++) {
     const d = new Date(Date.now() + i * 86400000);
-    const label = i === 0 ? "היום" : i === 1 ? "מחר" : d.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" });
+    const label = i === 0 ? "היום" : i === 1 ? "מחר" : d.toLocaleDateString((window.I18N_LOC || "he-IL"), { weekday: "short", day: "numeric", month: "numeric" });
     const chip = el(`<div class="chip" data-d="${dayKey(d)}">${label}</div>`);
     chip.addEventListener("click", () => { day = chip.dataset.d; sync(); });
     dayBox.appendChild(chip);
@@ -1637,7 +1639,7 @@ function updatePostHeaderStatus(card, post) {
       badge = el(`<p class="muted-small scheduleBadge"></p>`);
       card.querySelector("h2").after(badge);
     }
-    badge.textContent = `⏰ מתוזמן ל-${new Date(post.scheduledFor).toLocaleString("he-IL")}`;
+    badge.textContent = `⏰ מתוזמן ל-${new Date(post.scheduledFor).toLocaleString((window.I18N_LOC || "he-IL"))}`;
   } else if (badge) {
     badge.remove();
   }
@@ -1885,7 +1887,7 @@ function showUpgrade(msg) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 7000);
 }
-const nf = (n) => Number(n || 0).toLocaleString("he-IL");
+const nf = (n) => Number(n || 0).toLocaleString((window.I18N_LOC || "he-IL"));
 const dayLabel = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
 
 // ---- multiple images (carousel) ----
@@ -1927,11 +1929,11 @@ async function loadHome() {
       body += `<p style="margin:0"><b style="font-size:28px;color:var(--accent)">${bill.credits}</b> <span class="muted-small">${bill.kind === "free" ? "פעולות במתנה נשארו" : "קרדיטים נשארו"}</span></p><div class="meter"><i style="width:${Math.min(100, (bill.credits / total) * 100)}%"></i></div>`;
       if (bill.kind === "free") body += `<div class="upgrade-banner">רוצים טייס אוטומטי, יותר פוסטים ואתר? <a href="#" id="homeUp" style="color:var(--accent)">לחבילות ←</a></div>`;
     } else body += `<p class="muted-small" style="margin:0">ללא הגבלת קרדיטים — מוגבל רק בשימוש הוגן חודשי.</p>`;
-    if (bill.expiresAt) body += `<p class="muted-small">המנוי פעיל עד ${new Date(bill.expiresAt).toLocaleDateString("he-IL")}</p>`;
+    if (bill.expiresAt) body += `<p class="muted-small">המנוי פעיל עד ${new Date(bill.expiresAt).toLocaleDateString((window.I18N_LOC || "he-IL"))}</p>`;
     card.innerHTML = body;
     const up = $("homeUp"); if (up) up.addEventListener("click", (e) => { e.preventDefault(); document.querySelector('nav.tabs button[data-tab="tab-plans"]').click(); });
     $("autopilotToggle").checked = ap.enabled;
-    $("autopilotNote").textContent = ap.available ? (ap.lastRun ? "הריצה האחרונה: " + new Date(ap.lastRun).toLocaleDateString("he-IL") : "עדיין לא רץ.") : "זמין בחבילות בתשלום.";
+    $("autopilotNote").textContent = ap.available ? (ap.lastRun ? "הריצה האחרונה: " + new Date(ap.lastRun).toLocaleDateString((window.I18N_LOC || "he-IL")) : "עדיין לא רץ.") : "זמין בחבילות בתשלום.";
     renderApprovals(ap.waiting);
   } catch (e) { $("planCard").innerHTML = `<p class="empty">${escapeHtml(e.message)}</p>`; }
 }
@@ -1946,7 +1948,7 @@ function renderApprovals(list) {
   list.forEach((p) => {
     const first = p.platforms[0] || {};
     const needsImg = p.platforms.some((c) => (c.platform === "instagram" || c.platform === "tiktok") && !c.imageUrl);
-    const card = el(`<div class="post-block"><b>${escapeHtml(p.topic)}</b><p class="muted-small" style="margin:2px 0">${p.platforms.map((c) => PLATFORM_LABELS[c.platform] || c.platform).join(" · ")}${p.scheduledFor ? " · מוצע ל-" + new Date(p.scheduledFor).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }) : ""}</p><p style="font-size:14px;white-space:pre-wrap">${escapeHtml((first.text || "").slice(0, 260))}</p>${needsImg ? `<p class="muted-small" style="color:var(--err)">חסרה תמונה לאינסטגרם</p><button class="secondary imgBtn">הוספת תמונה</button><input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" />` : ""}<div class="row-actions"><button class="okBtn">✓ אשר ותזמן</button><button class="danger delBtn">מחק</button></div></div>`);
+    const card = el(`<div class="post-block"><b>${escapeHtml(p.topic)}</b><p class="muted-small" style="margin:2px 0">${p.platforms.map((c) => PLATFORM_LABELS[c.platform] || c.platform).join(" · ")}${p.scheduledFor ? " · מוצע ל-" + new Date(p.scheduledFor).toLocaleString((window.I18N_LOC || "he-IL"), { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" }) : ""}</p><p style="font-size:14px;white-space:pre-wrap">${escapeHtml((first.text || "").slice(0, 260))}</p>${needsImg ? `<p class="muted-small" style="color:var(--err)">חסרה תמונה לאינסטגרם</p><button class="secondary imgBtn">הוספת תמונה</button><input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" />` : ""}<div class="row-actions"><button class="okBtn">✓ אשר ותזמן</button><button class="danger delBtn">מחק</button></div></div>`);
     const fi = card.querySelector('input[type=file]');
     if (fi) {
       card.querySelector(".imgBtn").addEventListener("click", () => fi.click());
@@ -1979,7 +1981,7 @@ async function loadLeads() {
     d.leads.forEach((l) => {
       const tel = (l.phone || "").replace(/[^\d+]/g, "");
       const wa = tel.replace(/^\+/, "").replace(/^0/, "972");
-      const row = el(`<div class="lead-row"><b>${escapeHtml(l.fullName || "ללא שם")}</b> <span class="status ${l.status === "new" ? "pending" : "sent"}">${labels[l.status] || l.status}</span><p class="muted-small" style="margin:2px 0">${escapeHtml(l.phone)} ${escapeHtml(l.email)} · ${escapeHtml(l.source)} · ${new Date(l.createdAt).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}</p>${l.notes ? `<p style="font-size:14px;margin:2px 0">${escapeHtml(l.notes)}</p>` : ""}<div class="row-actions">${l.phone ? `<a href="tel:${escapeHtml(tel)}"><button>חיוג</button></a><a href="https://wa.me/${escapeHtml(wa)}" target="_blank" rel="noopener"><button class="secondary">וואטסאפ</button></a>` : ""}<select class="stSel">${Object.entries(labels).map(([k, v]) => `<option value="${k}" ${k === l.status ? "selected" : ""}>${v}</option>`).join("")}</select></div></div>`);
+      const row = el(`<div class="lead-row"><b>${escapeHtml(l.fullName || "ללא שם")}</b> <span class="status ${l.status === "new" ? "pending" : "sent"}">${labels[l.status] || l.status}</span><p class="muted-small" style="margin:2px 0">${escapeHtml(l.phone)} ${escapeHtml(l.email)} · ${escapeHtml(l.source)} · ${new Date(l.createdAt).toLocaleString((window.I18N_LOC || "he-IL"), { dateStyle: "short", timeStyle: "short" })}</p>${l.notes ? `<p style="font-size:14px;margin:2px 0">${escapeHtml(l.notes)}</p>` : ""}<div class="row-actions">${l.phone ? `<a href="tel:${escapeHtml(tel)}"><button>חיוג</button></a><a href="https://wa.me/${escapeHtml(wa)}" target="_blank" rel="noopener"><button class="secondary">וואטסאפ</button></a>` : ""}<select class="stSel">${Object.entries(labels).map(([k, v]) => `<option value="${k}" ${k === l.status ? "selected" : ""}>${v}</option>`).join("")}</select></div></div>`);
       row.querySelector(".stSel").addEventListener("change", async (e) => { await api(`/api/leads/${l.id}/status`, { method: "POST", body: JSON.stringify({ status: e.target.value }) }); loadLeads(); });
       box.appendChild(row);
     });
@@ -2014,7 +2016,7 @@ $("domainBtn").addEventListener("click", async () => {
 });
 
 // ---- plans & checkout ----
-const fmtIls = (n) => "₪" + (Number.isInteger(n) ? Number(n).toLocaleString("he-IL") : Number(n).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const fmtIls = (n) => "₪" + (Number.isInteger(n) ? Number(n).toLocaleString((window.I18N_LOC || "he-IL")) : Number(n).toLocaleString((window.I18N_LOC || "he-IL"), { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const isGross = (cat) => !cat || cat.priceDisplay !== "net";
 const vatDetail = (i, cat) => (isGross(cat) ? `(מתוכם ${Math.round(cat.vatRate * 100)}% מע״מ: <b>${fmtIls(i.vatIls)}</b>)` : `(<b style="color:var(--accent)">${fmtIls(i.grossIls)}</b> כולל מע״מ)`);
 const perLabel = (i) => (i.cycle === "weekly" ? "לשבוע" : i.cycle === "monthly" || i.cycle === "annual" ? "לחודש" : "");
@@ -2037,7 +2039,7 @@ async function loadPlans() {
     const oc = el(`<div class="card"><h2>ההזמנות שלי</h2></div>`);
     if (!orders.length) oc.appendChild(el(`<p class="empty">אין הזמנות עדיין.</p>`));
     const st = { paid: "שולם ✓", pending: "ממתין לתשלום", cancelled: "בוטל" };
-    orders.slice(0, 20).forEach((o) => oc.appendChild(el(`<div class="lead-row"><b>${escapeHtml(o.label)}</b> · ${fmtIls(o.grossIls)} כולל מע״מ <span class="status ${o.status === "paid" ? "sent" : "pending"}">${st[o.status] || o.status}</span><p class="muted-small" style="margin:2px 0">${new Date(o.createdAt).toLocaleDateString("he-IL")}${o.method === "manual" ? " · הופעל על ידי הצוות" : ""}</p></div>`)));
+    orders.slice(0, 20).forEach((o) => oc.appendChild(el(`<div class="lead-row"><b>${escapeHtml(o.label)}</b> · ${fmtIls(o.grossIls)} כולל מע״מ <span class="status ${o.status === "paid" ? "sent" : "pending"}">${st[o.status] || o.status}</span><p class="muted-small" style="margin:2px 0">${new Date(o.createdAt).toLocaleDateString((window.I18N_LOC || "he-IL"))}${o.method === "manual" ? " · הופעל על ידי הצוות" : ""}</p></div>`)));
     box.appendChild(oc);
   } catch (e) { $("plansStatus").innerHTML = `<p class="empty">${escapeHtml(e.message)}</p>`; }
 }
@@ -2183,6 +2185,132 @@ async function loadAds(budget) {
     $("adLog").innerHTML = log ? `<div class="upgrade-banner" style="margin-top:12px"><b>למה חילקנו ככה?</b><p style="margin:6px 0 0;font-size:14px">${escapeHtml(log.reasoning)}</p><p class="muted-small" style="margin:6px 0 0">ההמלצות מוצגות לאישורך ומבוצעות במנהל המודעות — המערכת לא מוציאה כסף בעצמה.</p></div>` : "";
   } catch (e) { $("adsBody").innerHTML = `<p class="empty">${escapeHtml(e.message)}</p>`; }
 }
+</script>
+<script>
+// ---- UI language (he / en / es / fr): runtime dictionary over the rendered DOM, RTL/LTR switch ----
+(function () {
+  var LANGS = ["he", "en", "es", "fr"], LOCS = { he: "he-IL", en: "en-US", es: "es-ES", fr: "fr-FR" };
+  var HEB = /[֐-׿]/, ATTRS = ["placeholder", "title", "aria-label", "alt"];
+  var dict = {}, exact = null, tpl = [], subs = [], lang = "he", busy = false, obs = null;
+  var origText = new WeakMap(), origAttr = new WeakMap();
+  var norm = function (t) { return String(t).replace(/\s+/g, " ").trim(); };
+  function esc(r) { return r.replace(/[.*+?^$()|[\]\\]/g, "\\$&"); }
+  function build(d) {
+    dict = d; exact = Object.create(null); tpl = []; subs = [];
+    Object.keys(d).forEach(function (k) {
+      if (/\{\d+\}/.test(k)) {
+        var re = new RegExp("^" + esc(k).replace(/\\?\{(\d+)\\?\}/g, "(.+?)") + "$");
+        tpl.push({ re: re, to: d[k], len: k.length });
+      } else {
+        exact[k] = d[k];
+        if (k.length >= 6) subs.push(k);
+      }
+    });
+    tpl.sort(function (a, b) { return b.len - a.len; });
+    subs.sort(function (a, b) { return b.length - a.length; });
+  }
+  function tr(raw) {
+    var k = norm(raw);
+    if (!k || !HEB.test(k)) return null;
+    if (exact[k] != null) return exact[k];
+    for (var i = 0; i < tpl.length; i++) {
+      var m = tpl[i].re.exec(k);
+      if (m) return tpl[i].to.replace(/\{(\d+)\}/g, function (_, n) { var v = m[+n + 1] || ""; return exact[norm(v)] != null ? exact[norm(v)] : v; });
+    }
+    var out = k, hit = false;
+    for (var j = 0; j < subs.length; j++) if (out.indexOf(subs[j]) > -1) { out = out.split(subs[j]).join(exact[subs[j]]); hit = true; }
+    return hit ? out : null;
+  }
+  function doText(n) {
+    var cur = n.nodeValue, o = origText.get(n);
+    if (o && cur === o.out) return;               // our own output
+    var t = tr(cur);
+    if (t == null) { if (o) origText.delete(n); return; }
+    var lead = (cur.match(/^\s*/) || [""])[0], trail = (cur.match(/\s*$/) || [""])[0];
+    var out = lead + t + trail;
+    origText.set(n, { src: cur, out: out });
+    n.nodeValue = out;
+  }
+  function doEl(e) {
+    ATTRS.forEach(function (a) {
+      if (!e.hasAttribute || !e.hasAttribute(a)) return;
+      var cur = e.getAttribute(a), rec = origAttr.get(e) || {};
+      if (rec[a] && rec[a].out === cur) return;
+      var t = tr(cur);
+      if (t == null) return;
+      rec[a] = { src: cur, out: t }; origAttr.set(e, rec); e.setAttribute(a, t);
+    });
+  }
+  function walk(root) {
+    if (!root) return;
+    if (root.nodeType === 3) { doText(root); return; }
+    if (root.nodeType !== 1) return;
+    var tag = root.tagName; if (tag === "SCRIPT" || tag === "STYLE") return;
+    doEl(root);
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, null), n;
+    while ((n = w.nextNode())) {
+      if (n.nodeType === 3) { if (n.parentNode && !/^(SCRIPT|STYLE)$/.test(n.parentNode.tagName)) doText(n); } else doEl(n);
+    }
+  }
+  function restoreAll() {
+    var w = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, null), n;
+    while ((n = w.nextNode())) {
+      if (n.nodeType === 3) { var o = origText.get(n); if (o && n.nodeValue === o.out) n.nodeValue = o.src; origText.delete(n); }
+      else { var r = origAttr.get(n); if (r) { Object.keys(r).forEach(function (a) { if (n.getAttribute(a) === r[a].out) n.setAttribute(a, r[a].src); }); origAttr.delete(n); } }
+    }
+  }
+  function watch() {
+    if (obs) obs.disconnect();
+    if (lang === "he") return;
+    obs = new MutationObserver(function (muts) {
+      if (busy) return; busy = true;
+      try {
+        muts.forEach(function (m) {
+          if (m.type === "childList") m.addedNodes.forEach(walk);
+          else if (m.type === "characterData") doText(m.target);
+          else if (m.type === "attributes") doEl(m.target);
+        });
+      } finally { busy = false; }
+    });
+    obs.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  }
+  function setDir(l) { var r = document.documentElement; r.lang = l; r.dir = l === "he" ? "rtl" : "ltr"; window.I18N_LOC = LOCS[l]; window.I18N_LANG = l; }
+  function apply(l) {
+    var go = function (d) {
+      busy = true;
+      try {
+        if (obs) obs.disconnect();
+        restoreAll();
+        lang = l; setDir(l);
+        if (l !== "he") { build(d); walk(document.body); }
+        document.title = document.title; // unchanged
+      } finally { busy = false; }
+      watch();
+      ["langSel", "langSelAuth"].forEach(function (id) { var x = document.getElementById(id); if (x) x.value = l; });
+      window.dispatchEvent(new Event("langchange"));
+    };
+    if (l === "he") return Promise.resolve(go({}));
+    return fetch("/i18n/app/" + l + ".json").then(function (r) { return r.json(); }).then(go);
+  }
+  // native dialogs
+  ["alert", "confirm", "prompt"].forEach(function (f) {
+    var orig = window[f];
+    window[f] = function (msg) { var a = Array.prototype.slice.call(arguments); if (lang !== "he" && exact) { var t = tr(msg); if (t != null) a[0] = t; } return orig.apply(window, a); };
+  });
+  function pick() {
+    try {
+      var q = new URLSearchParams(location.search).get("lang"); if (LANGS.indexOf(q) > -1) return q;
+      var s = localStorage.getItem("boolLang"); if (LANGS.indexOf(s) > -1) return s;
+    } catch (e) {}
+    var n = String(navigator.language || "he").slice(0, 2).toLowerCase();
+    return LANGS.indexOf(n) > -1 ? n : "en";
+  }
+  var sel = document.getElementById("langSel"), selA = document.getElementById("langSelAuth");
+  [sel, selA].forEach(function (x) { if (x) x.addEventListener("change", function () { try { localStorage.setItem("boolLang", x.value); } catch (e) {} apply(x.value).catch(function () {}); }); });
+  window.setUiLang = function (l) { try { localStorage.setItem("boolLang", l); } catch (e) {} return apply(l); };
+  var first = pick(); window.I18N_LOC = LOCS[first];
+  apply(first).catch(function () {});
+})();
 </script>
 </body>
 </html>
