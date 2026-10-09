@@ -162,8 +162,36 @@ auth.get("/auth/facebook/callback", async (req, res) => {
       access_token: long.access_token,
     });
     const pages: any[] = accounts.data || [];
+    const PAGE_FIELDS = "id,name,access_token,instagram_business_account{id,username}";
+    let granted = "";
     if (!pages.length) {
-      return page(res, "לא נמצא עמוד", "לא נמצא עמוד פייסבוק בחשבון הזה. ודאו שבחרתם את העמוד בעת האישור, ושאתם מנהלים שלו.");
+      // /me/accounts can come back empty for newer Pages even when the user granted them. Fall back to the
+      // page ids Facebook recorded in the token's granular scopes, and read each page directly.
+      try {
+        const dbg = await graph("/debug_token", {
+          input_token: long.access_token,
+          access_token: `${config.meta.appId}|${config.meta.appSecret}`,
+        });
+        const scopes: any[] = dbg.data?.granular_scopes || [];
+        granted = (dbg.data?.scopes || []).join(", ");
+        const ids = new Set<string>();
+        for (const g of scopes) for (const id of g.target_ids || []) ids.add(String(id));
+        for (const id of ids) {
+          try {
+            const pg = await graph(`/${id}`, { fields: PAGE_FIELDS, access_token: long.access_token });
+            if (pg.access_token) pages.push(pg);
+          } catch (e) {
+            console.error("page fallback failed", id, (e as Error).message);
+          }
+        }
+      } catch (e) {
+        console.error("debug_token failed", (e as Error).message);
+      }
+    }
+    if (!pages.length) {
+      console.error("no pages for connection; granted scopes:", granted);
+      const hint = granted ? `<br><small>הרשאות שאושרו: ${granted.replace(/[<>&]/g, "")}</small>` : "";
+      return page(res, "לא נמצא עמוד", `לא נמצא עמוד פייסבוק בחשבון הזה. ודאו שבחרתם את העמוד בעת האישור, ושאתם מנהלים שלו.${hint}`);
     }
     // Prefer a page that already has an Instagram account attached.
     const chosen = pages.find((p) => p.instagram_business_account) || pages[0];
