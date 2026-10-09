@@ -285,7 +285,7 @@
  "מתוזמן": "Programada",
  "מתי לפרסם?": "¿Cuándo publicar?",
  "נדרש שדרוג": "Se requiere actualizar el plan",
- "נוסף ✓": "Agregado ✓",
+ "נוסף ✓": "Añadido ✓",
  "נושא": "Tema",
  "נושא למאמר, למשל: איך בוחרים ספק נכון לעסק": "Tema del artículo, por ejemplo: cómo elegir bien un proveedor para tu negocio",
  "נושאים מרכזיים:": "Temas principales:",
@@ -474,5 +474,10 @@
  "שמור כטיוטה": "Guardar como borrador",
  "נשמר בטיוטות ✓": "Guardado en borradores ✓",
  " — אם זו תקלה טכנית, אפשר לדווח עליה למטה.": " — si es un fallo técnico, puedes reportarlo abajo.",
- "שאלו או בקשו כל דבר — למשל: כתוב לי פוסט על מבצע סוף שבוע": "Pregunta o pide lo que quieras, p. ej.: escríbeme una publicación sobre una oferta de fin de semana"
+ "שאלו או בקשו כל דבר — למשל: כתוב לי פוסט על מבצע סוף שבוע": "Pregunta o pide lo que quieras, p. ej.: escríbeme una publicación sobre una oferta de fin de semana",
+ "האסיסטנט האישי": "Asistente personal",
+ "סגירה": "Cerrar",
+ "דברו איתי על העסק — רעיון, פוסט, תזכורת…": "Háblame de tu negocio: una idea, una publicación, un recordatorio…",
+ "היי! אני האסיסטנט האישי של העסק שלך. אפשר לבקש ממני רעיון לפוסט, לנסח מבצע, או להזכיר לך על מועד חשוב.": "¡Hola! Soy el asistente personal de tu negocio. Pídeme una idea de publicación, redactar una promoción o recordarte una fecha importante.",
+ "הוסף תזכורת": "Añadir recordatorio"
 }

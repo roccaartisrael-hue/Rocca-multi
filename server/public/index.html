@@ -194,6 +194,26 @@
   .sheet-grid button:hover { background: var(--panel-3); color: var(--text); }
   .sheet-grid button.active { background: var(--accent-soft); border-color: rgba(99,102,241,.45); color: var(--accent-text); }
   @media (min-width: 900px) { nav.pill, .sheet, .sheet-bg { display: none !important; } }
+  /* floating personal assistant */
+  .asst-fab { position: fixed; z-index: 45; inset-inline-start: 16px; bottom: calc(104px + env(safe-area-inset-bottom)); width: 54px; height: 54px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: linear-gradient(145deg, #7c7ff7, #5558e8); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 10px 28px rgba(79,70,229,.45); padding: 0; }
+  .asst-fab .ic { width: 24px; height: 24px; stroke-width: 1.8; }
+  .asst-fab .dot { position: absolute; top: 6px; inset-inline-end: 6px; width: 10px; height: 10px; border-radius: 50%; background: #34d399; border: 2px solid #5558e8; }
+  .asst-bg { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .asst-bg.open { opacity: 1; pointer-events: auto; }
+  .asst-sheet { position: fixed; z-index: 61; inset-inline: 0; bottom: 0; height: 78vh; max-height: 78vh; display: flex; flex-direction: column; transform: translateY(105%); transition: transform .28s cubic-bezier(.32,.72,0,1); background: rgba(18,18,22,.98); border-top: 1px solid var(--border-strong); border-radius: 26px 26px 0 0; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -20px 60px rgba(0,0,0,.6); }
+  .asst-sheet.open { transform: translateY(0); }
+  .asst-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .asst-head h3 { margin: 0; font-size: 16px; }
+  .asst-head button { width: auto; padding: 6px 12px; }
+  .asst-rem { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .asst-rem span { font-size: 12px; padding: 4px 9px; border-radius: 999px; background: var(--accent-soft); border: 1px solid rgba(99,102,241,.3); color: var(--accent-text); }
+  .asst-rem span b { cursor: pointer; margin-inline-start: 6px; opacity: .7; }
+  .asst-log { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .asst-row { display: flex; gap: 8px; margin-top: 8px; }
+  .asst-row input { flex: 1; margin: 0; }
+  .asst-row button { width: auto; }
+  @media (min-width: 900px) { .asst-fab { bottom: 28px; } .asst-sheet { inset-inline: auto; inset-inline-start: 24px; bottom: 24px; width: 420px; height: 600px; border-radius: 20px; border: 1px solid var(--border-strong); } }
+
 
   /* KPIs, meters, switches */
   .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px; }
@@ -647,6 +667,14 @@
     <button data-go="tab-performance"><svg class="ic" aria-hidden="true"><use href="#i-reports"/></svg><span>ביצועים</span></button>
     <button id="pillMore" aria-haspopup="dialog"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg><span>עוד</span></button>
   </nav>
+  <button class="asst-fab" id="asstFab" aria-label="האסיסטנט האישי"><svg class="ic" aria-hidden="true"><use href="#i-biz"/></svg><span class="dot"></span></button>
+  <div class="asst-bg" id="asstBg"></div>
+  <div class="asst-sheet" id="asstSheet" role="dialog" aria-label="האסיסטנט האישי" aria-modal="true">
+    <div class="asst-head"><h3>האסיסטנט האישי</h3><button class="secondary" id="asstClose">סגירה</button></div>
+    <div class="asst-rem" id="asstRem"></div>
+    <div class="asst-log chat-log" id="asstLog"></div>
+    <div class="asst-row"><input type="text" id="asstInput" placeholder="דברו איתי על העסק — רעיון, פוסט, תזכורת…" /><button id="asstSend">שליחה</button></div>
+  </div>
   <div class="sheet-bg" id="sheetBg"></div>
   <div class="sheet" id="moreSheet" role="dialog" aria-label="עוד" aria-modal="true">
     <div class="grab"></div>
@@ -951,6 +979,59 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
 })();
 
 
+
+// ---- floating personal assistant (always reachable) ----
+(function () {
+  const fab = $("asstFab"), sheet = $("asstSheet"), bg = $("asstBg"), log = $("asstLog"), input = $("asstInput");
+  const history = [];
+  const add = (role, text) => { const b = el(`<div class="bubble ${role === "user" ? "me" : "ai"}"></div>`); b.textContent = text; log.appendChild(b); log.scrollTop = 1e9; return b; };
+  async function loadRem() {
+    try {
+      const list = (await api("/api/assistant/reminders")).slice(0, 5);
+      const box = $("asstRem"); box.innerHTML = "";
+      list.forEach((r) => {
+        const chip = el(`<span></span>`); chip.textContent = r.date.slice(5).split("-").reverse().join("/") + " · " + r.text;
+        const x = el(`<b aria-label="x">×</b>`);
+        x.addEventListener("click", async () => { try { await api("/api/assistant/reminders/" + r.id, { method: "DELETE" }); loadRem(); } catch (e) { toast(e.message); } });
+        chip.appendChild(x); box.appendChild(chip);
+      });
+    } catch {}
+  }
+  function open() {
+    bg.classList.add("open"); sheet.classList.add("open"); fab.style.display = "none";
+    if (!log.children.length) add("assistant", "היי! אני האסיסטנט האישי של העסק שלך. אפשר לבקש ממני רעיון לפוסט, לנסח מבצע, או להזכיר לך על מועד חשוב.");
+    loadRem();
+  }
+  function close() { bg.classList.remove("open"); sheet.classList.remove("open"); fab.style.display = ""; }
+  fab.addEventListener("click", open);
+  bg.addEventListener("click", close);
+  $("asstClose").addEventListener("click", close);
+  async function send() {
+    const q = input.value.trim(); if (!q) return;
+    input.value = ""; add("user", q);
+    const wait = add("assistant", "…");
+    try {
+      const r = await api("/api/assistant/chat", { method: "POST", body: JSON.stringify({ message: q, history }) });
+      wait.textContent = r.answer; history.push({ role: "user", text: q }, { role: "assistant", text: r.answer });
+      if (r.action) {
+        const label = r.action.type === "reminder" ? "הוסף תזכורת" : "שמור כטיוטה";
+        const b = el(`<button class="secondary" style="margin:6px 0"></button>`); b.textContent = label;
+        b.addEventListener("click", async () => {
+          b.disabled = true;
+          try { await api("/api/assistant/action", { method: "POST", body: JSON.stringify(r.action) }); b.textContent = r.action.type === "reminder" ? "נוסף ✓" : "נשמר בטיוטות ✓"; if (r.action.type === "reminder") loadRem(); }
+          catch (e) { b.disabled = false; toast(e.message); }
+        });
+        log.appendChild(b); log.scrollTop = 1e9;
+      }
+    } catch (e) { wait.textContent = e.message; }
+  }
+  $("asstSend").addEventListener("click", send);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+  // keep the bubble out of the way while typing in other screens (iOS keyboard)
+  const isField = (n) => n && /^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName);
+  document.addEventListener("focusin", (e) => { if (isField(e.target) && !sheet.contains(e.target)) fab.style.display = "none"; });
+  document.addEventListener("focusout", () => setTimeout(() => { if (!isField(document.activeElement) && !sheet.classList.contains("open")) fab.style.display = ""; }, 100));
+})();
 
 // ---- My posts ----
 let postFilter = "open";
