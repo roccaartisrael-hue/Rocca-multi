@@ -444,5 +444,19 @@
  "✓ תוזמן": "✓ Programmée",
  "✕ התעלם": "✕ Ignorer",
  "למשל: \"מבצע סוף שבוע על כל המוצרים\"": "p. ex. : « Promo de week-end sur tous les produits »",
- "למשל: \"אהבתי את הזוית והתאורה האחורית\"": "p. ex. : « J'ai adoré l'angle et le rétroéclairage »"
+ "למשל: \"אהבתי את הזוית והתאורה האחורית\"": "p. ex. : « J'ai adoré l'angle et le rétroéclairage »",
+ "איך לתזמן?": "Comment planifier ?",
+ "אוטומטי — ה-AI בוחר את הימים והשעות הכי טובים": "Automatique : l'IA choisit les meilleurs jours et heures",
+ "ידני — אני בוחר ימים ושעות": "Manuel : je choisis les jours et heures",
+ "ידני — בחירת ימים ושעות (זמין מפרימיום ומעלה)": "Manuel : choisir jours et heures (à partir de Premium)",
+ "באילו ימים?": "Quels jours ?",
+ "באילו שעות? (עד 3, מופרדות בפסיק)": "À quelles heures ? (jusqu'à 3, séparées par des virgules)",
+ "מספר הפוסטים נקבע לפי הבחירה שלכם (ימים × שעות).": "Le nombre de publications dépend de votre choix (jours × heures).",
+ "א׳": "Dim",
+ "ב׳": "Lun",
+ "ג׳": "Mar",
+ "ד׳": "Mer",
+ "ה׳": "Jeu",
+ "ו׳": "Ven",
+ "שבת": "Sam"
 }
