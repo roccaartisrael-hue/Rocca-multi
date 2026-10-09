@@ -43,7 +43,7 @@
   body {
     margin: 0; background: var(--bg); color: var(--text);
     font-family: var(--font); font-size: 14px; line-height: 1.55; font-weight: 400;
-    -webkit-font-smoothing: antialiased; padding-bottom: 76px;
+    -webkit-font-smoothing: antialiased; padding-bottom: calc(104px + env(safe-area-inset-bottom));
   }
   .ic { width: 18px; height: 18px; flex: 0 0 auto; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -127,7 +127,7 @@
 
   /* Navigation: bottom bar on mobile, right sidebar on desktop */
   nav.tabs {
-    position: fixed; bottom: 0; inset-inline: 0; z-index: 30; display: flex; overflow-x: auto; scrollbar-width: none;
+    position: fixed; bottom: 0; inset-inline: 0; z-index: 30; display: none; overflow-x: auto; scrollbar-width: none;
     background: rgba(12,12,15,.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--border);
     padding: 6px max(6px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)); gap: 2px;
   }
@@ -140,13 +140,60 @@
   nav.tabs button.active { color: var(--accent-text); background: var(--accent-soft); }
   @media (min-width: 900px) {
     body { padding-bottom: 0; padding-inline-start: var(--sidebar-w); }
-    nav.tabs { top: 0; bottom: 0; inset-inline: auto; inset-inline-start: 0; width: var(--sidebar-w); flex-direction: column; overflow-y: auto; overflow-x: hidden;
+    nav.tabs { display: flex; top: 0; bottom: 0; inset-inline: auto; inset-inline-start: 0; width: var(--sidebar-w); flex-direction: column; overflow-y: auto; overflow-x: hidden;
       border-top: 0; border-inline-end: 1px solid var(--border); padding: 20px 12px 16px; gap: 2px; background: var(--bg-2); }
     nav.tabs button { flex-direction: row; justify-content: flex-start; gap: 11px; width: 100%; font-size: 13.5px; padding: 9px 12px; min-width: 0; }
     header { padding-inline-start: 20px; }
     nav.tabs::before { content: ""; position: absolute; top: 0; }
     main { padding: 32px 32px 56px; max-width: 840px; }
   }
+
+
+  /* Mobile navigation: floating glass pill bar + "More" bottom sheet */
+  nav.pill {
+    position: fixed; z-index: 40; inset-inline: 14px; margin-inline: auto; max-width: 440px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; height: 64px; padding: 0 6px;
+    background: rgba(14,14,18,.66); backdrop-filter: blur(22px) saturate(170%); -webkit-backdrop-filter: blur(22px) saturate(170%);
+    border: 1px solid rgba(255,255,255,.09); border-radius: 26px; box-shadow: 0 14px 40px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset;
+  }
+  nav.pill button {
+    margin: 0; background: transparent; box-shadow: none; border: 0; color: var(--faint); height: 56px; padding: 0;
+    flex-direction: column; gap: 3px; font-size: 10.5px; font-weight: 500; letter-spacing: .1px; border-radius: 18px;
+    -webkit-tap-highlight-color: transparent; transition: color .15s, transform .1s;
+  }
+  nav.pill button .ic { width: 22px; height: 22px; stroke-width: 1.6; }
+  nav.pill button:hover { background: transparent; color: var(--text-2); }
+  nav.pill button:active { transform: scale(.92); }
+  nav.pill button.active { color: var(--accent-text); }
+  nav.pill button.active .ic { filter: drop-shadow(0 0 8px rgba(99,102,241,.55)); }
+  nav.pill button.fab span { display: none; }
+  nav.pill button.fab {
+    width: 56px; height: 56px; margin: -26px auto 0; border-radius: 50%; color: #fff;
+    background: linear-gradient(145deg, #7b7ef7, #5457e8); border: 1px solid rgba(255,255,255,.22);
+    box-shadow: 0 10px 26px rgba(99,102,241,.5), 0 1px 0 rgba(255,255,255,.3) inset;
+  }
+  nav.pill button.fab:hover { background: linear-gradient(145deg, #8689f9, #5f62ee); color: #fff; }
+  nav.pill button.fab .ic { width: 26px; height: 26px; stroke-width: 2; }
+  .sheet-bg { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .sheet-bg.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; z-index: 51; inset-inline: 0; bottom: 0; max-height: 82vh; overflow-y: auto; transform: translateY(105%); transition: transform .28s cubic-bezier(.32,.72,0,1);
+    background: rgba(18,18,22,.96); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-top: 1px solid var(--border-strong);
+    border-radius: 26px 26px 0 0; padding: 10px 16px calc(22px + env(safe-area-inset-bottom)); box-shadow: 0 -20px 60px rgba(0,0,0,.6);
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet .grab { width: 40px; height: 4px; border-radius: 4px; background: var(--border-strong); margin: 4px auto 14px; }
+  .sheet h4 { margin: 0 4px 12px; font-size: 13px; font-weight: 500; color: var(--muted); }
+  .sheet-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .sheet-grid button {
+    margin: 0; min-height: 84px; flex-direction: column; gap: 8px; background: var(--panel-2); color: var(--text-2); border: 1px solid var(--border);
+    border-radius: 18px; box-shadow: none; font-size: 12.5px; font-weight: 500; padding: 12px 6px; -webkit-tap-highlight-color: transparent;
+  }
+  .sheet-grid button .ic { width: 22px; height: 22px; stroke-width: 1.6; color: var(--accent-text); }
+  .sheet-grid button:hover { background: var(--panel-3); color: var(--text); }
+  .sheet-grid button.active { background: var(--accent-soft); border-color: rgba(99,102,241,.45); color: var(--accent-text); }
+  @media (min-width: 900px) { nav.pill, .sheet, .sheet-bg { display: none !important; } }
 
   /* KPIs, meters, switches */
   .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px; }
@@ -186,7 +233,7 @@
   .plan-item { border: 1px solid var(--border); background: var(--panel-2); border-radius: var(--radius-lg); padding: 16px; margin: 10px 0; }
   .plan-item h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; color: var(--text); }
   .plan-item ul { margin: 8px 0; padding-inline-start: 18px; color: var(--muted); font-size: 13px; }
-  .toast-up, .toast { position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%); z-index: 99; max-width: 92vw; text-align: center;
+  .toast-up, .toast { position: fixed; bottom: calc(110px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 99; max-width: 92vw; text-align: center;
     background: var(--panel-3); color: var(--text); border: 1px solid var(--border-strong); padding: 10px 16px; border-radius: var(--radius); font-size: 13.5px; box-shadow: 0 12px 32px rgba(0,0,0,.55); }
   .toast-up a { color: var(--accent-text); }
   @media (min-width: 900px) { .toast-up, .toast { bottom: 28px; } }
@@ -245,7 +292,7 @@
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-home" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></symbol><symbol id="i-new" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></symbol><symbol id="i-posts" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></symbol><symbol id="i-plan" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol><symbol id="i-leads" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol><symbol id="i-site" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol><symbol id="i-reports" viewBox="0 0 24 24"><path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></symbol><symbol id="i-replies" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol><symbol id="i-inspiration" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol><symbol id="i-plans" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></symbol><symbol id="i-support" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.93 4.93 4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24"/></symbol><symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol><symbol id="i-admin" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 5c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></symbol><symbol id="i-paste" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></symbol><symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol><symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8M16 7l3 3M14 9l2 2"/></symbol><symbol id="i-biz" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></symbol><symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol></defs></svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-home" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></symbol><symbol id="i-new" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></symbol><symbol id="i-posts" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></symbol><symbol id="i-plan" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol><symbol id="i-leads" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol><symbol id="i-site" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol><symbol id="i-reports" viewBox="0 0 24 24"><path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></symbol><symbol id="i-replies" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol><symbol id="i-inspiration" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol><symbol id="i-plans" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></symbol><symbol id="i-support" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.93 4.93 4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24"/></symbol><symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol><symbol id="i-admin" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 5c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></symbol><symbol id="i-paste" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></symbol><symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol><symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8M16 7l3 3M14 9l2 2"/></symbol><symbol id="i-biz" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol><symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol></defs></svg>
 
 <div id="loginScreen">
   <div class="auth-wrap">
@@ -579,6 +626,19 @@
     <button data-tab="tab-connect"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg><span>הגדרות</span></button>
     <button data-tab="tab-admin" id="adminTabBtn" class="hidden"><svg class="ic" aria-hidden="true"><use href="#i-admin"/></svg><span>ניהול</span></button>
   </nav>
+  <nav class="pill" id="pillNav" aria-label="ניווט ראשי">
+    <button data-go="tab-home"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg><span>בית</span></button>
+    <button data-go="tab-posts"><svg class="ic" aria-hidden="true"><use href="#i-posts"/></svg><span>יומן</span></button>
+    <button data-go="tab-new" class="fab" aria-label="פוסט חדש"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span>חדש</span></button>
+    <button data-go="tab-performance"><svg class="ic" aria-hidden="true"><use href="#i-reports"/></svg><span>ביצועים</span></button>
+    <button id="pillMore" aria-haspopup="dialog"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg><span>עוד</span></button>
+  </nav>
+  <div class="sheet-bg" id="sheetBg"></div>
+  <div class="sheet" id="moreSheet" role="dialog" aria-label="עוד" aria-modal="true">
+    <div class="grab"></div>
+    <h4>עוד אפשרויות</h4>
+    <div class="sheet-grid" id="sheetGrid"></div>
+  </div>
 </div>
 
 <script>
@@ -828,8 +888,48 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     if (btn.dataset.tab === "tab-site") loadSite();
     if (btn.dataset.tab === "tab-plans") loadPlans();
     if (btn.dataset.tab === "tab-support") loadSupport();
+    if (window.syncPill) window.syncPill(btn.dataset.tab);
   });
 });
+
+// ---- Mobile pill bar + "More" sheet (drives the same tabs as the desktop sidebar) ----
+(function () {
+  const side = () => document.querySelectorAll("nav.tabs button[data-tab]");
+  const pillTabs = ["tab-home", "tab-posts", "tab-new", "tab-performance"];
+  const sheet = document.getElementById("moreSheet"), bg = document.getElementById("sheetBg"), grid = document.getElementById("sheetGrid");
+  const moreBtn = document.getElementById("pillMore");
+  function closeSheet() { sheet.classList.remove("open"); bg.classList.remove("open"); }
+  function buildSheet() {
+    grid.innerHTML = "";
+    side().forEach((b) => {
+      if (pillTabs.includes(b.dataset.tab) || b.classList.contains("hidden")) return;
+      const it = document.createElement("button");
+      it.dataset.tab = b.dataset.tab;
+      it.innerHTML = b.innerHTML;
+      if (b.classList.contains("active")) it.classList.add("active");
+      it.addEventListener("click", () => { closeSheet(); b.click(); });
+      grid.appendChild(it);
+    });
+  }
+  function openSheet() { buildSheet(); sheet.classList.add("open"); bg.classList.add("open"); }
+  window.syncPill = function (tab) {
+    document.querySelectorAll("#pillNav button[data-go]").forEach((b) => b.classList.toggle("active", b.dataset.go === tab));
+    moreBtn.classList.toggle("active", !pillTabs.includes(tab));
+  };
+  document.querySelectorAll("#pillNav button[data-go]").forEach((b) => b.addEventListener("click", () => {
+    closeSheet();
+    const target = document.querySelector('nav.tabs button[data-tab="' + b.dataset.go + '"]');
+    if (target) target.click();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }));
+  moreBtn.addEventListener("click", () => (sheet.classList.contains("open") ? closeSheet() : openSheet()));
+  bg.addEventListener("click", closeSheet);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+  let startY = null;
+  sheet.addEventListener("touchstart", (e) => { startY = e.touches[0].clientY; }, { passive: true });
+  sheet.addEventListener("touchend", (e) => { if (startY !== null && e.changedTouches[0].clientY - startY > 70 && sheet.scrollTop <= 0) closeSheet(); startY = null; }, { passive: true });
+  window.syncPill("tab-home");
+})();
 
 
 
