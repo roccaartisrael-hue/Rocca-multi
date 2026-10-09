@@ -14,6 +14,7 @@ import { getSite, saveSite, addArticle, claimDomain, validDomain, renderSiteHtml
 import { listTickets, openTicket, replyTicket } from "../lib/support";
 import { generateSeoArticle, answerSupport, answerAssistant, AssistantAction } from "../lib/claude";
 import { listReminders, deleteReminder } from "../lib/reminders";
+import { listFacts, addFact, deleteFact } from "../lib/businessMemory";
 import { getAssistant, saveWhatsApp, validTz, createPairingCode, unbindPhone } from "../lib/assistantSettings";
 import { assistantContext, executeAssistantAction } from "../lib/assistantOps";
 import { waConfigured, waDisplayNumber, maskPhone, parseInbound, validWaSignature, verifyWaChallenge } from "../lib/whatsapp";
@@ -339,7 +340,14 @@ platformRouter.post("/api/assistant/chat", async (req, res) => {
     const q = String(req.body?.message || "").trim();
     if (!q) return res.status(400).json({ error: "כתבו הודעה" });
     const history = Array.isArray(req.body?.history) ? req.body.history.filter((h: any) => h && (h.role === "user" || h.role === "assistant")).map((h: any) => ({ role: h.role, text: String(h.text || "") })) : [];
-    res.json(await answerAssistant(q, history, assistantContext(tzOf(req))));
+    const tz = tzOf(req);
+    const r = await answerAssistant(q, history, assistantContext(tz));
+    // remembering is automatic (the owner just said it) and visible/editable in the memory list; everything else needs a tap
+    if (r.action?.type === "remember") {
+      const x = executeAssistantAction(r.action, tz);
+      return res.json({ answer: x.ok ? `${r.answer}\n\n${x.message}` : r.answer, action: undefined });
+    }
+    res.json(r);
   } catch (e) {
     err(res, e);
   }
@@ -357,6 +365,12 @@ platformRouter.post("/api/assistant/action", (req, res) => {
   const r = executeAssistantAction(action, tz);
   r.ok ? res.json(r) : res.status(400).json({ error: r.message });
 });
+platformRouter.get("/api/assistant/memory", (_req, res) => res.json(listFacts()));
+platformRouter.post("/api/assistant/memory", (req, res) => {
+  const r = addFact(String(req.body?.text || ""));
+  r.ok ? res.json(r.fact) : res.status(400).json({ error: r.reason === "sensitive" ? "לא שומרים סיסמאות, מספרי כרטיס או מזהים אישיים" : "כתבו משהו לזכור" });
+});
+platformRouter.delete("/api/assistant/memory/:id", (req, res) => (deleteFact(req.params.id) ? res.json({ ok: true }) : res.status(404).json({ error: "לא נמצא" })));
 platformRouter.get("/api/assistant/reminders", (_req, res) => res.json(listReminders()));
 platformRouter.delete("/api/assistant/reminders/:id", (req, res) => (deleteReminder(req.params.id) ? res.json({ ok: true }) : res.status(404).json({ error: "לא נמצא" })));
 

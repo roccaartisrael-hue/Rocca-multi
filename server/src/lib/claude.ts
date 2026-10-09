@@ -481,13 +481,15 @@ export async function answerSupport(question: string, history: { role: "user" | 
 export type AssistantAction =
   | { type: "draft_post"; topic: string; text: string }
   | { type: "reminder"; date: string; text: string }
-  | { type: "schedule_post"; postId: string; when: string }; // when = "YYYY-MM-DD HH:MM" in the business's time zone
+  | { type: "schedule_post"; postId: string; when: string }
+  | { type: "remember"; text: string }; // when = "YYYY-MM-DD HH:MM" in the business's time zone
 
 const ASSISTANT_SYSTEM = `אתה האסיסטנט האישי של בעל העסק — מנהל שיווק צמוד שעובד בשבילו, לא נציג שירות. אתה מכיר את העסק, מציע רעיונות לתוכן ולמבצעים, מכין פוסטים, מתכנן תזמון, ומזכיר על מועדים, חגים, מבצעים, פגישות ואירועים שיווקיים חשובים. דבר בגובה העיניים, קצר, יוזם ומעשי, ובשפה שבה פונה בעל העסק (עברית, אנגלית, ספרדית או צרפתית).
 אל תמציא עובדות, מחירים או נתוני ביצועים שלא ניתנו לך. אל תבטיח תוצאות.
 פעולות — בסוף התשובה, שורה נפרדת אחת לכל היותר, בפורמט מדויק:
 ACTION: {"type":"draft_post","topic":"נושא קצר","text":"הטקסט המלא של הפוסט"}
 ACTION: {"type":"reminder","date":"YYYY-MM-DD","text":"מה להזכיר"}
+ACTION: {"type":"remember","text":"עובדה קבועה וקצרה על העסק"} — כשבעל העסק מספר דבר קבוע שכדאי לזכור (כלל, העדפה, החלטה, שעות פעילות, מה עובד אצלו). לא לשמור סיסמאות, מספרי כרטיס או מזהים אישיים, ולא דברים חד-פעמיים
 ACTION: {"type":"schedule_post","postId":"המזהה מהרשימה","when":"YYYY-MM-DD HH:MM"} — רק כשבעל העסק ביקש במפורש לאשר/לתזמן/להזיז פוסט קיים מהרשימה, והשעה לפי אזור הזמן שלו
 פוסט חדש נשמר כטיוטה בלבד, ותזכורת נשמרת ברשימה. אל תכתוב שפוסט תוזמן אלא אם הוצאת schedule_post לפי בקשה מפורשת. תקלות טכניות במערכת — הפנה ללשונית "תמיכה".`;
 
@@ -499,6 +501,9 @@ export function parseAction(raw: string): { answer: string; action?: AssistantAc
     const a = JSON.parse(m[1]);
     if (a?.type === "draft_post" && typeof a.text === "string" && a.text.trim()) {
       return { answer, action: { type: "draft_post", topic: String(a.topic || "פוסט").slice(0, 120), text: a.text.slice(0, 2200) } };
+    }
+    if (a?.type === "remember" && typeof a.text === "string" && a.text.trim()) {
+      return { answer, action: { type: "remember", text: a.text.slice(0, 200) } };
     }
     if (a?.type === "schedule_post" && typeof a.postId === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(String(a.when))) {
       return { answer, action: { type: "schedule_post", postId: a.postId.slice(0, 40), when: a.when } };

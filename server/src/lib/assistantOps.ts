@@ -8,6 +8,7 @@ import { allowedPlatforms } from "./tenantContext";
 import { ALL_PLATFORMS, Platform } from "../config";
 import { AssistantAction } from "./claude";
 import { scheduleProblem, needsImage } from "./scheduleRules";
+import { listFacts, addFact } from "./businessMemory";
 
 // ---- time zones (every business works in its own) ----
 export const localYmd = (tz: string, d = new Date()): string => d.toLocaleDateString("en-CA", { timeZone: tz });
@@ -38,12 +39,19 @@ export function assistantContext(tz: string): string {
   const today = localYmd(tz);
   const rem = listReminders().filter((r) => r.date >= today).slice(0, 8);
   const cal = upcomingDates(today, 30, getAssistant().whatsapp.calendars).slice(0, 4);
+  const memory = listFacts();
+  let best: string[] = [];
+  try {
+    best = store.topPerformingPlatformContent("engagement", 2).map((r) => String(r.content.text || "").slice(0, 120)).filter(Boolean);
+  } catch {}
   return [
     `תאריך היום: ${today} · אזור זמן: ${tz}`,
     p ? `העסק: ${p.businessName} · מוכר: ${p.whatYouSell} · קהל: ${p.audience} · מיקום: ${p.location} · טון: ${p.tone}${p.neverSay ? ` · לא להגיד: ${p.neverSay}` : ""}` : "פרופיל העסק עדיין לא מולא — עודד למלא בלשונית הגדרות.",
     `פוסטים מתוזמנים: ${upcoming.length ? upcoming.map((x) => `[${shortId(x.id)}] ${fmt(x.scheduledFor)} ${x.topic}`).join("; ") : "אין"}`,
     `טיוטות וממתינים לאישור: ${drafts.length ? drafts.map((x) => `[${shortId(x.id)}] ${x.topic}`).join("; ") : "אין"}`,
     `תזכורות קרובות: ${rem.length ? rem.map((r) => `${r.date} ${r.text}`).join("; ") : "אין"}`,
+    `מה שבעל העסק סיפר לך ושכדאי לזכור: ${memory.length ? memory.map((f) => f.text).join("; ") : "עדיין כלום"}`,
+    `פוסטים שהצליחו אצלו: ${best.length ? best.join(" | ") : "אין עדיין נתונים"}`,
     `מועדים שיווקיים קרובים: ${cal.length ? cal.map((c) => `${c.date} ${c.name.he}`).join("; ") : "אין"}`,
   ].join("\n");
 }
@@ -55,6 +63,10 @@ export function executeAssistantAction(a: AssistantAction, tz: string): ActionRe
   if (a.type === "reminder") {
     addReminder(a.date, a.text);
     return { ok: true, message: `✓ ${a.date} · ${a.text}` };
+  }
+  if (a.type === "remember") {
+    const r = addFact(a.text);
+    return r.ok ? { ok: true, message: `🧠 ${r.fact!.text}` } : { ok: false, message: r.reason === "sensitive" ? "I don't store passwords, card numbers or personal identifiers." : "Nothing to remember" };
   }
   if (a.type === "draft_post") {
     const platforms = (["facebook", "instagram"] as Platform[]).filter((p) => allowedPlatforms(ALL_PLATFORMS).includes(p));
