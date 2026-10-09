@@ -290,18 +290,7 @@ ${JSON.stringify(rows)}
     ],
   });
   recordUsage(msg.usage);
-  const raw = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
-  // The model may append one ACTION line; it is parsed here and never shown to the customer as text.
-  const m = raw.match(/\n?ACTION:\s*(\{[\s\S]*\})\s*$/);
-  if (!m) return { answer: raw };
-  const answer = raw.slice(0, m.index).trim();
-  try {
-    const a = JSON.parse(m[1]);
-    if (a?.type === "draft_post" && typeof a.text === "string" && a.text.trim()) {
-      return { answer, action: { type: "draft_post", topic: String(a.topic || "פוסט").slice(0, 120), text: a.text.slice(0, 2200) } };
-    }
-  } catch {}
-  return { answer };
+  return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
 }
 
 export interface ProfileInput {
@@ -468,18 +457,14 @@ export async function generateSeoArticle(topic: string): Promise<{ title: string
   return { title: String(out.title).slice(0, 160), description: String(out.description || "").slice(0, 200), body: String(out.body).slice(0, 12000) };
 }
 
-const SUPPORT_KNOWLEDGE = `אתה העוזר האישי והסוכן האוטונומי של הלקוח ב-BOOL. אין נציג אנושי: אתה מטפל בכל שאלה ובקשה מקצה לקצה — מסביר, מנחה, מציע רעיונות לתוכן ולתזמון ועונה על הכול בעצמך.
-BOOL היא מערכת שיווק מבוססת בינה מלאכותית ("סוכנות שיווק בקופסה") לעסקים ולמפרסמים.
+const SUPPORT_KNOWLEDGE = `אתה בוט התמיכה הטכנית של BOOL. אין נציג אנושי: אתה פותר בעצמך בעיות שימוש וקשיים טכניים, בצורה ברורה ובשלבים. BOOL היא מערכת שיווק מבוססת בינה מלאכותית ("סוכנות שיווק בקופסה") לעסקים ולמפרסמים.
 מה המערכת עושה: מייצרת פוסטים ותוכניות שיווק, מפרסמת בפייסבוק ובאינסטגרם (כולל קרוסלה של כמה תמונות), מתזמנת, "טייס אוטומטי" שמכין פוסטים שבועיים לאישור מהיר (שום דבר לא מתפרסם בלי אישור), קליטת לידים עם התראה, חלוקת תקציב ממומן בין ערוצים עם הסבר, אתר קטן ומאמרי SEO, ודוחות.
 איך מתחברים לפייסבוק/אינסטגרם: לשונית "הגדרות" ← "התחברות עם פייסבוק" ← לאשר את העמוד. אינסטגרם חייב להיות חשבון עסקי המחובר לעמוד.
 קרדיטים: כל פעולת בינה מלאכותית (פוסט, תוכנית, קמפיין) עולה קרדיט אחד; בניסיון חינם יש 3 קרדיטים במתנה, אפשר לרכוש חבילות או מנוי בלשונית "חבילות". חבילות העסקים אינן מוגבלות בקרדיטים.
 רק אם מדובר בתקלה טכנית אמיתית שלא נפתרת (באג במערכת, בעיית תשלום או בעיית חיבור) — הצע ללחוץ על "דיווח על תקלה" בלשונית "העוזר". אל תפנה לאדם בשום מקרה אחר ואל תבטיח מענה אנושי. אל תבטיח דבר שלא כתוב כאן, אל תמציא מחירים, ואל תבקש סיסמאות או מפתחות. ענה בשפה שבה פנה הלקוח (עברית, אנגלית, ספרדית או צרפתית), קצר וברור, בשלבים.
-אם הלקוח מבקש שתכתוב או תיצור פוסט: כתוב את הפוסט המוצע בתשובה, ובסוף התשובה הוסף שורה נפרדת אחת בדיוק בפורמט: ACTION: {"type":"draft_post","topic":"נושא קצר","text":"הטקסט המלא של הפוסט"}
-הלקוח יאשר בלחיצה והפוסט יישמר כטיוטה לאישורו — לעולם אל תכתוב שהפוסט פורסם או תוזמן. בלי ACTION בכל מקרה אחר.`;
+שאלות על ניהול העסק, רעיונות לתוכן ותזמון — הפנה ללשונית "אסיסטנט", שם האסיסטנט האישי של העסק.`;
 
-export interface SupportAction { type: "draft_post"; topic: string; text: string }
-
-export async function answerSupport(question: string, history: { role: "user" | "assistant"; text: string }[] = []): Promise<{ answer: string; action?: SupportAction }> {
+export async function answerSupport(question: string, history: { role: "user" | "assistant"; text: string }[] = []): Promise<string> {
   assertWithinLimit();
   const convo = history.slice(-6).map((h) => `${h.role === "user" ? "לקוח" : "תמיכה"}: ${h.text.slice(0, 600)}`).join("\n");
   const msg = await llm.messages.create({
@@ -490,4 +475,46 @@ export async function answerSupport(question: string, history: { role: "user" | 
   });
   recordUsage(msg.usage);
   return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
+}
+
+// ---- Personal executive assistant (business management, not technical support) ----
+export type AssistantAction =
+  | { type: "draft_post"; topic: string; text: string }
+  | { type: "reminder"; date: string; text: string };
+
+const ASSISTANT_SYSTEM = `אתה האסיסטנט האישי של בעל העסק — מנהל שיווק צמוד שעובד בשבילו, לא נציג שירות. אתה מכיר את העסק, מציע רעיונות לתוכן ולמבצעים, מכין פוסטים, מתכנן תזמון, ומזכיר על מועדים, חגים, מבצעים, פגישות ואירועים שיווקיים חשובים. דבר בגובה העיניים, קצר, יוזם ומעשי, ובשפה שבה פונה בעל העסק (עברית, אנגלית, ספרדית או צרפתית).
+אל תמציא עובדות, מחירים או נתוני ביצועים שלא ניתנו לך. אל תבטיח תוצאות.
+פעולות — בסוף התשובה, שורה נפרדת אחת לכל היותר, בפורמט מדויק:
+ACTION: {"type":"draft_post","topic":"נושא קצר","text":"הטקסט המלא של הפוסט"}
+ACTION: {"type":"reminder","date":"YYYY-MM-DD","text":"מה להזכיר"}
+בעל העסק מאשר בלחיצה: פוסט נשמר כטיוטה בלבד, ותזכורת נשמרת ברשימה שלו. לעולם אל תכתוב שפוסט פורסם או תוזמן. תקלות טכניות במערכת — הפנה ללשונית "תמיכה".`;
+
+export function parseAction(raw: string): { answer: string; action?: AssistantAction } {
+  const m = raw.match(/\n?ACTION:\s*(\{[\s\S]*\})\s*$/);
+  if (!m) return { answer: raw };
+  const answer = raw.slice(0, m.index).trim();
+  try {
+    const a = JSON.parse(m[1]);
+    if (a?.type === "draft_post" && typeof a.text === "string" && a.text.trim()) {
+      return { answer, action: { type: "draft_post", topic: String(a.topic || "פוסט").slice(0, 120), text: a.text.slice(0, 2200) } };
+    }
+    if (a?.type === "reminder" && /^\d{4}-\d{2}-\d{2}$/.test(String(a.date)) && typeof a.text === "string" && a.text.trim()) {
+      return { answer, action: { type: "reminder", date: a.date, text: a.text.slice(0, 200) } };
+    }
+  } catch {}
+  return { answer };
+}
+
+/** `context` = what the assistant knows about the business right now (profile, upcoming posts, reminders, today's date). */
+export async function answerAssistant(question: string, history: { role: "user" | "assistant"; text: string }[], context: string): Promise<{ answer: string; action?: AssistantAction }> {
+  assertWithinLimit();
+  const convo = history.slice(-8).map((h) => `${h.role === "user" ? "בעל העסק" : "אסיסטנט"}: ${h.text.slice(0, 700)}`).join("\n");
+  const msg = await llm.messages.create({
+    task: "reply",
+    max_tokens: 900,
+    system: `${ASSISTANT_SYSTEM}\n\nמה שידוע לך על העסק עכשיו:\n${context}`,
+    messages: [{ role: "user", content: `${convo ? convo + "\n" : ""}בעל העסק: ${question.slice(0, 900)}\nאסיסטנט:` }],
+  });
+  recordUsage(msg.usage);
+  return parseAction(msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim());
 }
