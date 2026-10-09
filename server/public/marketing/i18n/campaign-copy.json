@@ -1,0 +1,28 @@
+{
+  "_note": "Single source of truth for campaign / banner copy. bool-banner.js embeds the same text.",
+  "url": "https://boolai.co.il",
+  "en": {
+    "dir": "ltr",
+    "headline": "Your Marketing Agency in a Box",
+    "body": "Put your business growth on autopilot. AI-crafted posts, automated scheduling, and direct Meta publishing.",
+    "cta": "Start Free – 3 Free Credits"
+  },
+  "es": {
+    "dir": "ltr",
+    "headline": "Tu Agencia de Marketing en una App",
+    "body": "Pon tus redes sociales en piloto automático. Creación con IA, programación inteligente y publicación directa.",
+    "cta": "Empieza Gratis – 3 Acciones de Regalo"
+  },
+  "he": {
+    "dir": "rtl",
+    "headline": "סוכנות שיווק שלמה בתוך אפליקציה אחת",
+    "body": "טייס אוטומטי לרשתות החברתיות. יצירת תוכן ב-AI, פרסום בלחיצה ולידים ישירות לעסק.",
+    "cta": "מתחילים בחינם – 3 פעולות מתנה"
+  },
+  "fr": {
+    "dir": "ltr",
+    "headline": "Votre Agence Marketing dans une App",
+    "body": "Automatisez vos réseaux sociaux grâce à l'IA. Création de contenu, calendrier automatisé et publication en un clic.",
+    "cta": "Essai Gratuit – 3 Crédits Offerts"
+  }
+}
