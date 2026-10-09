@@ -470,5 +470,9 @@
  "הדיווח נשלח ✓": "Signalement envoyé ✓",
  "הדיווחים שלי": "Mes signalements",
  "העוזר": "Assistant",
- "תקלות פתוחות (Backoffice)": "Pannes ouvertes (Backoffice)"
+ "תקלות פתוחות (Backoffice)": "Pannes ouvertes (Backoffice)",
+ "שמור כטיוטה": "Enregistrer en brouillon",
+ "נשמר בטיוטות ✓": "Enregistré en brouillons ✓",
+ " — אם זו תקלה טכנית, אפשר לדווח עליה למטה.": " — s'il s'agit d'une panne technique, vous pouvez la signaler ci-dessous.",
+ "שאלו או בקשו כל דבר — למשל: כתוב לי פוסט על מבצע סוף שבוע": "Demandez ce que vous voulez, p. ex. : écris-moi une publication sur une promo de week-end"
 }

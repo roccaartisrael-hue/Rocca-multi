@@ -16,7 +16,8 @@ import { generateSeoArticle, answerSupport } from "../lib/claude";
 import { getProfile } from "../lib/profile";
 import { creditsLeft, requireFeature } from "../lib/checkCredits";
 import { rateLimited } from "../lib/ratelimit";
-import { currentTenantId, isDefaultTenant, runAsTenant, DEFAULT_TENANT } from "../lib/tenantContext";
+import { currentTenantId, isDefaultTenant, runAsTenant, DEFAULT_TENANT, allowedPlatforms } from "../lib/tenantContext";
+import { ALL_PLATFORMS, Platform } from "../config";
 import { getTenant, findByLeadKey, ensureLeadKey, safeEqual, withDefaults, activeTenantIds, adjustCredits } from "../lib/tenants";
 
 /** Which business does this public key belong to? LEAD_KEY (env) = the original business; others have their own key. */
@@ -294,10 +295,21 @@ platformRouter.post("/api/support/chat", async (req, res) => {
     const q = String(req.body?.message || "").trim();
     if (!q) return res.status(400).json({ error: "כתבו שאלה" });
     const history = Array.isArray(req.body?.history) ? req.body.history.filter((h: any) => h && (h.role === "user" || h.role === "assistant")).map((h: any) => ({ role: h.role, text: String(h.text || "") })) : [];
-    res.json({ answer: await answerSupport(q, history) });
+    res.json(await answerSupport(q, history));
   } catch (e) {
     err(res, e);
   }
+});
+
+// The customer approved an action the assistant proposed. Only drafts are created — nothing is published or scheduled here.
+platformRouter.post("/api/support/action", (req, res) => {
+  const a = req.body || {};
+  if (a.type !== "draft_post" || !String(a.text || "").trim()) return res.status(400).json({ error: "פעולה לא נתמכת" });
+  const platforms = (["facebook", "instagram"] as Platform[]).filter((p) => allowedPlatforms(ALL_PLATFORMS).includes(p));
+  if (!platforms.length) return res.status(400).json({ error: "אין פלטפורמה זמינה" });
+  const text = String(a.text).slice(0, 2200);
+  const post = store.createPost(String(a.topic || "פוסט").slice(0, 120), platforms.map((p) => ({ platform: p, text, status: "pending" as const })));
+  res.json({ ok: true, id: post.id });
 });
 
 // ---- reports ----

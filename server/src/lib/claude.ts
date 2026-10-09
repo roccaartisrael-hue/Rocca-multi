@@ -290,7 +290,18 @@ ${JSON.stringify(rows)}
     ],
   });
   recordUsage(msg.usage);
-  return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
+  const raw = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
+  // The model may append one ACTION line; it is parsed here and never shown to the customer as text.
+  const m = raw.match(/\n?ACTION:\s*(\{[\s\S]*\})\s*$/);
+  if (!m) return { answer: raw };
+  const answer = raw.slice(0, m.index).trim();
+  try {
+    const a = JSON.parse(m[1]);
+    if (a?.type === "draft_post" && typeof a.text === "string" && a.text.trim()) {
+      return { answer, action: { type: "draft_post", topic: String(a.topic || "פוסט").slice(0, 120), text: a.text.slice(0, 2200) } };
+    }
+  } catch {}
+  return { answer };
 }
 
 export interface ProfileInput {
@@ -462,9 +473,13 @@ BOOL היא מערכת שיווק מבוססת בינה מלאכותית ("סו�
 מה המערכת עושה: מייצרת פוסטים ותוכניות שיווק, מפרסמת בפייסבוק ובאינסטגרם (כולל קרוסלה של כמה תמונות), מתזמנת, "טייס אוטומטי" שמכין פוסטים שבועיים לאישור מהיר (שום דבר לא מתפרסם בלי אישור), קליטת לידים עם התראה, חלוקת תקציב ממומן בין ערוצים עם הסבר, אתר קטן ומאמרי SEO, ודוחות.
 איך מתחברים לפייסבוק/אינסטגרם: לשונית "הגדרות" ← "התחברות עם פייסבוק" ← לאשר את העמוד. אינסטגרם חייב להיות חשבון עסקי המחובר לעמוד.
 קרדיטים: כל פעולת בינה מלאכותית (פוסט, תוכנית, קמפיין) עולה קרדיט אחד; בניסיון חינם יש 3 קרדיטים במתנה, אפשר לרכוש חבילות או מנוי בלשונית "חבילות". חבילות העסקים אינן מוגבלות בקרדיטים.
-רק אם מדובר בתקלה טכנית אמיתית שלא נפתרת (באג במערכת, בעיית תשלום או בעיית חיבור) — הצע ללחוץ על "דיווח על תקלה" בלשונית "העוזר". אל תפנה לאדם בשום מקרה אחר ואל תבטיח מענה אנושי. אל תבטיח דבר שלא כתוב כאן, אל תמציא מחירים, ואל תבקש סיסמאות או מפתחות. ענה בשפה שבה פנה הלקוח (עברית, אנגלית, ספרדית או צרפתית), קצר וברור, בשלבים.`;
+רק אם מדובר בתקלה טכנית אמיתית שלא נפתרת (באג במערכת, בעיית תשלום או בעיית חיבור) — הצע ללחוץ על "דיווח על תקלה" בלשונית "העוזר". אל תפנה לאדם בשום מקרה אחר ואל תבטיח מענה אנושי. אל תבטיח דבר שלא כתוב כאן, אל תמציא מחירים, ואל תבקש סיסמאות או מפתחות. ענה בשפה שבה פנה הלקוח (עברית, אנגלית, ספרדית או צרפתית), קצר וברור, בשלבים.
+אם הלקוח מבקש שתכתוב או תיצור פוסט: כתוב את הפוסט המוצע בתשובה, ובסוף התשובה הוסף שורה נפרדת אחת בדיוק בפורמט: ACTION: {"type":"draft_post","topic":"נושא קצר","text":"הטקסט המלא של הפוסט"}
+הלקוח יאשר בלחיצה והפוסט יישמר כטיוטה לאישורו — לעולם אל תכתוב שהפוסט פורסם או תוזמן. בלי ACTION בכל מקרה אחר.`;
 
-export async function answerSupport(question: string, history: { role: "user" | "assistant"; text: string }[] = []): Promise<string> {
+export interface SupportAction { type: "draft_post"; topic: string; text: string }
+
+export async function answerSupport(question: string, history: { role: "user" | "assistant"; text: string }[] = []): Promise<{ answer: string; action?: SupportAction }> {
   assertWithinLimit();
   const convo = history.slice(-6).map((h) => `${h.role === "user" ? "לקוח" : "תמיכה"}: ${h.text.slice(0, 600)}`).join("\n");
   const msg = await llm.messages.create({

@@ -593,7 +593,7 @@
         <h2>העוזר האישי שלך (24/7)</h2>
         <p class="muted-small">הסוכן מטפל בהכל: שאלות, רעיונות לתוכן, תזמון והדרכה — בלי להמתין לאף אחד.</p>
         <div class="chat-log" id="chatLog"></div>
-        <input type="text" id="chatInput" placeholder="שאלו כל דבר על המערכת…" />
+        <input type="text" id="chatInput" placeholder="שאלו או בקשו כל דבר — למשל: כתוב לי פוסט על מבצע סוף שבוע" />
         <button id="chatBtn">שליחה</button>
       </div>
       <div class="card">
@@ -2130,8 +2130,17 @@ function chatAdd(role, text) {
 async function sendChat() {
   const q = $("chatInput").value.trim(); if (!q) return;
   $("chatInput").value = ""; chatAdd("user", q);
-  try { const r = await api("/api/support/chat", { method: "POST", body: JSON.stringify({ message: q, history: chatHistory }) }); chatAdd("assistant", r.answer); chatHistory.push({ role: "user", text: q }, { role: "assistant", text: r.answer }); }
-  catch (e) { chatAdd("assistant", e.message + " — אפשר לפתוח פנייה לצוות למטה."); }
+  try { const r = await api("/api/support/chat", { method: "POST", body: JSON.stringify({ message: q, history: chatHistory }) }); chatAdd("assistant", r.answer); chatHistory.push({ role: "user", text: q }, { role: "assistant", text: r.answer });
+    if (r.action) {
+      const b = el(`<button class="secondary" style="margin:6px 0">שמור כטיוטה</button>`);
+      b.addEventListener("click", async () => {
+        b.disabled = true;
+        try { await api("/api/support/action", { method: "POST", body: JSON.stringify(r.action) }); b.textContent = "נשמר בטיוטות ✓"; }
+        catch (e) { b.disabled = false; toast(e.message); }
+      });
+      $("chatLog").appendChild(b); $("chatLog").scrollTop = 1e9;
+    } }
+  catch (e) { chatAdd("assistant", e.message + " — אם זו תקלה טכנית, אפשר לדווח עליה למטה."); }
 }
 $("chatBtn").addEventListener("click", sendChat);
 $("chatInput").addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
