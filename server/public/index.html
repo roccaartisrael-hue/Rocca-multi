@@ -677,6 +677,7 @@
   <div class="asst-sheet" id="asstSheet" role="dialog" aria-label="האסיסטנט האישי" aria-modal="true">
     <div class="asst-head"><h3>האסיסטנט האישי</h3><button class="secondary" id="asstClose">סגירה</button></div>
     <div class="asst-rem" id="asstRem"></div>
+    <details class="asst-wa" id="asstMem"><summary>🧠 מה אני יודע על העסק שלך</summary><div id="asstMemBody"></div></details>
     <details class="asst-wa" id="asstWa"><summary>📲 חיבור לוואטסאפ</summary><div id="asstWaBody"></div></details>
     <div class="asst-log chat-log" id="asstLog"></div>
     <div class="asst-row"><input type="text" id="asstInput" placeholder="דברו איתי על העסק — רעיון, פוסט, תזכורת…" /><button id="asstSend">שליחה</button></div>
@@ -1031,6 +1032,32 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
       }
     } catch (e) { wait.textContent = e.message; }
   }
+
+
+  // ---- business memory (visible + editable by the owner) ----
+  async function renderMem() {
+    const box = $("asstMemBody");
+    let facts; try { facts = await api("/api/assistant/memory"); } catch (e) { box.textContent = e.message; return; }
+    box.innerHTML = "";
+    const intro = el(`<p class="muted-small" style="margin:6px 0"></p>`);
+    intro.textContent = "ככל שתספרו לי יותר, אכיר את העסק טוב יותר. אפשר לערוך ולמחוק הכול כאן.";
+    box.appendChild(intro);
+    if (!facts.length) { const e0 = el(`<p class="muted-small"></p>`); e0.textContent = "עדיין לא שמרתי כלום. למשל: ״אנחנו סגורים בשבת״."; box.appendChild(e0); }
+    const list = el(`<div class="asst-rem"></div>`);
+    facts.forEach((f) => {
+      const chip = el(`<span></span>`); chip.textContent = f.text;
+      const x = el(`<b aria-label="x">×</b>`);
+      x.addEventListener("click", async () => { try { await api("/api/assistant/memory/" + f.id, { method: "DELETE" }); renderMem(); } catch (e) { toast(e.message); } });
+      chip.appendChild(x); list.appendChild(chip);
+    });
+    box.appendChild(list);
+    const row = el(`<div class="asst-row"><input type="text" maxlength="200" placeholder="הוסיפו משהו שכדאי שאזכור" /><button class="secondary">הוספה</button></div>`);
+    const add = async () => { const inp = row.querySelector("input"); if (!inp.value.trim()) return; try { await api("/api/assistant/memory", { method: "POST", body: JSON.stringify({ text: inp.value }) }); renderMem(); } catch (e) { toast(e.message); } };
+    row.querySelector("button").addEventListener("click", add);
+    row.querySelector("input").addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
+    box.appendChild(row);
+  }
+  $("asstMem").addEventListener("toggle", (e) => { if (e.target.open) renderMem(); });
 
   // ---- WhatsApp connection ----
   const LANG = () => (window.I18N_LANG || "he");
