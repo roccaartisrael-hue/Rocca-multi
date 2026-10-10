@@ -124,13 +124,15 @@ export async function onboardClient(input: OnboardInput, ip: string, origin: str
   if (plan === "modular" && !mods.length) throw new OnboardError("בחר לפחות שירות אחד");
   const price = input.monthlyPriceIls === "" || input.monthlyPriceIls == null ? (plan === "modular" ? separateTotal(mods) : TIERS[plan].priceIls) : Number(input.monthlyPriceIls);
 
+  const addonUntil: Partial<Record<ModuleId, string>> = {};
+  for (const m of mods) addonUntil[m] = new Date(Date.now() + 30 * 86400000).toISOString();
   const tenant = createTenant({ name: businessName, email, password: crypto.randomBytes(18).toString("base64url") });
   updateTenant(tenant.id, {
     plan,
     language: lang === "ar" || lang === "ru" ? "en" : lang, // dashboard languages today: he/en/es/fr
     subscriptionCycle: TIERS[plan].priceIls > 0 || mods.length ? "monthly" : "none",
     planExpiresAt: TIERS[plan].priceIls > 0 ? new Date(Date.now() + 30 * 86400000).toISOString() : undefined,
-    addonUntil: Object.fromEntries(mods.map((m) => [m, new Date(Date.now() + 30 * 86400000).toISOString()])),
+    addonUntil: addonUntil,
     seoCommitUntil: mods.includes("seo") ? new Date(Date.now() + 6 * 30 * 86400000).toISOString() : undefined,
   });
 

@@ -141,7 +141,9 @@ export function applyPayment(tenantId: string, skuId: string, paymentRef: string
     const t0 = getTenant(tenantId)!;
     const prev = Date.parse(t0.addonUntil?.[sku.addon] || "");
     const base = Number.isFinite(prev) && prev > Date.now() ? prev : Date.now();
-    const patch: Parameters<typeof updateTenant>[1] = { addonUntil: { [sku.addon]: new Date(base + ADDON_DAYS * 86400000).toISOString() } };
+    const until: Partial<Record<ModuleId, string>> = {};
+    until[sku.addon] = new Date(base + ADDON_DAYS * 86400000).toISOString();
+    const patch: Parameters<typeof updateTenant>[1] = { addonUntil: until };
     if (sku.commitmentMonths && !t0.seoCommitUntil && sku.addon === "seo") patch.seoCommitUntil = new Date(Date.now() + sku.commitmentMonths * 30 * 86400000).toISOString();
     updateTenant(tenantId, patch);
   } else if (sku.tier && sku.cycle) {
