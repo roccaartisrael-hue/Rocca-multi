@@ -27,6 +27,13 @@ function legalPage(file: string, extra: Record<string, string> = {}) {
 // Canonical Meta URLs: /privacy, /terms, /data-deletion (the older /legal/* paths keep working).
 auth.get(["/privacy", "/legal/privacy"], (_req, res) => res.send(legalPage("privacy.html")));
 auth.get(["/terms", "/legal/terms"], (_req, res) => res.send(legalPage("terms.html")));
+// TikTok for Developers URL-prefix verification: the signature file TikTok asks us to host at the site root.
+const TIKTOK_VERIFY = ["6UZx5Er034Hie5Fh4tYckcvlP8ZtUajo", ...(process.env.TIKTOK_VERIFY_TOKENS || "").split(",").map((t) => t.trim()).filter(Boolean)];
+auth.get(/^\/tiktok([A-Za-z0-9]{10,64})\.txt$/, (req, res) => {
+  const t = String(req.params[0] || "");
+  if (!TIKTOK_VERIFY.includes(t)) return res.status(404).send("Not found");
+  res.type("text/plain").send(`tiktok-developers-site-verification=${t}`);
+});
 auth.get(["/support", "/legal/support"], (_req, res) => res.send(legalPage("support.html")));
 auth.get(["/data-deletion", "/legal/data-deletion"], (req, res) => {
   const code = String(req.query.code || "").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 64);
