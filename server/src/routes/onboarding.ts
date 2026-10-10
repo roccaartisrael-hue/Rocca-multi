@@ -12,7 +12,7 @@ const PUBLIC = path.join(__dirname, "..", "..", "public");
 
 publicOnboarding.get("/api/terms/:lang", (req, res) => {
   if (!isTermsLang(req.params.lang)) return res.status(404).json({ error: "Unknown language" });
-  res.json({ version: TERMS_VERSION, ...TERMS[req.params.lang] });
+  res.json({ ...TERMS[req.params.lang] });
 });
 publicOnboarding.get("/api/terms", (_req, res) => res.json({ version: TERMS_VERSION, languages: TERMS_LANGS.map((l) => ({ lang: l, flag: TERMS[l].flag, name: TERMS[l].name, dir: TERMS[l].dir })) }));
 
