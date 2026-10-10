@@ -217,6 +217,11 @@
   .asst-row { display: flex; gap: 8px; margin-top: 8px; }
   .asst-row input { flex: 1; margin: 0; }
   .asst-row button { width: auto; }
+  .mic { width: 44px; min-width: 44px; padding: 0; margin: 0; border-radius: 12px; font-size: 18px; line-height: 1; background: var(--surface-2, #1c1c22); border: 1px solid var(--border-strong, #333); color: inherit; cursor: pointer; }
+  .mic.rec { background: #c0392b; border-color: #c0392b; color: #fff; animation: micPulse 1.1s ease-in-out infinite; }
+  @keyframes micPulse { 50% { opacity: .65; } }
+  .mic-wrap { position: relative; }
+  .mic-ta { position: absolute; inset-block-end: 8px; inset-inline-end: 8px; width: 38px; min-width: 38px; height: 38px; }
   @media (min-width: 900px) { .asst-fab { bottom: 28px; } .asst-sheet { inset-inline: auto; inset-inline-start: 24px; bottom: 24px; width: 420px; height: 600px; border-radius: 20px; border: 1px solid var(--border-strong); } }
 
 
@@ -2392,6 +2397,45 @@ async function loadAds(budget) {
     $("adLog").innerHTML = log ? `<div class="upgrade-banner" style="margin-top:12px"><b>למה חילקנו ככה?</b><p style="margin:6px 0 0;font-size:14px">${escapeHtml(log.reasoning)}</p><p class="muted-small" style="margin:6px 0 0">ההמלצות מוצגות לאישורך ומבוצעות במנהל המודעות — המערכת לא מוציאה כסף בעצמה.</p></div>` : "";
   } catch (e) { $("adsBody").innerHTML = `<p class="empty">${escapeHtml(e.message)}</p>`; }
 }
+</script>
+<script>
+// Voice dictation: browser speech recognition (free, no server cost). Adds a mic to the assistant and key text fields.
+(function () {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  var LOC = { he: "he-IL", en: "en-US", es: "es-ES", fr: "fr-FR" };
+  function locale() { var l = "he"; try { l = localStorage.getItem("boolLang") || (navigator.language || "he").slice(0, 2); } catch (e) {} return LOC[l] || "en-US"; }
+  var active = null;
+  function stopActive() { if (active) { try { active.stop(); } catch (e) {} } }
+  function attach(field, btn) {
+    var rec = null, base = "";
+    function setRec(on) { btn.classList.toggle("rec", on); btn.textContent = on ? "⏹" : "🎤"; if (!on && active === rec) active = null; }
+    btn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      if (btn.classList.contains("rec")) { stopActive(); return; }
+      stopActive();
+      rec = new SR();
+      rec.lang = locale(); rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+      base = field.value ? field.value.replace(/\s+$/, "") + " " : "";
+      rec.onresult = function (e) {
+        var t = ""; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+        field.value = base + t;
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      rec.onerror = function () { setRec(false); };
+      rec.onend = function () { setRec(false); try { field.focus(); } catch (e) {} };
+      try { rec.start(); active = rec; setRec(true); } catch (e) { setRec(false); }
+    });
+  }
+  function mk(cls) { var b = document.createElement("button"); b.type = "button"; b.className = "mic " + (cls || ""); b.textContent = "🎤"; b.setAttribute("aria-label", "🎤"); return b; }
+  var inp = document.getElementById("asstInput");
+  if (inp) { var b = mk(); var send = document.getElementById("asstSend"); inp.parentNode.insertBefore(b, send); attach(inp, b); }
+  ["ticketMessage", "siteAbout", "pfSell", "pfMarket"].forEach(function (id) {
+    var ta = document.getElementById(id); if (!ta || !ta.parentNode) return;
+    var w = document.createElement("div"); w.className = "mic-wrap"; ta.parentNode.insertBefore(w, ta); w.appendChild(ta);
+    var b2 = mk("mic-ta"); w.appendChild(b2); attach(ta, b2);
+  });
+})();
 </script>
 <script>
 // ---- UI language (he / en / es / fr): runtime dictionary over the rendered DOM, RTL/LTR switch ----
