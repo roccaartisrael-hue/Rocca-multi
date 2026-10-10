@@ -2691,7 +2691,7 @@ async function loadAds(budget) {
       window.dispatchEvent(new Event("langchange"));
     };
     if (l === "he") return Promise.resolve(go({}));
-    return fetch("/i18n/app/" + l + ".json").then(function (r) { if (!r.ok) throw 0; return r.json(); }).catch(function () { return fetch("/i18n/app/en.json").then(function (r) { return r.json(); }); }).then(go); // ar/ru: English until their own file exists
+    return fetch("/i18n/app/" + l + ".json").then(function (r) { if (!r.ok) throw 0; return r.json(); }).catch(function () { return fetch("/i18n/app/en.json").then(function (r) { return r.json(); }); }).then(go); // ar/ru have their own files; English is only the fallback if a file fails to load
   }
   // native dialogs
   ["alert", "confirm", "prompt"].forEach(function (f) {
