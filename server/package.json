@@ -2,6 +2,7 @@
   "name": "rocca-social-bot",
   "version": "1.0.0",
   "private": true,
+  "license": "UNLICENSED",
   "description": "Automated content + social media assistant for ROCCA, powered by Claude.",
   "main": "dist/index.js",
   "scripts": {
