@@ -28,7 +28,7 @@ import { runAsTenant, isDefaultTenant, allowedPlatforms, isValidTenantId, DEFAUL
 import { getTenant, tenantForAccount } from "../lib/tenants";
 import { accountRouter } from "./account";
 import { platformRouter } from "./platform";
-import { checkCredits } from "../lib/checkCredits";
+import { checkCredits, requireModule } from "../lib/checkCredits";
 
 export const api = Router();
 
@@ -165,7 +165,7 @@ api.post("/api/profile", (req, res) => {
 });
 
 // ---- Marketing plan ----
-api.post("/api/plan/generate", async (req, res) => {
+api.post("/api/plan/generate", requireModule("social"), async (req, res) => {
   try {
     const b = req.body as { goal?: string; weeks?: number; postsPerWeek?: number; platforms?: Platform[]; weeklyBudget?: number; aggressive?: boolean; notes?: string; days?: number[]; times?: string[] };
     const tier = getTier();
@@ -208,7 +208,7 @@ api.post("/api/plan/generate", async (req, res) => {
 // ---- Professional campaign (strategy brief; nothing is launched or paid automatically) ----
 api.get("/api/campaigns", (_req, res) => res.json(campaigns.list()));
 
-api.post("/api/campaign/generate", async (req, res) => {
+api.post("/api/campaign/generate", requireModule("social"), async (req, res) => {
   try {
     const tier = getTier();
     if (!tier.adAdvice) return res.status(403).json({ error: `מסע פרסום מקצועי זמין מפרימיום ומעלה` });
@@ -315,7 +315,7 @@ api.post("/api/plan/approve", (req, res) => {
 
 // ---- Posts ----
 
-api.post("/api/posts/generate", async (req, res) => {
+api.post("/api/posts/generate", requireModule("social"), async (req, res) => {
   try {
     const { topic, platforms, imageUrl: singleUrl, imageUrls: manyUrls } = req.body as {
       topic: string;
@@ -440,7 +440,7 @@ api.patch("/api/posts/:id", (req, res) => {
   res.json(store.updatePost(req.params.id, patch));
 });
 
-api.post("/api/posts/:id/publish", async (req, res) => {
+api.post("/api/posts/:id/publish", requireModule("social"), async (req, res) => {
   const post = store.getPost(req.params.id);
   if (!post) return res.status(404).json({ error: "Not found" });
   try {

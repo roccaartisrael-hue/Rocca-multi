@@ -11,6 +11,7 @@ label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}input,sele
 .terms{max-height:300px;overflow:auto;border:1px solid var(--bd);border-radius:10px;padding:12px;font-size:14px;line-height:1.6}.terms h3{font-size:15px;margin:14px 0 4px}.terms p{margin:5px 0}
 .chk{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:15px}.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 canvas{width:100%;height:180px;border:1px dashed var(--mut);border-radius:10px;background:#fff;touch-action:none;display:block}
+.calc{margin-top:12px;padding:12px;border:1px dashed var(--bd);border-radius:10px;font-size:15px}.calc:empty{display:none}.save{display:inline-block;background:var(--ac);color:#06210f;font-weight:700;border-radius:999px;padding:3px 12px;margin-top:6px}.mod{display:flex;gap:10px;align-items:flex-start;margin:8px 0}.mod input{width:22px;height:22px;flex:none}
 .row{display:flex;gap:10px;margin-top:10px}.row>*{flex:1}button.btn{padding:13px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:inherit;font:inherit;cursor:pointer}button.pri{background:var(--ac);color:#06210f;border-color:var(--ac);font-weight:700}
 button:disabled{opacity:.5}.err{color:var(--err);margin-top:10px;min-height:1.2em}.mut{color:var(--mut);font-size:13px}.res a,.res code{word-break:break-all}.res .it{margin:12px 0}
 </style></head><body>
@@ -29,6 +30,8 @@ button:disabled{opacity:.5}.err{color:var(--err);margin-top:10px;min-height:1.2e
 <label>טלפון נייד (בינלאומי, למשל 972501234567)</label><input id="phone" type="tel" dir="ltr" autocomplete="off">
 <label>מספר וואטסאפ לחיבור הבוט (אם שונה מהנייד)</label><input id="botPhone" type="tel" dir="ltr" autocomplete="off">
 <label>מסלול</label><select id="plan"></select>
+<div id="modBox" hidden><label>שירותים לבחירה (מחיר נפרד לכל אחד)</label><div id="mods"></div></div>
+<div id="calc" class="calc" aria-live="polite"></div>
 <label>תעריף חודשי שסוכם (₪, לתיעוד)</label><input id="price" type="number" inputmode="decimal" min="0" dir="ltr">
 </div>
 
@@ -47,9 +50,31 @@ button:disabled{opacity:.5}.err{color:var(--err);margin-top:10px;min-height:1.2e
 (function(){
 var $=function(i){return document.getElementById(i)},LANG="he",DOC=null,drawn=false,TOKEN="";
 try{TOKEN=localStorage.getItem("rocca_token")||""}catch(e){}
-var PLANS=[["free_trial","ניסיון חינם"],["creator_lite","יוצרים לייט"],["creator_pro","יוצרים פרו"],["basic","בסיס"],["premium","פרימיום"],["vip","VIP"],["starter_social","Starter Social"],["digital_core","Core Presence"],["digital_pro","Digital Pro + Ads"],["total_dominance","Total Dominance"]];
+var PLANS=[["bundle_starter","Starter (וואטסאפ + אתר)"],["bundle_pro","Pro (וואטסאפ + רשתות + אתר)"],["bundle_business","Business All-in-One (הכול כולל SEO)"],["modular","שירותים נבחרים בנפרד"],["free_trial","ניסיון חינם"],["creator_lite","יוצרים לייט"],["creator_pro","יוצרים פרו"],["basic","בסיס (ישן)"],["premium","פרימיום (ישן)"],["vip","VIP (ישן)"],["starter_social","Starter Social"],["digital_core","Core Presence"],["digital_pro","Digital Pro + Ads"],["total_dominance","Total Dominance"]];
 $("plan").innerHTML=PLANS.map(function(p){return '<option value="'+p[0]+'">'+p[1]+'</option>'}).join("");
-$("plan").value="digital_core";
+$("plan").value="bundle_pro";
+var PM=null,BID={bundle_starter:"starter",bundle_pro:"pro",bundle_business:"business"};
+function ils(n){return "₪"+Number(n).toLocaleString("he-IL")}
+function picked(){return Array.prototype.filter.call($("mods").querySelectorAll("input"),function(c){return c.checked}).map(function(c){return c.value})}
+function calc(){
+  if(!PM)return;var v=$("plan").value,box=$("calc");$("modBox").hidden=v!=="modular";
+  var mp={};PM.modules.forEach(function(m){mp[m.id]=m.priceIls});
+  if(BID[v]){var b=PM.bundles.filter(function(x){return x.id===BID[v]})[0];
+    box.innerHTML='<div>מחיר נפרד לשירותים: <s>'+ils(b.separateIls)+'</s> · חבילה: <b>'+ils(b.priceIls)+'</b> לחודש</div><span class="save">חסוך '+ils(b.savingsIls)+' בכל חודש!</span>';
+    if(!$("price").value||$("price").dataset.auto)$("price").value=b.priceIls,$("price").dataset.auto="1";return}
+  if(v==="modular"){var sel=picked(),tot=sel.reduce(function(s,m){return s+mp[m]},0),html='<div>סה״כ בנפרד: <b>'+ils(tot)+'</b> לחודש</div>';
+    var best=null;PM.bundles.forEach(function(b){if(sel.every(function(m){return b.modules.indexOf(m)>-1})&&b.priceIls<tot&&(!best||b.priceIls<best.priceIls))best=b});
+    if(best)html+='<span class="save">חבילת '+best.label+' ב-'+ils(best.priceIls)+': חסוך '+ils(tot-best.priceIls)+' בחודש</span>';
+    if(sel.indexOf("seo")>-1)html+='<div class="mut" style="margin-top:6px">קידום אורגני (SEO): התחייבות ל-6 חודשים כדי לראות תוצאות.</div>';
+    box.innerHTML=html;if(!$("price").value||$("price").dataset.auto)$("price").value=tot||"",$("price").dataset.auto="1";return}
+  box.innerHTML="";
+}
+$("price").addEventListener("input",function(){delete $("price").dataset.auto});
+$("plan").addEventListener("change",function(){delete $("price").dataset.auto;calc()});
+$("mods").addEventListener("change",calc);
+fetch("/api/billing/modules").then(function(r){return r.json()}).then(function(j){PM=j;
+  $("mods").innerHTML=j.modules.map(function(m){return '<label class="mod"><input type="checkbox" value="'+m.id+'"><span><b>'+esc(m.label)+'</b> · '+ils(m.priceIls)+'<br><span class="mut">'+esc(m.includes)+(m.commitmentMonths?' · התחייבות ל-'+m.commitmentMonths+' חודשים':'')+'</span></span></label>'}).join("");
+  calc()});
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]})}
 function api(path,opt){opt=opt||{};opt.headers=Object.assign({"Content-Type":"application/json"},TOKEN?{Authorization:"Bearer "+TOKEN}:{});return fetch(path,opt).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||("HTTP "+r.status));return j})})}
 
@@ -91,7 +116,7 @@ $("submit").addEventListener("click",function(){
   var checked=Array.prototype.map.call($("checks").querySelectorAll("input"),function(c){return c.checked});
   if(!checked.length||!checked.every(Boolean)){$("err").textContent="יש לסמן את כל תיבות ההסכמה";return}
   if(!drawn){$("err").textContent="חסרה חתימה";return}
-  var body={language:LANG,businessName:$("businessName").value,taxId:$("taxId").value,signatory:$("signatory").value,email:$("email").value,phone:$("phone").value,botPhone:$("botPhone").value,plan:$("plan").value,monthlyPriceIls:$("price").value,checked:checked,signaturePng:cv.toDataURL("image/png")};
+  var body={language:LANG,businessName:$("businessName").value,taxId:$("taxId").value,signatory:$("signatory").value,email:$("email").value,phone:$("phone").value,botPhone:$("botPhone").value,plan:$("plan").value,modules:picked(),monthlyPriceIls:$("price").value,checked:checked,signaturePng:cv.toDataURL("image/png")};
   $("submit").disabled=true;
   api("/api/admin/onboard-client",{method:"POST",body:JSON.stringify(body)}).then(function(r){
     $("form").hidden=true;var d=$("done");d.hidden=false;

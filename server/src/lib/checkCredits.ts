@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { currentTenantId, isDefaultTenant } from "./tenantContext";
 import { adjustCredits, getTenant, withDefaults } from "./tenants";
-import { getTier } from "./plans";
+import { getTier, hasModule } from "./plans";
+import { ModuleId, upsellText } from "./modules";
+import { brandDomain } from "./brand";
 
 /**
  * Credit gate for AI actions (generating posts, plans, campaigns…).
@@ -40,5 +42,19 @@ export function requireFeature(feature: "autopilot" | "customDomain" | "ads" | "
     const tier = getTier();
     if (isDefaultTenant() || tier[feature]) return next();
     res.status(402).json({ error: `הפיצ'ר הזה זמין ממסלול גבוה יותר (המסלול שלך: ${tier.label}).`, code: "upgrade_required", feature, upgrade: "/#plans" });
+  };
+}
+
+/** Where the customer upgrades (absolute: the assistant also sends it over WhatsApp). */
+export const upgradeLink = (): string => `${(process.env.PUBLIC_APP_URL || `https://app.${brandDomain()}`).replace(/\/$/, "")}/#plans`;
+
+/**
+ * Paywall for a service that is not part of the customer's package. Analysis and the knowledge base are never gated;
+ * only the execution of the service is. The answer carries a ready sales message with the upgrade link.
+ */
+export function requireModule(m: ModuleId) {
+  return (_req: Request, res: Response, next: NextFunction) => {
+    if (isDefaultTenant() || hasModule(m)) return next();
+    res.status(402).json({ error: upsellText(m, upgradeLink()), code: "module_required", module: m, upgrade: "/#plans" });
   };
 }

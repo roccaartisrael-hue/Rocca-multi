@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { store } from "../lib/store";
-import { getTier } from "../lib/plans";
+import { getTier, hasModule, effectiveModules } from "../lib/plans";
 import { tierMargins } from "../lib/margins";
 import { getSettings, saveSettings } from "../lib/settings";
 import { runAutopilot } from "../lib/autopilot";
@@ -20,7 +20,8 @@ import { assistantContext, executeAssistantAction } from "../lib/assistantOps";
 import { waConfigured, waDisplayNumber, maskPhone, parseInbound, validWaSignature, verifyWaChallenge } from "../lib/whatsapp";
 import { handleWhatsAppInbound } from "../lib/assistantWhatsApp";
 import { getProfile } from "../lib/profile";
-import { creditsLeft, requireFeature } from "../lib/checkCredits";
+import { creditsLeft, requireFeature, requireModule } from "../lib/checkCredits";
+import { pricingModel } from "../lib/modules";
 import { rateLimited } from "../lib/ratelimit";
 import { currentTenantId, isDefaultTenant, runAsTenant, DEFAULT_TENANT, allowedPlatforms } from "../lib/tenantContext";
 import { ALL_PLATFORMS, Platform } from "../config";
@@ -54,8 +55,10 @@ publicPlatform.post("/webhooks/whatsapp", async (req, res) => {
   }
 });
 
+publicPlatform.get("/api/billing/modules", (_req, res) => res.json(pricingModel()));
 publicPlatform.get("/api/billing/catalog", (_req, res) => {
-  res.json({ vatNote: process.env.PRICES_VAT_NOTE || DEFAULT_VAT_NOTE, vatRate: vatRate(), priceDisplay: priceDisplay(), items: CATALOG.map((i) => ({ ...i, ...vatBreakdown(i.priceIls) })) });
+  const row = (i: (typeof CATALOG)[number]) => ({ ...i, ...vatBreakdown(i.priceIls) });
+  res.json({ vatNote: process.env.PRICES_VAT_NOTE || DEFAULT_VAT_NOTE, vatRate: vatRate(), priceDisplay: priceDisplay(), items: CATALOG.filter((i) => !i.modular).map(row), modular: { ...pricingModel(), skus: CATALOG.filter((i) => i.modular).map(row) } });
 });
 
 // Landing pages, the generated site's form and paid-ad lead forms post here. The business is identified by its public key.
@@ -129,15 +132,15 @@ function withSite(req: Request, res: Response, fn: (name: string, key: string, c
   const tid = tenantForKey(key);
   if (!tid) return res.status(404).send("Not found");
   runAsTenant(tid, () => {
-    if (getSite().status !== "live") return res.status(404).send("Not found");
+    if (getSite().status !== "live" || (tid !== DEFAULT_TENANT && !hasModule("site"))) return res.status(404).send("Not found");
     fn(businessNameOf(), key, tid !== DEFAULT_TENANT && !getSite().hideCredit);
   });
 }
-publicPlatform.get("/s/:key", (req, res) => withSite(req, res, (name, key, credit) => res.type("html").send(renderSiteHtml(name, getSite(), key, `/s/${key}`, credit))));
+publicPlatform.get("/s/:key", (req, res) => withSite(req, res, (name, key, credit) => res.type("html").send(renderSiteHtml(name, getSite(), key, `/s/${key}`, credit, hasModule("seo")))));
 publicPlatform.get("/s/:key/sitemap.xml", (req, res) =>
   withSite(req, res, (_n, key) => {
     const origin = (process.env.PUBLIC_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
-    const urls = [`${origin}/s/${key}`, ...getSite().articles.map((a) => `${origin}/s/${key}/${a.slug}`)];
+    const urls = [`${origin}/s/${key}`, ...(hasModule("seo") ? getSite().articles.map((a) => `${origin}/s/${key}/${a.slug}`) : [])]; // dynamic sitemap with articles = SEO module
     res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((u) => `<url><loc>${u}</loc></url>`).join("")}</urlset>`);
   })
 );
@@ -167,7 +170,7 @@ platformRouter.post("/api/autopilot", (req, res) => {
   }
   res.json(saveSettings({ autopilotEnabled: enabled }));
 });
-platformRouter.post("/api/autopilot/run", requireFeature("autopilot"), async (_req, res) => {
+platformRouter.post("/api/autopilot/run", requireModule("social"), requireFeature("autopilot"), async (_req, res) => {
   try {
     res.json(await runAutopilot({ force: true }));
   } catch (e) {
@@ -204,7 +207,7 @@ platformRouter.get("/api/billing/status", (_req, res) => {
   const t = isDefaultTenant() ? null : getTenant(currentTenantId());
   const d = t ? withDefaults(t) : null;
   res.json({
-    tier: tier.name, tierLabel: tier.label, kind: tier.kind,
+    tier: tier.name, tierLabel: tier.label, kind: tier.kind, modules: effectiveModules(), addonUntil: (isDefaultTenant() ? {} : getTenant(currentTenantId())?.addonUntil) || {}, seoCommitUntil: isDefaultTenant() ? undefined : getTenant(currentTenantId())?.seoCommitUntil,
     credits: creditsLeft(), unlimited: creditsLeft() === null,
     cycle: d?.subscriptionCycle ?? "none", commitmentMonths: d?.commitmentMonths ?? 0, expiresAt: d?.planExpiresAt,
     features: { autopilot: isDefaultTenant() || tier.autopilot, customDomain: isDefaultTenant() || tier.customDomain, ads: isDefaultTenant() || tier.ads, leadBot: isDefaultTenant() || tier.leadBot },
@@ -263,7 +266,7 @@ platformRouter.get("/api/site", (_req, res) => {
   const key = tid === DEFAULT_TENANT ? process.env.LEAD_KEY || "" : ensureLeadKey(tid);
   res.json({ site: getSite(), publicPath: key ? `/s/${key}` : "", canUseDomain: isDefaultTenant() || getTier().customDomain });
 });
-platformRouter.post("/api/site", (req, res) => {
+platformRouter.post("/api/site", requireModule("site"), (req, res) => {
   const b = req.body || {};
   const clip = (v: unknown, n: number) => String(v ?? "").slice(0, n);
   const patch: any = {};
@@ -279,14 +282,14 @@ platformRouter.post("/api/site", (req, res) => {
   }
   res.json(saveSite(patch));
 });
-platformRouter.post("/api/site/domain", requireFeature("customDomain"), (req, res) => {
+platformRouter.post("/api/site/domain", requireModule("site"), requireFeature("customDomain"), (req, res) => {
   const d = String(req.body?.domain || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
   if (!validDomain(d)) return res.status(400).json({ error: "כתובת דומיין לא תקינה" });
   if (!claimDomain(d, currentTenantId())) return res.status(409).json({ error: "הדומיין הזה כבר משויך לעסק אחר" });
   // The operator points DNS / TLS at the service and flips this to "active" (see /api/admin/sites/:tenantId/domain/activate).
   res.json(saveSite({ domain: d, domainStatus: "pending_dns" }));
 });
-platformRouter.post("/api/site/article", async (req, res) => {
+platformRouter.post("/api/site/article", requireModule("seo"), async (req, res) => {
   try {
     const topic = String(req.body?.topic || "").trim().slice(0, 200);
     if (!topic) return res.status(400).json({ error: "חסר נושא למאמר" });

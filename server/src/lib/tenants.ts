@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { readGlobal, writeGlobal, deleteTenantDocs } from "./persist";
 import { DEFAULT_TENANT, isValidTenantId } from "./tenantContext";
 import type { TierName } from "./plans";
+import type { ModuleId } from "./modules";
 import { releaseDomains } from "./sites";
 
 /** Business accounts (tenants), their login, invite codes and the page → tenant index. All stored system-wide. */
@@ -26,6 +27,8 @@ export interface Tenant {
   language?: string;
   planExpiresAt?: string; // paid plan lapses (back to free) if no renewal payment arrives by then
   leadKey?: string; // public key that identifies this business on the lead-capture endpoint
+  addonUntil?: Partial<Record<ModuleId, string>>; // paid stand-alone services -> ISO time they lapse unless renewed
+  seoCommitUntil?: string; // SEO add-on: 6-month commitment ends here (informational; billing enforces it)
 }
 
 export const FREE_GIFT_CREDITS = 3;
@@ -123,7 +126,7 @@ export function createTenant(input: { name: string; email: string; password: str
   return tenant;
 }
 
-export type TenantPatch = Partial<Pick<Tenant, "plan" | "status" | "trialEndsAt" | "name" | "commitmentMonths" | "subscriptionCycle" | "country" | "city" | "currency" | "language" | "planExpiresAt">> & { password?: string };
+export type TenantPatch = Partial<Pick<Tenant, "plan" | "status" | "trialEndsAt" | "name" | "commitmentMonths" | "subscriptionCycle" | "country" | "city" | "currency" | "language" | "planExpiresAt" | "addonUntil" | "seoCommitUntil">> & { password?: string };
 
 export function updateTenant(id: string, patch: TenantPatch): Tenant | undefined {
   const list = readAll();
@@ -137,6 +140,8 @@ export function updateTenant(id: string, patch: TenantPatch): Tenant | undefined
   if ("planExpiresAt" in patch) t.planExpiresAt = patch.planExpiresAt;
   if (patch.commitmentMonths !== undefined) t.commitmentMonths = Math.max(0, Math.floor(patch.commitmentMonths));
   if (patch.subscriptionCycle) t.subscriptionCycle = patch.subscriptionCycle;
+  if (patch.addonUntil) t.addonUntil = { ...(t.addonUntil || {}), ...patch.addonUntil };
+  if (patch.seoCommitUntil) t.seoCommitUntil = patch.seoCommitUntil;
   for (const k of ["country", "city", "currency", "language"] as const) if (patch[k] !== undefined) t[k] = String(patch[k]).slice(0, 100);
   writeAll(list);
   return t;

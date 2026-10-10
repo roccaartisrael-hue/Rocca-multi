@@ -135,12 +135,15 @@ html[dir=ltr] .pv-kpi,html[dir=ltr] .pv-row,html[dir=ltr] .pv-side div{text-alig
   .wa-fab { position: fixed; z-index: 40; inset-inline-end: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 999px; background: #25d366; color: #04210f; font-weight: 600; font-size: 14px; text-decoration: none; box-shadow: 0 10px 28px rgba(37,211,102,.35); }
   .wa-fab svg { width: 20px; height: 20px; fill: currentColor; }
   @media (max-width: 480px) { .wa-fab span { display: none; } .wa-fab { padding: 14px; } }
+.mod-list{display:grid;gap:10px;margin-bottom:16px}.mod-opt{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer}.mod-opt:has(input:checked){border-color:var(--accent)}.mod-opt input{width:22px;height:22px;flex:none;margin-top:2px;accent-color:var(--accent)}.mod-opt b{display:block;color:var(--text)}.mod-opt small{color:var(--muted)}.mod-opt .mp{margin-inline-start:auto;font-weight:700;white-space:nowrap}
+.mod-sum{background:var(--panel2);border:1px solid var(--border2);border-radius:12px;padding:16px;margin-bottom:22px;font-size:15px}.save{display:inline-block;background:#16a34a;color:#fff;font-weight:700;border-radius:999px;padding:4px 14px;margin-top:8px}
+.bd-card{position:relative}.bd-card .price{font-size:30px;font-weight:700;color:var(--text)}.bd-card s{color:var(--faint)}.bd-card ul{padding-inline-start:18px;color:var(--muted);font-size:14px}
 </style>
 </head>
 <body>
 <nav class="nav"><div class="wrap">
   <a class="brand" href="/"><span class="logo">B</span>BOOL</a>
-  <div class="links"><a href="#features"><span data-i18n="nav.features">יכולות</span></a><a href="#how"><span data-i18n="nav.how">איך זה עובד</span></a><a href="#plans"><span data-i18n="nav.plans">חבילות</span></a><a href="#faq"><span data-i18n="nav.faq">שאלות</span></a></div>
+  <div class="links"><a href="#features"><span data-i18n="nav.features">יכולות</span></a><a href="#how"><span data-i18n="nav.how">איך זה עובד</span></a><a href="#plans"><span data-i18n="nav.plans">חבילות</span></a><a href="#modular"><span data-i18n="m.eyebrow">מודל גמיש</span></a><a href="#faq"><span data-i18n="nav.faq">שאלות</span></a></div>
   <div class="end"><select id="langSel" class="lang" aria-label="Language"><option value="he">🇮🇱 עברית</option><option value="en">🇺🇸 English</option><option value="es">🇪🇸 Español</option><option value="ar">🇸🇦 العربية</option><option value="ru">🇷🇺 Русский</option><option value="fr">🇫🇷 Français</option></select><a class="btn ghost sm" data-app href="#"><span data-i18n="nav.login">כניסה</span></a><a class="btn sm" data-app data-signup href="#"><span data-i18n="nav.start">התחלה בחינם</span></a></div>
 </div></nav>
 
@@ -186,6 +189,16 @@ html[dir=ltr] .pv-kpi,html[dir=ltr] .pv-row,html[dir=ltr] .pv-side div{text-alig
   <p class="sub"><span data-i18n="p.sub">התחילו בחינם ושדרגו כשצריך. כל המחירים מוצגים כולל מע״מ: זה בדיוק הסכום שיורד מהאשראי.</span></p>
   <p class="sub" id="vatNote" style="margin-top:-18px"></p>
   <div class="grid" id="catalog"></div>
+</div></section>
+
+<section id="modular"><div class="wrap">
+  <p class="eyebrow"><span data-i18n="m.eyebrow">מודל גמיש</span></p><h2><span data-i18n="m.h2">בנו חבילה לפי הצרכים שלכם</span></h2>
+  <p class="sub"><span data-i18n="m.sub">בחרו שירותים בנפרד, או חסכו עם חבילה כוללת. כל המחירים כוללים מע״מ.</span></p>
+  <div class="mod-list" id="modList"></div>
+  <div class="mod-sum" id="modSum" aria-live="polite"></div>
+  <h3 style="margin:8px 0 12px"><span data-i18n="m.bundles">חבילות הכול כלול</span></h3>
+  <div class="grid" id="bundleCards"></div>
+  <p class="sub" style="margin-top:14px"><span data-i18n="m.addon">אפשר להוסיף שירות בנפרד גם על חבילה, למשל קידום אורגני.</span></p>
 </div></section>
 
 <section id="faq"><div class="wrap">
@@ -269,6 +282,35 @@ html[dir=ltr] .pv-kpi,html[dir=ltr] .pv-row,html[dir=ltr] .pv-side div{text-alig
   var first = pick();
   if (sel) sel.value = first;
   apply(first).catch(function () {});
+})();
+</script>
+<script>
+(function () {
+  var MK = { whatsapp: ["m.wa", "m.wa.d"], social: ["m.so", "m.so.d"], site: ["m.si", "m.si.d"], seo: ["m.se", "m.se.d"] };
+  var model = null, sel = {};
+  var T = function (k, v) { return ((window.boolT && window.boolT[k]) || k).replace(/\{(\w+)\}/g, function (_, n) { return v && v[n] != null ? v[n] : ""; }); };
+  var ils = function (n) { return "₪" + Number(n).toLocaleString({ he: "he-IL", en: "en-US", es: "es-ES", ar: "ar", ru: "ru-RU", fr: "fr-FR" }[window.boolLang || "he"]); };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  var appUrl = /(^|\.)boolai\.co\.il$/.test(location.hostname) ? "https://app.boolai.co.il/" : "/";
+  function render() {
+    if (!model || !window.boolT) return;
+    document.getElementById("modList").innerHTML = model.modules.map(function (m) {
+      return '<label class="mod-opt"><input type="checkbox" value="' + m.id + '"' + (sel[m.id] ? " checked" : "") + '><span><b>' + esc(T(MK[m.id][0])) + '</b><small>' + esc(T(MK[m.id][1])) + (m.commitmentMonths ? " · " + esc(T("m.commit", { n: m.commitmentMonths })) : "") + '</small></span><span class="mp">' + ils(m.priceIls) + '</span></label>';
+    }).join("");
+    var ids = model.modules.map(function (m) { return m.id; }).filter(function (i) { return sel[i]; });
+    var tot = ids.reduce(function (s, i) { return s + model.modules.filter(function (m) { return m.id === i; })[0].priceIls; }, 0);
+    var best = null;
+    model.bundles.forEach(function (b) { if (ids.length && ids.every(function (i) { return b.modules.indexOf(i) > -1; }) && b.priceIls < tot && (!best || b.priceIls < best.priceIls)) best = b; });
+    var h = ids.length ? "<div>" + esc(T("m.sep")) + ": <b>" + ils(tot) + "</b> " + esc(T("m.mo", { n: "" }).replace("₪", "").trim()) + "</div>" : "<div>" + esc(T("m.pick")) + "</div>";
+    if (best) h += '<span class="save">' + esc(T("m.save", { n: (tot - best.priceIls).toLocaleString() })) + "</span><div style=\"margin-top:6px\">" + esc(T("m.best", { b: best.label, p: best.priceIls.toLocaleString(), s: tot - best.priceIls })) + "</div>";
+    document.getElementById("modSum").innerHTML = h;
+    document.getElementById("bundleCards").innerHTML = model.bundles.map(function (b) {
+      return '<div class="card bd-card"><h3>' + esc(b.label) + '</h3><div class="price">' + ils(b.priceIls) + ' <small style="font-size:14px;font-weight:400;color:var(--muted)">' + esc(T("m.mo", { n: "" }).replace("₪", "").trim()) + '</small></div><div><s>' + ils(b.separateIls) + '</s></div><span class="save">' + esc(T("m.save", { n: b.savingsIls.toLocaleString() })) + '</span><ul>' + b.modules.map(function (i) { return "<li>" + esc(T(MK[i][0])) + "</li>"; }).join("") + '</ul><a class="btn" href="' + appUrl + '">' + esc(T("m.start")) + "</a></div>";
+    }).join("");
+  }
+  document.getElementById("modList").addEventListener("change", function (e) { if (e.target && e.target.value) { sel[e.target.value] = e.target.checked; render(); } });
+  window.addEventListener("langchange", render);
+  fetch("/api/billing/modules").then(function (r) { return r.json(); }).then(function (m) { model = m; render(); }).catch(function () { var s = document.getElementById("modular"); if (s) s.hidden = true; });
 })();
 </script>
 <script src="/bool-banner.js" defer></script>

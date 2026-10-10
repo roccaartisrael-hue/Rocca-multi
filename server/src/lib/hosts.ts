@@ -5,6 +5,7 @@ import { CorsOptions } from "cors";
 import { tenantForDomain, getSite, renderSiteHtml, renderArticleHtml } from "./sites";
 import { runAsTenant, DEFAULT_TENANT } from "./tenantContext";
 import { getTenant } from "./tenants";
+import { hasModule } from "./plans";
 import { getProfile } from "./profile";
 import { brandDomain } from "./brand";
 
@@ -22,6 +23,7 @@ const API_PATHS = /^\/(api|auth|webhooks|legal|privacy|terms|data-deletion|suppo
 
 export function hostRouting(req: Request, res: Response, next: NextFunction) {
   const h = hostOf(req);
+  if (MARKETING().includes(h) && (req.path === "/pricing" || req.path === "/pricing/")) return res.redirect(302, "/#modular");
   if (MARKETING().includes(h) && !API_PATHS.test(req.path)) {
     const file = path.join(PUBLIC_DIR, "marketing", req.path === "/" ? "index.html" : path.normalize(req.path).replace(/^(\.\.[/\\])+/, ""));
     if (file.startsWith(path.join(PUBLIC_DIR, "marketing")) && fs.existsSync(file) && fs.statSync(file).isFile()) return res.sendFile(file);
@@ -40,11 +42,11 @@ export function siteHost(req: Request, res: Response, next: NextFunction) {
   if (!tid) return next();
   runAsTenant(tid, () => {
     const site = getSite();
-    if (site.status !== "live" || site.domainStatus !== "active") return next();
+    if (site.status !== "live" || site.domainStatus !== "active" || (tid !== DEFAULT_TENANT && !hasModule("site"))) return next();
     const name = tid === DEFAULT_TENANT ? getProfile()?.businessName || "ROCCA" : getTenant(tid)?.name || "";
     const key = tid === DEFAULT_TENANT ? process.env.LEAD_KEY || "" : getTenant(tid)?.leadKey || "";
     const credit = tid !== DEFAULT_TENANT && !site.hideCredit;
-    if (req.path === "/" || req.path === "") return res.type("html").send(renderSiteHtml(name, site, key, "", credit));
+    if (req.path === "/" || req.path === "") return res.type("html").send(renderSiteHtml(name, site, key, "", credit, hasModule("seo")));
     const art = site.articles.find((a) => `/${a.slug}` === decodeURIComponent(req.path));
     if (art) return res.type("html").send(renderArticleHtml(name, art, "/", credit));
     next();

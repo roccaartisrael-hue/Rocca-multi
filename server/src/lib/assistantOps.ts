@@ -1,6 +1,8 @@
 import { store } from "./store";
 import { getProfile } from "./profile";
-import { getTier } from "./plans";
+import { getTier, hasModule, effectiveModules } from "./plans";
+import { MODULE_IDS, MODULES, upsellText } from "./modules";
+import { upgradeLink } from "./checkCredits";
 import { listReminders, addReminder } from "./reminders";
 import { getAssistant } from "./assistantSettings";
 import { upcomingDates, Lang } from "./holidays";
@@ -52,7 +54,21 @@ export function assistantContext(tz: string): string {
     `תזכורות קרובות: ${rem.length ? rem.map((r) => `${r.date} ${r.text}`).join("; ") : "אין"}`,
     `מה שבעל העסק סיפר לך ושכדאי לזכור: ${memory.length ? memory.map((f) => f.text).join("; ") : "עדיין כלום"}`,
     `פוסטים שהצליחו אצלו: ${best.length ? best.join(" | ") : "אין עדיין נתונים"}`,
+    packageLine(),
     `מועדים שיווקיים קרובים: ${cal.length ? cal.map((c) => `${c.date} ${c.name.he}`).join("; ") : "אין"}`,
+  ].join("\n");
+}
+
+/** What the package includes, and the exact upgrade message for each service that is not included (the assistant uses it when asked for one). */
+function packageLine(): string {
+  const have = effectiveModules();
+  const missing = MODULE_IDS.filter((m) => !have.includes(m));
+  const link = upgradeLink();
+  return [
+    `החבילה של הלקוח: ${getTier().label}. שירותים כלולים: ${have.map((m) => MODULES[m].label).join("; ") || "אין"}.`,
+    missing.length
+      ? `שירותים שאינם כלולים (ניתוח השוק, המתחרים וידע על העסק כבר מוכנים לכולם): ${missing.map((m) => `${MODULES[m].label} — אם מבקשים זאת, ענה בדיוק בנוסח: "${upsellText(m, link)}" ואל תוציא ACTION`).join(" | ")}`
+      : "כל השירותים כלולים בחבילה.",
   ].join("\n");
 }
 
@@ -68,6 +84,7 @@ export function executeAssistantAction(a: AssistantAction, tz: string): ActionRe
     const r = addFact(a.text);
     return r.ok ? { ok: true, message: `🧠 ${r.fact!.text}` } : { ok: false, message: r.reason === "sensitive" ? "I don't store passwords, card numbers or personal identifiers." : "Nothing to remember" };
   }
+  if ((a.type === "draft_post" || a.type === "schedule_post") && !hasModule("social")) return { ok: false, message: upsellText("social", upgradeLink()) };
   if (a.type === "draft_post") {
     const platforms = (["facebook", "instagram"] as Platform[]).filter((p) => allowedPlatforms(ALL_PLATFORMS).includes(p));
     if (!platforms.length) return { ok: false, message: "No platform available" };

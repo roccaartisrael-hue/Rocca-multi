@@ -6,6 +6,7 @@ import { runAsTenant } from "./tenantContext";
 import { createPairingCode, saveWhatsApp } from "./assistantSettings";
 import { normalizePhone } from "./whatsapp";
 import { brandDomain } from "./brand";
+import { isModuleId, ModuleId, separateTotal } from "./modules";
 import { TERMS, TERMS_VERSION, TermsLang, isTermsLang, termsHtml } from "./terms";
 
 const FILE = "consents.json";
@@ -28,6 +29,7 @@ export interface ConsentRecord {
   phone: string;
   botPhone: string;
   plan: string;
+  modules?: ModuleId[]; // à-la-carte services (plan "modular")
   monthlyPriceIls?: number;
   onboardedBy: "admin";
 }
@@ -56,6 +58,7 @@ export interface OnboardInput {
   phone: unknown;
   botPhone: unknown;
   plan: unknown;
+  modules?: unknown;
   monthlyPriceIls: unknown;
   checked: unknown;
   signaturePng: unknown;
@@ -117,14 +120,18 @@ export async function onboardClient(input: OnboardInput, ip: string, origin: str
   if (checked.length !== TERMS[lang].checks.length || !checked.every(Boolean)) throw new OnboardError("יש לסמן את כל תיבות ההסכמה");
   const sig = String(input.signaturePng || "");
   if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(sig) || sig.length > MAX_SIGNATURE || sig.length < 400) throw new OnboardError("חסרה חתימה");
-  const price = Number(input.monthlyPriceIls);
+  const mods: ModuleId[] = plan === "modular" ? [...new Set((Array.isArray(input.modules) ? input.modules : []).filter(isModuleId))] : [];
+  if (plan === "modular" && !mods.length) throw new OnboardError("בחר לפחות שירות אחד");
+  const price = input.monthlyPriceIls === "" || input.monthlyPriceIls == null ? (plan === "modular" ? separateTotal(mods) : TIERS[plan].priceIls) : Number(input.monthlyPriceIls);
 
   const tenant = createTenant({ name: businessName, email, password: crypto.randomBytes(18).toString("base64url") });
   updateTenant(tenant.id, {
     plan,
     language: lang === "ar" || lang === "ru" ? "en" : lang, // dashboard languages today: he/en/es/fr
-    subscriptionCycle: TIERS[plan].priceIls > 0 ? "monthly" : "none",
+    subscriptionCycle: TIERS[plan].priceIls > 0 || mods.length ? "monthly" : "none",
     planExpiresAt: TIERS[plan].priceIls > 0 ? new Date(Date.now() + 30 * 86400000).toISOString() : undefined,
+    addonUntil: Object.fromEntries(mods.map((m) => [m, new Date(Date.now() + 30 * 86400000).toISOString()])),
+    seoCommitUntil: mods.includes("seo") ? new Date(Date.now() + 6 * 30 * 86400000).toISOString() : undefined,
   });
 
   const rec: ConsentRecord = {
@@ -139,6 +146,7 @@ export async function onboardClient(input: OnboardInput, ip: string, origin: str
     signaturePng: sig,
     businessName, taxId, signatory, email, phone, botPhone,
     plan,
+    modules: mods.length ? mods : undefined,
     monthlyPriceIls: Number.isFinite(price) && price >= 0 ? price : undefined,
     onboardedBy: "admin",
   };
