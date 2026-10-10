@@ -191,6 +191,8 @@ function secret(): string {
 }
 
 const sign = (payload: string) => crypto.createHmac("sha256", secret()).update(payload).digest("base64url");
+/** HMAC of a string with the server secret (signed links). */
+export const signPayload = sign;
 
 export function issueToken(tenantId: string, days = 30): string {
   const payload = Buffer.from(JSON.stringify({ t: tenantId, e: Date.now() + days * 86400000 })).toString("base64url");

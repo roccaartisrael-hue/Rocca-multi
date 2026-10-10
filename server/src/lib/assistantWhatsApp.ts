@@ -11,7 +11,7 @@ import { Lang } from "./holidays";
 const TEMPLATE_COST_USD = Number(process.env.WHATSAPP_TEMPLATE_COST_USD) || 0.05; // conservative; counted against the monthly cost cap
 const seen: string[] = []; // webhook retries
 
-const STOP = /^\s*(stop|unsubscribe|עצור|הפסק|baja|arr[eê]t)\s*$/i;
+const STOP = /^\s*(stop|unsubscribe|עצור|הפסק|baja|alto|arr[eê]t|قف|стоп)\s*$/i;
 const PAIR = /BOOL[\s\-:]*([A-Z0-9]{6})/i;
 
 const MSG: Record<Lang, { paired: string; stopped: string; slow: string }> = {
