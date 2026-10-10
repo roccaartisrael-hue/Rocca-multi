@@ -1288,12 +1288,124 @@ async function loadConnect() {
       row.appendChild(off);
     }
     box.appendChild(row);
-    ["טיקטוק", "האתר"].forEach((n) => box.appendChild(el(`<div class="post-block"><span class="tag">${n}</span><span class="status pending">בקרוב</span></div>`)));
+    await renderTikTokBlock(box);
+    await renderSiteBlock(box);
   } catch (e) {
     box.innerHTML = `<p class="empty">שגיאה: ${esc(e.message)}</p>`;
   }
 }
 
+
+// ---- TikTok: connect + posting screen (follows TikTok's Content Sharing Guidelines) ----
+const TT_PRIVACY = { PUBLIC_TO_EVERYONE: "כולם", MUTUAL_FOLLOW_FRIENDS: "חברים (עוקבים הדדיים)", FOLLOWER_OF_CREATOR: "העוקבים שלי", SELF_ONLY: "רק אני" };
+async function renderTikTokBlock(box) {
+  const wrap = el(`<div class="post-block"><span class="tag">טיקטוק</span><span class="status pending ttState">טוען…</span><div class="ttBody"></div></div>`);
+  box.appendChild(wrap);
+  const body = wrap.querySelector(".ttBody"), state = wrap.querySelector(".ttState");
+  let st;
+  try { st = await api("/api/tiktok/status"); } catch (e) { state.textContent = "שגיאה"; return; }
+  state.className = "status " + (st.connected ? "sent" : "pending");
+  state.textContent = st.connected ? "מחובר" : "לא מחובר";
+  if (new URLSearchParams(location.search).get("tiktok")) history.replaceState(null, "", location.pathname);
+  if (!st.connected) {
+    body.appendChild(el(`<p class="muted-small">חברו את חשבון הטיקטוק שלכם בלחיצה אחת, ואפשר יהיה לפרסם אליו סרטונים מהאפליקציה. אנחנו מציגים רק את השם והתמונה שלכם, ולא מפרסמים דבר בלי אישור שלכם.</p>`));
+    const b = el(`<button style="width:100%;margin-top:8px">חבר טיקטוק</button>`);
+    b.addEventListener("click", async () => { b.disabled = true; try { const r = await api("/api/tiktok/connect", { method: "POST", body: "{}" }); window.location.href = r.url; } catch (e) { b.disabled = false; if (!e.paywall) toast(e.message); } });
+    body.appendChild(b);
+    return;
+  }
+  body.appendChild(el(`<p class="muted-small">${st.avatarUrl ? `<img src="${esc(st.avatarUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-inline-end:6px">` : ""}חשבון: <b>${esc(st.displayName || "מחובר")}</b></p>`));
+  const row = el(`<div class="row-actions" style="margin-top:8px"><button class="ttOpen">פרסום סרטון לטיקטוק</button><button class="secondary ttOff">נתק</button></div>`);
+  row.querySelector(".ttOff").addEventListener("click", async () => { if (!confirm("לנתק את טיקטוק?")) return; await api("/api/tiktok", { method: "DELETE" }); loadConnect(); });
+  row.querySelector(".ttOpen").addEventListener("click", () => openTikTokComposer(body));
+  body.appendChild(row);
+}
+async function openTikTokComposer(body) {
+  if (body.querySelector(".ttComposer")) return;
+  let info;
+  try { info = await api("/api/tiktok/creator"); } catch (e) { if (!e.paywall) toast(e.message); return; }
+  if (!info.privacyOptions.length) { toast("לחשבון הזה אין כרגע אפשרות פרסום. נסו שוב מאוחר יותר."); return; }
+  const dis = (flag) => (flag ? "disabled" : "");
+  const box = el(`<div class="ttComposer card" style="margin-top:10px">
+    <p class="muted-small">${info.avatarUrl ? `<img src="${esc(info.avatarUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-inline-end:6px">` : ""}מפרסם/ת בשם: <b>${esc(info.nickname || info.username)}</b></p>
+    <label>קישור לסרטון (MP4, עד 64MB)</label>
+    <input type="url" class="ttUrl" placeholder="https://…">
+    <label>כיתוב</label>
+    <textarea class="ttTitle" rows="3" maxlength="2200" placeholder="כיתוב לסרטון"></textarea>
+    <label>מי יכול לראות את הסרטון? <span style="color:#e57373">*</span></label>
+    <select class="ttPrivacy"><option value="">בחרו…</option>${info.privacyOptions.map((o) => `<option value="${o}">${TT_PRIVACY[o] || o}</option>`).join("")}</select>
+    ${info.audited ? "" : `<p class="muted-small">עד שטיקטוק תאשר את האפליקציה שלנו, סרטונים מתפרסמים כפרטיים (רק אתם רואים).</p>`}
+    <label>אינטראקציות מותרות</label>
+    <div class="row-actions" style="flex-wrap:wrap;gap:12px">
+      <label class="muted-small"><input type="checkbox" class="ttComment" ${dis(info.commentDisabled)}> תגובות</label>
+      <label class="muted-small"><input type="checkbox" class="ttDuet" ${dis(info.duetDisabled)}> דואט</label>
+      <label class="muted-small"><input type="checkbox" class="ttStitch" ${dis(info.stitchDisabled)}> Stitch</label>
+    </div>
+    <div class="switch" style="margin-top:10px"><span>הסרטון מקדם עסק, מוצר או שירות (תוכן מסחרי)</span><input type="checkbox" class="tg ttCommercial"></div>
+    <div class="ttCommBox hidden">
+      <label class="muted-small"><input type="checkbox" class="ttOrganic"> המותג שלי: מקדם את העסק שלי</label>
+      <label class="muted-small"><input type="checkbox" class="ttBrand"> שיתוף פעולה ממומן: מקדם מותג של אחר</label>
+      <p class="muted-small ttCommNote"></p>
+    </div>
+    <p class="muted-small ttDecl"></p>
+    <div class="ttPreview muted-small"></div>
+    <label class="muted-small" style="display:block;margin-top:10px"><input type="checkbox" class="ttConsent"> אני מאשר/ת לפרסם את הסרטון הזה לחשבון הטיקטוק שלי</label>
+    <div class="row-actions" style="margin-top:10px"><button class="ttGo" disabled>פרסם בטיקטוק</button><button class="secondary ttCancel">סגור</button></div>
+    <p class="muted-small ttOut"></p></div>`);
+  body.appendChild(box);
+  const q = (c) => box.querySelector(c);
+  attachUpload(q(".ttUrl"));
+  const refresh = () => {
+    const comm = q(".ttCommercial").checked, brand = q(".ttBrand").checked, org = q(".ttOrganic").checked;
+    q(".ttCommBox").classList.toggle("hidden", !comm);
+    q(".ttCommNote").textContent = comm ? (brand ? "הסרטון יסומן 'שותפות בתשלום' ולא ניתן לפרסם אותו כפרטי." : org ? "הסרטון יסומן 'מקדם את העסק שלך'." : "בחרו לפחות אפשרות אחת.") : "";
+    q(".ttDecl").innerHTML = (comm && brand
+      ? `בפרסום אתם מסכימים ל-<a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener">מדיניות תוכן ממותג</a> ול-<a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">אישור השימוש במוזיקה</a> של TikTok.`
+      : `בפרסום אתם מסכימים ל-<a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">אישור השימוש במוזיקה</a> של TikTok.`);
+    const url = q(".ttUrl").value.trim(), title = q(".ttTitle").value.trim();
+    q(".ttPreview").innerHTML = url ? `<video src="${esc(url)}" controls playsinline style="max-width:100%;max-height:260px;border-radius:8px"></video><div>${esc(title)}</div>` : "";
+    const commOk = !comm || brand || org;
+    q(".ttGo").disabled = !(url && q(".ttPrivacy").value && commOk && q(".ttConsent").checked);
+  };
+  box.addEventListener("input", refresh); box.addEventListener("change", refresh); refresh();
+  q(".ttCancel").addEventListener("click", () => box.remove());
+  q(".ttGo").addEventListener("click", async () => {
+    const out = q(".ttOut"), go = q(".ttGo");
+    go.disabled = true; out.textContent = "שולח לטיקטוק…";
+    try {
+      const r = await api("/api/tiktok/publish", { method: "POST", body: JSON.stringify({
+        videoUrl: q(".ttUrl").value.trim(), title: q(".ttTitle").value.trim(), privacy: q(".ttPrivacy").value,
+        allowComment: q(".ttComment").checked, allowDuet: q(".ttDuet").checked, allowStitch: q(".ttStitch").checked,
+        commercial: q(".ttCommercial").checked, brandContent: q(".ttCommercial").checked && q(".ttBrand").checked, brandOrganic: q(".ttCommercial").checked && q(".ttOrganic").checked,
+        consent: q(".ttConsent").checked }) });
+      for (let i = 0; i < 30; i++) {
+        const s = await api("/api/tiktok/publish/" + encodeURIComponent(r.publishId));
+        const label = { PROCESSING_UPLOAD: "מעלה…", PROCESSING_DOWNLOAD: "מעבד…", SEND_TO_USER_INBOX: "נשלח לתיבה בטיקטוק", PUBLISH_COMPLETE: "✓ פורסם" }[s.status] || s.status;
+        out.textContent = (s.status === "FAILED" ? "נכשל: " + (s.reason || "") : label) + (r.note && s.status === "PUBLISH_COMPLETE" ? " · " + r.note : "");
+        if (s.status === "PUBLISH_COMPLETE" || s.status === "FAILED" || s.status === "SEND_TO_USER_INBOX") break;
+        await new Promise((ok) => setTimeout(ok, 3000));
+      }
+    } catch (e) { out.textContent = ""; if (!e.paywall) toast(e.message); }
+    go.disabled = false;
+  });
+}
+
+// ---- Website as a publishing destination ----
+async function renderSiteBlock(box) {
+  const wrap = el(`<div class="post-block"><span class="tag">האתר</span><span class="status pending siteState">טוען…</span><div class="siteBody"></div></div>`);
+  box.appendChild(wrap);
+  const state = wrap.querySelector(".siteState"), body = wrap.querySelector(".siteBody");
+  try {
+    const d = await api("/api/site");
+    const live = d.site && d.site.status === "live";
+    state.className = "status " + (live ? "sent" : "pending");
+    state.textContent = live ? "פעיל" : "לא פעיל";
+    body.appendChild(el(`<p class="muted-small">${live ? "פוסטים שמסומנים ל-'האתר' מתפרסמים כמאמר באתר העסקי שלכם." : "הפעילו את האתר העסקי שלכם, ואז אפשר לפרסם אליו פוסטים כמאמרים."}</p>`));
+    const b = el(`<button class="secondary" style="width:100%;margin-top:8px">${live ? "לניהול האתר" : "להפעלת האתר"}</button>`);
+    b.addEventListener("click", () => document.querySelector('nav.tabs button[data-tab="tab-site"]').click());
+    body.appendChild(b);
+  } catch (e) { state.textContent = "שגיאה"; }
+}
 
 // ---- Professional campaign ----
 function renderCampaign(c, box) {

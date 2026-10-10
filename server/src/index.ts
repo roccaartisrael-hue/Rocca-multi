@@ -7,6 +7,8 @@ import { auth } from "./routes/auth";
 import { publicAccount } from "./routes/account";
 import { publicPlatform } from "./routes/platform";
 import { publicOnboarding } from "./routes/onboarding";
+import { tiktokRouter } from "./routes/tiktok";
+import "./lib/platformGate";
 import { siteHost, hostRouting, corsOptions } from "./lib/hosts";
 import { startScheduler } from "./scheduler";
 import { initPersistence, isReady, loadBlob } from "./lib/persist";
@@ -42,6 +44,7 @@ app.use(publicOnboarding);
 app.use(publicAccount);
 app.use(publicPlatform);
 app.use(auth);
+app.use(tiktokRouter);
 app.use(api);
 
 async function loadStorage(): Promise<void> {

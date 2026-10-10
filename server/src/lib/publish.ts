@@ -4,7 +4,8 @@ import { postTweet } from "../connectors/x";
 import { postVideoToTikTok } from "../connectors/tiktok";
 import { appendWebsiteUpdate } from "../connectors/website";
 import { v4 as uuid } from "uuid";
-import { allowedPlatforms } from "./tenantContext";
+import { allowedPlatforms, isDefaultTenant } from "./tenantContext";
+import { addArticle } from "./sites";
 
 async function publishOne(pc: PlatformContent, topic: string): Promise<PlatformContent> {
   try {
@@ -24,13 +25,12 @@ async function publishOne(pc: PlatformContent, topic: string): Promise<PlatformC
         remoteId = await postVideoToTikTok(pc.text, pc.imageUrl || "");
         break;
       case "website":
-        await appendWebsiteUpdate({
-          id: uuid(),
-          date: new Date().toISOString(),
-          title: topic,
-          text: pc.text,
-          imageUrl: pc.imageUrl,
-        });
+        if (isDefaultTenant()) {
+          await appendWebsiteUpdate({ id: uuid(), date: new Date().toISOString(), title: topic, text: pc.text, imageUrl: pc.imageUrl });
+        } else {
+          // a customer's post becomes an article on their own BOOL site
+          addArticle({ title: topic, description: pc.text.slice(0, 160), body: pc.text });
+        }
         remoteId = "website";
         break;
       default:
