@@ -1,4 +1,5 @@
 import path from "path";
+import crypto from "crypto";
 import { config } from "../config";
 import { readDoc, writeDoc } from "./persist";
 import { currentTenantId, isValidTenantId, DEFAULT_TENANT } from "./tenantContext";
@@ -172,6 +173,26 @@ function assertPublicVideoUrl(raw: string): URL {
   return u;
 }
 
+// Videos picked from the customer's own device wait here (in memory, 15 minutes, owner only) until they are posted.
+const pending = new Map<string, { tenant: string; data: Buffer; type: string; exp: number }>();
+export function holdVideo(data: Buffer, contentType: string): string {
+  const type = contentType.split(";")[0].trim().toLowerCase();
+  if (type !== "video/mp4" && type !== "video/quicktime") throw new Error("אפשר להעלות סרטון MP4 או MOV בלבד");
+  if (!data.length || data.length > MAX_VIDEO_BYTES) throw new Error("הסרטון גדול מדי או ריק (עד 64MB)");
+  const now = Date.now();
+  for (const [k, v] of pending) if (v.exp < now || v.tenant === currentTenantId()) pending.delete(k); // one pending video per customer
+  if (pending.size >= 8) throw new Error("השרת עמוס כרגע, נסו שוב בעוד דקה");
+  const id = crypto.randomBytes(12).toString("hex");
+  pending.set(id, { tenant: currentTenantId(), data, type, exp: now + 15 * 60 * 1000 });
+  return id;
+}
+function takeVideo(id: string): { data: Buffer; type: string } {
+  const v = pending.get(id);
+  if (!v || v.exp < Date.now() || v.tenant !== currentTenantId()) throw new Error("הסרטון שהועלה פג תוקף. העלו אותו שוב.");
+  pending.delete(id);
+  return { data: v.data, type: v.type };
+}
+
 async function fetchVideo(videoUrl: string): Promise<{ data: Buffer; type: string }> {
   const u = assertPublicVideoUrl(videoUrl);
   const res = await fetch(u, { signal: AbortSignal.timeout(60000) });
@@ -196,7 +217,8 @@ async function uploadTo(uploadUrl: string, v: { data: Buffer; type: string }): P
 }
 
 export interface DirectPostInput {
-  videoUrl: string;
+  videoUrl?: string;
+  videoId?: string; // a video uploaded from the device (see holdVideo)
   title: string;
   privacy: string;
   disableComment: boolean;
@@ -208,7 +230,7 @@ export interface DirectPostInput {
 
 /** Direct Post: publishes to the creator's profile. The caller must already hold the creator's explicit confirmation. */
 export async function directPost(i: DirectPostInput): Promise<string> {
-  const v = await fetchVideo(i.videoUrl);
+  const v = i.videoId ? takeVideo(i.videoId) : await fetchVideo(String(i.videoUrl || ""));
   const d = await call("/v2/post/publish/video/init/", {
     post_info: {
       title: i.title.slice(0, 2200),
