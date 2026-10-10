@@ -6,6 +6,7 @@ import { api } from "./routes/api";
 import { auth } from "./routes/auth";
 import { publicAccount } from "./routes/account";
 import { publicPlatform } from "./routes/platform";
+import { publicOnboarding } from "./routes/onboarding";
 import { siteHost, hostRouting, corsOptions } from "./lib/hosts";
 import { startScheduler } from "./scheduler";
 import { initPersistence, isReady, loadBlob } from "./lib/persist";
@@ -37,6 +38,7 @@ app.use((req, res, next) => {
   res.status(503).json({ error: "המערכת עולה, נסו שוב בעוד רגע" });
 });
 
+app.use(publicOnboarding);
 app.use(publicAccount);
 app.use(publicPlatform);
 app.use(auth);

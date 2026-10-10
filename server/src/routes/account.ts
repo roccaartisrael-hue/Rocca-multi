@@ -10,6 +10,8 @@ import { getConnection } from "../lib/connection";
 import { currentUsage } from "../lib/usage";
 import { getTier, TIERS, isTierName } from "../lib/plans";
 import { creditsLeft } from "../lib/checkCredits";
+import { onboardClient, OnboardError } from "../lib/onboarding";
+import { brandDomain } from "../lib/brand";
 import { store } from "../lib/store";
 import { grantPack } from "../lib/credits";
 
@@ -180,6 +182,18 @@ accountRouter.post("/api/admin/tenants/:id/grant", requireAdmin, (req, res) => {
 
 accountRouter.delete("/api/admin/tenants/:id", requireAdmin, (req, res) => {
   res.json({ deleted: deleteTenant(req.params.id) });
+});
+
+// In-person onboarding: creates the account, stores the signed consent (audit trail) and returns the links to hand over.
+accountRouter.post("/api/admin/onboard-client", requireAdmin, async (req, res) => {
+  try {
+    const origin = process.env.PUBLIC_APP_URL || (/^(localhost|127\.0\.0\.1)/.test(req.hostname) ? `${req.protocol}://${req.get("host")}` : `https://app.${brandDomain()}`);
+    res.json(await onboardClient(req.body || {}, req.ip || "", origin.replace(/\/$/, "")));
+  } catch (e: any) {
+    if (e instanceof OnboardError) return res.status(400).json({ error: e.message });
+    console.error("onboard-client failed:", e);
+    res.status(500).json({ error: "שגיאה ביצירת הלקוח" });
+  }
 });
 
 accountRouter.get("/api/admin/invites", requireAdmin, (_req, res) => res.json(listInvites()));

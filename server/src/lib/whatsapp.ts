@@ -9,7 +9,9 @@ import { Request } from "express";
  */
 const VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v21.0";
 
-export const waConfigured = (): boolean => !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
+/** The WhatsApp phone-number ID: WHATSAPP_PHONE_ID, or WHATSAPP_PHONE_NUMBER_ID as an alias. */
+export const waPhoneId = (): string => process.env.WHATSAPP_PHONE_ID || process.env.WHATSAPP_PHONE_NUMBER_ID || "";
+export const waConfigured = (): boolean => !!(process.env.WHATSAPP_TOKEN && waPhoneId());
 export const waDisplayNumber = (): string => String(process.env.WHATSAPP_DISPLAY_NUMBER || "").replace(/\D/g, "");
 
 /** E.164 digits without "+". Accepts +/00 prefixes; Israeli local mobiles (05x…) are expanded; other local formats are rejected. */
@@ -27,7 +29,7 @@ export const maskPhone = (p: string): string => (p.length > 6 ? `+${p.slice(0, 3
 async function post(body: object): Promise<{ ok: boolean; error?: string }> {
   if (!waConfigured()) return { ok: false, error: "whatsapp_not_configured" };
   try {
-    const r = await fetch(`https://graph.facebook.com/${VERSION}/${process.env.WHATSAPP_PHONE_ID}/messages`, {
+    const r = await fetch(`https://graph.facebook.com/${VERSION}/${waPhoneId()}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({ messaging_product: "whatsapp", ...body }),

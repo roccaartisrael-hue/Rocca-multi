@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>צירוף לקוח בשטח · BOOL AI</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--bd:#2a2f3a;--tx:#eef0f4;--mut:#9aa3b2;--ac:#6ee7a8;--err:#ff7b7b}
+@media(prefers-color-scheme:light){:root{--bg:#f5f6f8;--card:#fff;--bd:#d9dde5;--tx:#14171c;--mut:#5b6575;--ac:#0f9d58;--err:#c62828}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;padding:16px;max-width:720px;margin-inline:auto}
+h1{font-size:20px;margin:4px 0 14px}.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}input,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:transparent;color:inherit;font:inherit}
+.langs{display:flex;flex-wrap:wrap;gap:8px}.langs button{flex:1 1 30%;padding:12px 6px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:inherit;font:inherit;cursor:pointer}.langs button.on{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 16%,transparent)}
+.terms{max-height:300px;overflow:auto;border:1px solid var(--bd);border-radius:10px;padding:12px;font-size:14px;line-height:1.6}.terms h3{font-size:15px;margin:14px 0 4px}.terms p{margin:5px 0}
+.chk{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:15px}.chk input{width:22px;height:22px;flex:none;margin-top:2px}
+canvas{width:100%;height:180px;border:1px dashed var(--mut);border-radius:10px;background:#fff;touch-action:none;display:block}
+.row{display:flex;gap:10px;margin-top:10px}.row>*{flex:1}button.btn{padding:13px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:inherit;font:inherit;cursor:pointer}button.pri{background:var(--ac);color:#06210f;border-color:var(--ac);font-weight:700}
+button:disabled{opacity:.5}.err{color:var(--err);margin-top:10px;min-height:1.2em}.mut{color:var(--mut);font-size:13px}.res a,.res code{word-break:break-all}.res .it{margin:12px 0}
+</style></head><body>
+<h1>צירוף לקוח בשטח</h1>
+
+<div class="card" id="auth" hidden><label>קוד גישה של מנהל (נשמר רק במכשיר הזה)</label><input id="tok" type="password" autocomplete="off"><div class="row"><button class="btn pri" id="tokOk">המשך</button></div></div>
+
+<div id="form">
+<div class="card"><label>שפת ההסכם והחתימה של הלקוח</label><div class="langs" id="langs"></div></div>
+
+<div class="card">
+<label>שם העסק</label><input id="businessName" autocomplete="off">
+<label>ח.פ. / ע.מ. / ת.ז.</label><input id="taxId" inputmode="numeric" autocomplete="off">
+<label>שם מורשה חתימה / איש קשר</label><input id="signatory" autocomplete="off">
+<label>אימייל</label><input id="email" type="email" dir="ltr" autocomplete="off">
+<label>טלפון נייד (בינלאומי, למשל 972501234567)</label><input id="phone" type="tel" dir="ltr" autocomplete="off">
+<label>מספר וואטסאפ לחיבור הבוט (אם שונה מהנייד)</label><input id="botPhone" type="tel" dir="ltr" autocomplete="off">
+<label>מסלול</label><select id="plan"></select>
+<label>תעריף חודשי שסוכם (₪, לתיעוד)</label><input id="price" type="number" inputmode="decimal" min="0" dir="ltr">
+</div>
+
+<div class="card"><div class="terms" id="terms"></div>
+<a id="printLink" class="mut" href="#" target="_blank" rel="noopener">עותק להדפסה וחתימה בעט</a>
+<h3 id="checksTitle" style="font-size:15px;margin:16px 0 0"></h3><div id="checks"></div></div>
+
+<div class="card"><label id="signLbl"></label><canvas id="pad"></canvas>
+<div class="row"><button class="btn" id="clear"></button><button class="btn pri" id="submit"></button></div>
+<div class="err" id="err" role="alert"></div></div>
+</div>
+
+<div class="card res" id="done" hidden></div>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)},LANG="he",DOC=null,drawn=false,TOKEN="";
+try{TOKEN=localStorage.getItem("rocca_token")||""}catch(e){}
+var PLANS=[["free_trial","ניסיון חינם"],["creator_lite","יוצרים לייט"],["creator_pro","יוצרים פרו"],["basic","בסיס"],["premium","פרימיום"],["vip","VIP"],["starter_social","Starter Social"],["digital_core","Core Presence"],["digital_pro","Digital Pro + Ads"],["total_dominance","Total Dominance"]];
+$("plan").innerHTML=PLANS.map(function(p){return '<option value="'+p[0]+'">'+p[1]+'</option>'}).join("");
+$("plan").value="digital_core";
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]})}
+function api(path,opt){opt=opt||{};opt.headers=Object.assign({"Content-Type":"application/json"},TOKEN?{Authorization:"Bearer "+TOKEN}:{});return fetch(path,opt).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||("HTTP "+r.status));return j})})}
+
+// languages
+api("/api/terms").then(function(j){
+  $("langs").innerHTML=j.languages.map(function(l){return '<button type="button" data-l="'+l.lang+'">'+l.flag+' '+esc(l.name)+'</button>'}).join("");
+  $("langs").addEventListener("click",function(e){var b=e.target.closest("button");if(b)setLang(b.dataset.l)});
+  setLang("he");
+});
+function setLang(l){
+  LANG=l;
+  Array.prototype.forEach.call($("langs").children,function(b){b.classList.toggle("on",b.dataset.l===l)});
+  api("/api/terms/"+l).then(function(d){
+    DOC=d;
+    var box=$("terms");box.dir=d.dir;
+    box.innerHTML='<b>'+esc(d.title)+'</b><div class="mut">'+esc(d.version)+'</div>'+d.sections.map(function(s){return '<h3>'+esc(s.h)+'</h3>'+(s.intro?'<p><b>'+esc(s.intro)+'</b></p>':'')+s.items.map(function(i){return '<p>'+esc(i)+'</p>'}).join("")}).join("");
+    $("checksTitle").textContent=d.ui.checksTitle;$("checksTitle").dir=d.dir;
+    $("checks").dir=d.dir;
+    $("checks").innerHTML=d.checks.map(function(c,i){return '<label class="chk"><input type="checkbox" data-i="'+i+'"><span>'+esc(c)+'</span></label>'}).join("");
+    $("signLbl").textContent=d.ui.signHere;$("signLbl").dir=d.dir;
+    $("clear").textContent=d.ui.clear;$("submit").textContent=d.ui.submit;
+    $("printLink").href="/terms/print?lang="+l;
+  }).catch(function(e){$("err").textContent=e.message});
+}
+
+// signature pad
+var cv=$("pad"),ctx=cv.getContext("2d"),down=false,last=null;
+function fit(){var r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;if(!r.width)return;cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);ctx.lineWidth=2.5;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#111";drawn=false}
+fit();window.addEventListener("resize",fit);
+function pt(e){var r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+cv.addEventListener("pointerdown",function(e){down=true;last=pt(e);cv.setPointerCapture(e.pointerId);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(last.x+.1,last.y+.1);ctx.stroke();drawn=true;e.preventDefault()});
+cv.addEventListener("pointermove",function(e){if(!down)return;var p=pt(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;e.preventDefault()});
+["pointerup","pointercancel","pointerleave"].forEach(function(n){cv.addEventListener(n,function(){down=false})});
+$("clear").addEventListener("click",function(){fit()});
+
+// submit
+$("submit").addEventListener("click",function(){
+  $("err").textContent="";
+  var checked=Array.prototype.map.call($("checks").querySelectorAll("input"),function(c){return c.checked});
+  if(!checked.length||!checked.every(Boolean)){$("err").textContent="יש לסמן את כל תיבות ההסכמה";return}
+  if(!drawn){$("err").textContent="חסרה חתימה";return}
+  var body={language:LANG,businessName:$("businessName").value,taxId:$("taxId").value,signatory:$("signatory").value,email:$("email").value,phone:$("phone").value,botPhone:$("botPhone").value,plan:$("plan").value,monthlyPriceIls:$("price").value,checked:checked,signaturePng:cv.toDataURL("image/png")};
+  $("submit").disabled=true;
+  api("/api/admin/onboard-client",{method:"POST",body:JSON.stringify(body)}).then(function(r){
+    $("form").hidden=true;var d=$("done");d.hidden=false;
+    d.innerHTML='<h2 style="margin-top:0">✓ הלקוח צורף וההסכם נחתם</h2>'+
+     '<div class="it"><b>אימייל ללקוח:</b> '+(r.emailed?'נשלח':'לא נשלח (אין הגדרת מייל בשרת). העבר לו את הקישורים ידנית')+'</div>'+
+     '<div class="it"><b>1. הגדרת סיסמה</b> (תקף 7 ימים, חד פעמי)<br><a href="'+esc(r.setupUrl)+'" dir="ltr">'+esc(r.setupUrl)+'</a></div>'+
+     '<div class="it"><b>2. העתק חתום של ההסכם</b><br><a href="'+esc(r.signedUrl)+'" target="_blank" rel="noopener" dir="ltr">'+esc(r.signedUrl)+'</a></div>'+
+     '<div class="it"><b>3. חיבור הבוט בוואטסאפ</b> (תקף 30 דקות): הלקוח לוחץ ושולח את ההודעה מהנייד שלו<br><a href="'+esc(r.waLink)+'" target="_blank" rel="noopener">פתיחת וואטסאפ עם קוד החיבור</a></div>'+
+     '<div class="row"><button class="btn pri" onclick="location.reload()">לקוח נוסף</button></div>';
+  }).catch(function(e){$("err").textContent=e.message;$("submit").disabled=false});
+});
+
+// admin token gate: if the API refuses, ask for the code
+api("/api/me").then(function(m){if(!m.isAdmin)throw new Error("no")}).catch(function(){$("auth").hidden=false;$("form").hidden=true});
+$("tokOk").addEventListener("click",function(){TOKEN=$("tok").value.trim();api("/api/me").then(function(m){if(!m.isAdmin)throw new Error("זה לא קוד מנהל");try{localStorage.setItem("rocca_token",TOKEN)}catch(e){}$("auth").hidden=true;$("form").hidden=false;fit()}).catch(function(e){alert(e.message)})});
+})();
+</script></body></html>

@@ -349,7 +349,7 @@
       </div>
     </div>
     <p class="auth-foot">חיבור מוצפן · הגישה למורשים בלבד</p>
-    <p style="text-align:center;margin-top:10px"><select id="langSelAuth" aria-label="Language" style="background:transparent;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:6px 10px;font:inherit;font-size:13px"><option value="he">עברית</option><option value="en">English</option><option value="es">Español</option><option value="fr">Français</option></select></p>
+    <p style="text-align:center;margin-top:10px"><select id="langSelAuth" aria-label="Language" style="background:transparent;color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:6px 10px;font:inherit;font-size:13px"><option value="he">🇮🇱 עברית</option><option value="en">🇺🇸 English</option><option value="es">🇪🇸 Español</option><option value="ar">🇸🇦 العربية</option><option value="ru">🇷🇺 Русский</option><option value="fr">🇫🇷 Français</option></select></p>
   </div>
 </div>
 
@@ -365,7 +365,7 @@
     <div class="hdr-end">
       <div id="trialBanner" class="hidden"></div>
       <div class="platforms" id="modelChips"></div>
-      <select id="langSel" aria-label="Language" title="Language" style="background:var(--panel2,#18181b);color:inherit;border:1px solid var(--border,#27272a);border-radius:10px;padding:6px 8px;font:inherit;font-size:13px;margin-inline-end:8px"><option value="he">עברית</option><option value="en">English</option><option value="es">Español</option><option value="fr">Français</option></select>
+      <select id="langSel" aria-label="Language" title="Language" style="background:var(--panel2,#18181b);color:inherit;border:1px solid var(--border,#27272a);border-radius:10px;padding:6px 8px;font:inherit;font-size:13px;margin-inline-end:8px"><option value="he">🇮🇱 עברית</option><option value="en">🇺🇸 English</option><option value="es">🇪🇸 Español</option><option value="ar">🇸🇦 العربية</option><option value="ru">🇷🇺 Русский</option><option value="fr">🇫🇷 Français</option></select>
       <span class="live" id="liveStatus" title="סטטוס חיבור לשירות"><i></i><span id="liveText">השירות פעיל</span></span>
     </div>
   </header>
@@ -2440,7 +2440,7 @@ async function loadAds(budget) {
 <script>
 // ---- UI language (he / en / es / fr): runtime dictionary over the rendered DOM, RTL/LTR switch ----
 (function () {
-  var LANGS = ["he", "en", "es", "fr"], LOCS = { he: "he-IL", en: "en-US", es: "es-ES", fr: "fr-FR" };
+  var LANGS = ["he", "en", "es", "ar", "ru", "fr"], LOCS = { he: "he-IL", en: "en-US", es: "es-ES", ar: "ar", ru: "ru-RU", fr: "fr-FR" };
   var HEB = /[֐-׿]/, ATTRS = ["placeholder", "title", "aria-label", "alt"];
   var dict = {}, exact = null, tpl = [], subs = [], lang = "he", busy = false, obs = null;
   var origText = new WeakMap(), origAttr = new WeakMap();
@@ -2525,7 +2525,7 @@ async function loadAds(budget) {
     });
     obs.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
   }
-  function setDir(l) { var r = document.documentElement; r.lang = l; r.dir = l === "he" ? "rtl" : "ltr"; window.I18N_LOC = LOCS[l]; window.I18N_LANG = l; }
+  function setDir(l) { var r = document.documentElement; r.lang = l; r.dir = (l === "he" || l === "ar") ? "rtl" : "ltr"; window.I18N_LOC = LOCS[l]; window.I18N_LANG = l; }
   function apply(l) {
     var go = function (d) {
       busy = true;
@@ -2541,7 +2541,7 @@ async function loadAds(budget) {
       window.dispatchEvent(new Event("langchange"));
     };
     if (l === "he") return Promise.resolve(go({}));
-    return fetch("/i18n/app/" + l + ".json").then(function (r) { return r.json(); }).then(go);
+    return fetch("/i18n/app/" + l + ".json").then(function (r) { if (!r.ok) throw 0; return r.json(); }).catch(function () { return fetch("/i18n/app/en.json").then(function (r) { return r.json(); }); }).then(go); // ar/ru: English until their own file exists
   }
   // native dialogs
   ["alert", "confirm", "prompt"].forEach(function (f) {
