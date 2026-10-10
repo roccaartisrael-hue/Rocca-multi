@@ -4,6 +4,7 @@ import { TierName } from "./plans";
 import { adjustCredits, getTenant, updateTenant } from "./tenants";
 import { isValidTenantId, runAsTenant } from "./tenantContext";
 import { recordPaid } from "./orders";
+import { ModuleId, MODULES, MODULE_IDS, BUNDLES } from "./modules";
 
 /**
  * What can be bought. priceIls is the price BEFORE VAT; the catalog endpoint adds the VAT-inclusive amount (grossIls) and every screen shows both.
@@ -21,6 +22,8 @@ export interface Sku {
   cycle?: "weekly" | "monthly" | "annual";
   commitmentMonths?: number;
   includes?: string[];
+  modular?: boolean; // part of the modular pricing (shown in the calculator, not in the classic list)
+  addon?: ModuleId; // stand-alone service switched on (for ADDON_DAYS) by this payment
 }
 
 export const CATALOG: Sku[] = [
@@ -35,6 +38,7 @@ export const CATALOG: Sku[] = [
   { id: "total_dominance_annual", kind: "package", label: "Total Dominance", priceIls: 2490, tier: "total_dominance", cycle: "annual", commitmentMonths: 12, includes: ["כל מה שב-Digital Pro", "טיקטוק וגוגל — בקרוב", "בוט מענה ללידים 24/7 — בקרוב"] },
 ];
 
+
 /** Israeli VAT (18% since 2025); override with VAT_RATE (e.g. 0.18) if the rate changes. */
 export const vatRate = (): number => {
   const r = Number(process.env.VAT_RATE);
@@ -42,6 +46,14 @@ export const vatRate = (): number => {
 };
 
 const agorot = (n: number) => Math.round(n * 100) / 100;
+
+/** Modular prices are VAT-inclusive amounts (what the customer pays); the catalog stores the net so vatBreakdown() lands on exactly that amount. */
+const netOf = (gross: number) => Math.round((gross / (1 + vatRate())) * 100) / 100;
+CATALOG.push(
+  ...Object.values(BUNDLES).map((b): Sku => ({ id: `bundle_${b.id}_monthly`, kind: "package", label: `${b.label} — חודשי`, priceIls: netOf(b.priceIls), tier: b.tier, cycle: "monthly", commitmentMonths: 0, modular: true, includes: b.modules.map((m) => MODULES[m].label) })),
+  ...MODULE_IDS.map((m): Sku => ({ id: `addon_${m}_monthly`, kind: "subscription", label: `${MODULES[m].label} — חודשי`, priceIls: netOf(MODULES[m].priceIls), cycle: "monthly", commitmentMonths: MODULES[m].commitmentMonths, modular: true, addon: m, includes: [MODULES[m].includes] })),
+);
+const ADDON_DAYS = 34; // one month + grace
 
 /**
  * The customer pays ONE amount: the VAT-inclusive price, rounded to the nearest whole shekel (PRICE_ROUNDING=agora keeps agorot).
@@ -125,7 +137,16 @@ export function applyPayment(tenantId: string, skuId: string, paymentRef: string
   const done = readProcessed();
   if (done.some((p) => p.paymentRef === paymentRef)) return { applied: true, reason: "already processed" };
   if (sku.credits) adjustCredits(tenantId, sku.credits);
-  if (sku.tier && sku.cycle) {
+  if (sku.addon) {
+    const t0 = getTenant(tenantId)!;
+    const prev = Date.parse(t0.addonUntil?.[sku.addon] || "");
+    const base = Number.isFinite(prev) && prev > Date.now() ? prev : Date.now();
+    const until: Partial<Record<ModuleId, string>> = {};
+    until[sku.addon] = new Date(base + ADDON_DAYS * 86400000).toISOString();
+    const patch: Parameters<typeof updateTenant>[1] = { addonUntil: until };
+    if (sku.commitmentMonths && !t0.seoCommitUntil && sku.addon === "seo") patch.seoCommitUntil = new Date(Date.now() + sku.commitmentMonths * 30 * 86400000).toISOString();
+    updateTenant(tenantId, patch);
+  } else if (sku.tier && sku.cycle) {
     const expires = new Date(Date.now() + (CYCLE_DAYS[sku.cycle] + GRACE_DAYS) * 86400000).toISOString();
     updateTenant(tenantId, { plan: sku.tier, subscriptionCycle: sku.cycle, commitmentMonths: sku.commitmentMonths ?? 0, planExpiresAt: expires, trialEndsAt: undefined });
   }

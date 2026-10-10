@@ -2229,6 +2229,26 @@ async function loadPlans() {
     $("plansStatus").innerHTML = `<h2>החבילה שלי: ${escapeHtml(bill.tierLabel)}</h2><p class="muted-small" style="margin:0">${bill.credits != null ? `נשארו ${bill.credits} קרדיטים` : "ללא הגבלת קרדיטים"}</p>${cat.vatNote ? `<p class="muted-small">${escapeHtml(cat.vatNote)}</p>` : ""}`;
     const groups = [["credits", "קרדיטים (חד־פעמי)"], ["subscription", "מנויים ליוצרים"], ["package", "חבילות לעסקים"]];
     const box = $("plansCatalog"); box.innerHTML = "";
+    // modular pricing: bundles with the savings badge + stand-alone services (SEO needs a 6-month commitment)
+    if (cat.modular) {
+      const M = cat.modular, have = bill.modules || [], sku = (id) => (M.skus || []).find((x) => x.id === id);
+      const mc = el(`<div class="card"><h2>בנו חבילה לפי הצרכים</h2><p class="muted-small" style="margin:0 0 8px">חבילה כוללת חוסכת לעומת שירותים בנפרד (סה״כ בנפרד: ${fmtIls(M.allSeparateIls)} לחודש).</p></div>`);
+      M.bundles.forEach((b) => {
+        const k = sku("bundle_" + b.id + "_monthly"); if (!k) return;
+        const it = el(`<div class="plan-item"><h3><bdi>${escapeHtml(b.label)}</bdi> · ${fmtIls(k.grossIls)} לחודש <span class="status sent">חסוך ${fmtIls(b.savingsIls)} בכל חודש!</span></h3><p class="muted-small" style="margin:0 0 4px">במקום ${fmtIls(b.separateIls)} בנפרד · ${b.modules.map((m) => escapeHtml((M.modules.find((x) => x.id === m) || {}).label || m)).join(" + ")}</p><button>${bill.tier === b.tier ? "החבילה הנוכחית" : "בחירה"}</button></div>`);
+        const btn = it.querySelector("button"); if (bill.tier === b.tier) btn.disabled = true; else btn.addEventListener("click", () => openCheckout(k));
+        mc.appendChild(it);
+      });
+      mc.appendChild(el(`<h3 style="margin:14px 0 4px">שירותים בנפרד (תוספת חודשית)</h3>`));
+      M.modules.forEach((m) => {
+        const k = sku("addon_" + m.id + "_monthly"); if (!k) return;
+        const owned = have.includes(m.id);
+        const it = el(`<div class="plan-item"><h3><bdi>${escapeHtml(m.label)}</bdi> · ${fmtIls(k.grossIls)} לחודש</h3><p class="muted-small" style="margin:0 0 4px">${escapeHtml(m.includes)}${m.commitmentMonths ? ` · התחייבות ל-${m.commitmentMonths} חודשים כדי לראות תוצאות` : ""}</p><button>${owned ? "כלול אצלך ✓" : "הוספה"}</button></div>`);
+        const btn = it.querySelector("button"); if (owned) btn.disabled = true; else btn.addEventListener("click", () => openCheckout(k));
+        mc.appendChild(it);
+      });
+      box.appendChild(mc);
+    }
     for (const [kind, title] of groups) {
       const card = el(`<div class="card"><h2>${title}</h2></div>`);
       cat.items.filter((i) => i.kind === kind).forEach((i) => {

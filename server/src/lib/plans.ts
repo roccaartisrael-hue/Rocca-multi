@@ -1,12 +1,14 @@
 import { Platform } from "../config";
 import { currentTenantId, DEFAULT_TENANT } from "./tenantContext";
 import { getTenant } from "./tenants";
+import { ModuleId, MODULE_IDS, BUNDLES, BundleId } from "./modules";
 
 /** basic/premium/vip are the original tiers (kept for existing accounts); the rest are the BOOL platform tiers. */
 export type TierName =
   | "basic" | "premium" | "vip"
   | "free_trial" | "creator_lite" | "creator_pro"
-  | "starter_social" | "digital_core" | "digital_pro" | "total_dominance";
+  | "starter_social" | "digital_core" | "digital_pro" | "total_dominance"
+  | "bundle_starter" | "bundle_pro" | "bundle_business" | "modular"; // modular pricing (see modules.ts): bundles, or à-la-carte services on "modular"
 
 export interface Tier {
   name: TierName;
@@ -54,15 +56,50 @@ export const TIERS: Record<TierName, Tier> = {
   digital_core: { name: "digital_core", label: "Core Presence", priceIls: 1490, costCapIls: 60, aiCalls: 250, plansPerMonth: 6, maxWeeks: 4, maxPostsPerWeek: 14, maxPlatforms: 3, adAdvice: true, learnsFromPerformance: true, maxScheduled: 60, horizonDays: 30, slots: SLOTS_ALL, exactTime: true, ...NONE, whatsappAssistant: true, autopilot: true, customDomain: true },
   digital_pro: { name: "digital_pro", label: "Digital Pro + Ads", priceIls: 1890, costCapIls: 90, aiCalls: 400, plansPerMonth: 10, maxWeeks: 4, maxPostsPerWeek: 21, maxPlatforms: 4, adAdvice: true, learnsFromPerformance: true, maxScheduled: 120, horizonDays: 30, slots: SLOTS_ALL, exactTime: true, ...NONE, whatsappAssistant: true, autopilot: true, customDomain: true, ads: true },
   total_dominance: { name: "total_dominance", label: "Total Dominance", priceIls: 2490, costCapIls: 120, aiCalls: 600, plansPerMonth: 15, maxWeeks: 4, maxPostsPerWeek: 28, maxPlatforms: 5, adAdvice: true, learnsFromPerformance: true, maxScheduled: 200, horizonDays: 60, slots: SLOTS_ALL, exactTime: true, ...NONE, whatsappAssistant: true, autopilot: true, customDomain: true, ads: true, leadBot: true },
+  // --- BOOL modular pricing: bundles and à-la-carte (entitlements come from modules.ts / entitlements.ts) ---
+  bundle_starter: { name: "bundle_starter", label: "Starter", priceIls: 490, costCapIls: 25, aiCalls: 80, plansPerMonth: 2, maxWeeks: 1, maxPostsPerWeek: 3, maxPlatforms: 2, adAdvice: false, learnsFromPerformance: false, maxScheduled: 7, horizonDays: 7, slots: SLOTS_LOW, exactTime: false, ...NONE, whatsappAssistant: true, customDomain: true },
+  bundle_pro: { name: "bundle_pro", label: "Pro", priceIls: 990, costCapIls: 50, aiCalls: 250, plansPerMonth: 4, maxWeeks: 2, maxPostsPerWeek: 14, maxPlatforms: 3, adAdvice: true, learnsFromPerformance: true, maxScheduled: 30, horizonDays: 21, slots: SLOTS_MID, exactTime: true, ...NONE, whatsappAssistant: true, autopilot: true, customDomain: true },
+  bundle_business: { name: "bundle_business", label: "Business All-in-One", priceIls: 1390, costCapIls: 75, aiCalls: 400, plansPerMonth: 6, maxWeeks: 4, maxPostsPerWeek: 21, maxPlatforms: 4, adAdvice: true, learnsFromPerformance: true, maxScheduled: 60, horizonDays: 30, slots: SLOTS_ALL, exactTime: true, ...NONE, whatsappAssistant: true, autopilot: true, customDomain: true },
+  modular: { name: "modular", label: "שירותים נבחרים", priceIls: 0, costCapIls: 40, aiCalls: 150, plansPerMonth: 3, maxWeeks: 2, maxPostsPerWeek: 14, maxPlatforms: 3, adAdvice: true, learnsFromPerformance: true, maxScheduled: 30, horizonDays: 21, slots: SLOTS_MID, exactTime: true, ...NONE },
 };
 
 export const isTierName = (x: unknown): x is TierName => typeof x === "string" && x in TIERS;
 
-/** The default tenant's tier comes from PLAN_TIER; every other tenant's from its account record. */
-export function getTier(): Tier {
+const BUNDLE_OF: Partial<Record<TierName, BundleId>> = { bundle_starter: "starter", bundle_pro: "pro", bundle_business: "business" };
+
+/** Services included by the plan itself. Older tiers keep what they always had (social + site + SEO articles, WhatsApp by flag). */
+export function planModules(t: Tier): ModuleId[] {
+  const b = BUNDLE_OF[t.name];
+  if (b) return [...BUNDLES[b].modules];
+  if (t.name === "modular") return [];
+  return t.whatsappAssistant ? ["whatsapp", "social", "site", "seo"] : ["social", "site", "seo"];
+}
+
+/** Plan services plus paid, unexpired stand-alone add-ons. The original business (default tenant) has everything. */
+export function effectiveModules(): ModuleId[] {
+  const id = currentTenantId();
+  if (id === DEFAULT_TENANT) return [...MODULE_IDS];
+  const set = new Set<ModuleId>(planModules(baseTier()));
+  const until = getTenant(id)?.addonUntil || {};
+  for (const m of MODULE_IDS) if (until[m] && Date.parse(until[m]!) > Date.now()) set.add(m);
+  return MODULE_IDS.filter((m) => set.has(m));
+}
+export const hasModule = (m: ModuleId): boolean => effectiveModules().includes(m);
+
+function baseTier(): Tier {
   const id = currentTenantId();
   const raw = (id === DEFAULT_TENANT ? process.env.PLAN_TIER || "total_dominance" : getTenant(id)?.plan || "basic").toLowerCase() as TierName;
   return TIERS[raw] || TIERS.basic;
+}
+
+/** The default tenant's tier comes from PLAN_TIER; every other tenant's from its account record. Paid add-ons switch on the matching feature flags. */
+export function getTier(): Tier {
+  const t = baseTier();
+  if (currentTenantId() === DEFAULT_TENANT) return t;
+  const until = getTenant(currentTenantId())?.addonUntil;
+  if (!until || !Object.keys(until).length) return t;
+  const on = (m: ModuleId) => !!until[m] && Date.parse(until[m]!) > Date.now();
+  return { ...t, whatsappAssistant: t.whatsappAssistant || on("whatsapp"), customDomain: t.customDomain || on("site"), autopilot: t.autopilot || on("social") };
 }
 
 export type { Platform };
