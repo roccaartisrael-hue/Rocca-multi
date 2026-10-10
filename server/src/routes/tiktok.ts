@@ -114,7 +114,7 @@ tiktokRouter.post("/api/tiktok/publish", moduleGate(async (req, res) => {
 }));
 
 tiktokRouter.get("/api/tiktok/publish/:id", moduleGate(async (req, res) => {
-  const id = String(req.params.id).replace(/[^\w.-]/g, "").slice(0, 120);
+  const id = String(req.params.id).replace(/[^\w.~-]/g, "").slice(0, 120);
   res.json(await publishStatus(id));
 }));
 
