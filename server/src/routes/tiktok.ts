@@ -4,7 +4,7 @@ import { runAsTenant } from "../lib/tenantContext";
 import { requireModule } from "../lib/checkCredits";
 import {
   tiktokConfigured, tiktokAudited, getTikTok, clearTikTok, authUrl, checkState, completeAuth,
-  creatorInfo, directPost, publishStatus, appOrigin, TIKTOK_SCOPES,
+  creatorInfo, directPost, holdVideo, publishStatus, appOrigin, TIKTOK_SCOPES,
 } from "../lib/tiktok";
 
 /** TikTok connection + posting. The OAuth callback is public (TikTok redirects the customer's browser here); everything else needs the app login. */
@@ -80,14 +80,21 @@ tiktokRouter.get("/api/tiktok/creator", moduleGate(async (_req, res) => {
   res.json(await creatorInfo());
 }));
 
+// Video chosen on the customer's device (raw body, see index.ts). Returns an id to use in /publish.
+tiktokRouter.post("/api/tiktok/upload", moduleGate((req, res) => {
+  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: "לא התקבל סרטון (MP4 או MOV עד 64MB)" });
+  res.json({ videoId: holdVideo(req.body, String(req.header("content-type") || "")) });
+}));
+
 const PRIVACY = ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"];
 
 tiktokRouter.post("/api/tiktok/publish", moduleGate(async (req, res) => {
   const b = req.body || {};
   const videoUrl = String(b.videoUrl || "").trim();
+  const videoId = String(b.videoId || "").replace(/[^a-f0-9]/g, "");
   const title = String(b.title || "").trim();
   const privacy = String(b.privacy || "");
-  if (!videoUrl) return res.status(400).json({ error: "חסר קישור לווידאו" });
+  if (!videoUrl && !videoId) return res.status(400).json({ error: "יש לבחור סרטון" });
   if (b.consent !== true) return res.status(400).json({ error: "יש לאשר במפורש את הפרסום" });
   if (!PRIVACY.includes(privacy)) return res.status(400).json({ error: "יש לבחור מי יכול לראות את הסרטון" });
   const info = await creatorInfo();
@@ -97,7 +104,7 @@ tiktokRouter.post("/api/tiktok/publish", moduleGate(async (req, res) => {
   if (b.commercial === true && !brandContent && !brandOrganic) return res.status(400).json({ error: "בתוכן מסחרי יש לסמן אם זה המותג שלכם או שיתוף פעולה ממומן" });
   if (brandContent && privacy === "SELF_ONLY") return res.status(400).json({ error: "תוכן ממומן אינו יכול להיות פרטי" });
   const publishId = await directPost({
-    videoUrl, title, privacy,
+    videoUrl, videoId, title, privacy,
     disableComment: info.commentDisabled || !b.allowComment,
     disableDuet: info.duetDisabled || !b.allowDuet,
     disableStitch: info.stitchDisabled || !b.allowStitch,

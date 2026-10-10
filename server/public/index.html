@@ -1328,8 +1328,10 @@ async function openTikTokComposer(body) {
   const dis = (flag) => (flag ? "disabled" : "");
   const box = el(`<div class="ttComposer card" style="margin-top:10px">
     <p class="muted-small">${info.avatarUrl ? `<img src="${esc(info.avatarUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-inline-end:6px">` : ""}מפרסם/ת בשם: <b>${esc(info.nickname || info.username)}</b></p>
-    <label>קישור לסרטון (MP4, עד 64MB)</label>
-    <input type="url" class="ttUrl" placeholder="https://…">
+    <label>סרטון (MP4 או MOV, עד 64MB)</label>
+    <div class="row-actions"><button type="button" class="secondary ttPick">בחירת סרטון מהמכשיר</button><span class="muted-small ttPicked"></span></div>
+    <input type="file" accept="video/mp4,video/quicktime" class="hidden ttFile">
+    <input type="url" class="ttUrl" placeholder="או הדביקו קישור https לסרטון">
     <label>כיתוב</label>
     <textarea class="ttTitle" rows="3" maxlength="2200" placeholder="כיתוב לסרטון"></textarea>
     <label>מי יכול לראות את הסרטון? <span style="color:#e57373">*</span></label>
@@ -1354,7 +1356,23 @@ async function openTikTokComposer(body) {
     <p class="muted-small ttOut"></p></div>`);
   body.appendChild(box);
   const q = (c) => box.querySelector(c);
-  attachUpload(q(".ttUrl"));
+  let videoId = "", localUrl = "";
+  q(".ttPick").addEventListener("click", () => q(".ttFile").click());
+  q(".ttFile").addEventListener("change", async () => {
+    const f = q(".ttFile").files[0];
+    if (!f) return;
+    if (f.size > 64 * 1024 * 1024) { toast("הסרטון גדול מדי (עד 64MB)"); return; }
+    const st = q(".ttPicked"); st.textContent = "מעלה…"; videoId = ""; refresh();
+    try {
+      const r = await fetch("/api/tiktok/upload", { method: "POST", headers: { "Content-Type": f.type || "video/mp4", Authorization: "Bearer " + token }, body: f });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "ההעלאה נכשלה");
+      videoId = j.videoId; q(".ttUrl").value = ""; if (localUrl) URL.revokeObjectURL(localUrl); localUrl = URL.createObjectURL(f);
+      st.textContent = "✓ " + f.name;
+    } catch (e) { st.textContent = ""; toast(e.message); }
+    refresh();
+  });
+  q(".ttUrl").addEventListener("input", () => { if (q(".ttUrl").value.trim()) { videoId = ""; q(".ttPicked").textContent = ""; } });
   const refresh = () => {
     const comm = q(".ttCommercial").checked, brand = q(".ttBrand").checked, org = q(".ttOrganic").checked;
     q(".ttCommBox").classList.toggle("hidden", !comm);
@@ -1362,10 +1380,10 @@ async function openTikTokComposer(body) {
     q(".ttDecl").innerHTML = (comm && brand
       ? `בפרסום אתם מסכימים ל-<a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener">מדיניות תוכן ממותג</a> ול-<a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">אישור השימוש במוזיקה</a> של TikTok.`
       : `בפרסום אתם מסכימים ל-<a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">אישור השימוש במוזיקה</a> של TikTok.`);
-    const url = q(".ttUrl").value.trim(), title = q(".ttTitle").value.trim();
+    const url = videoId ? localUrl : q(".ttUrl").value.trim(), title = q(".ttTitle").value.trim();
     q(".ttPreview").innerHTML = url ? `<video src="${esc(url)}" controls playsinline style="max-width:100%;max-height:260px;border-radius:8px"></video><div>${esc(title)}</div>` : "";
     const commOk = !comm || brand || org;
-    q(".ttGo").disabled = !(url && q(".ttPrivacy").value && commOk && q(".ttConsent").checked);
+    q(".ttGo").disabled = !((videoId || url) && q(".ttPrivacy").value && commOk && q(".ttConsent").checked);
   };
   box.addEventListener("input", refresh); box.addEventListener("change", refresh); refresh();
   q(".ttCancel").addEventListener("click", () => box.remove());
@@ -1374,7 +1392,7 @@ async function openTikTokComposer(body) {
     go.disabled = true; out.textContent = "שולח לטיקטוק…";
     try {
       const r = await api("/api/tiktok/publish", { method: "POST", body: JSON.stringify({
-        videoUrl: q(".ttUrl").value.trim(), title: q(".ttTitle").value.trim(), privacy: q(".ttPrivacy").value,
+        videoId, videoUrl: videoId ? "" : q(".ttUrl").value.trim(), title: q(".ttTitle").value.trim(), privacy: q(".ttPrivacy").value,
         allowComment: q(".ttComment").checked, allowDuet: q(".ttDuet").checked, allowStitch: q(".ttStitch").checked,
         commercial: q(".ttCommercial").checked, brandContent: q(".ttCommercial").checked && q(".ttBrand").checked, brandOrganic: q(".ttCommercial").checked && q(".ttOrganic").checked,
         consent: q(".ttConsent").checked }) });

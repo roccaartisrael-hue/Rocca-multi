@@ -21,6 +21,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 // Raw binary body for media uploads only (photos/videos): /api/media/upload
 app.use("/api/media/upload", express.raw({ type: ["image/*", "video/*"], limit: "60mb" }));
+app.use("/api/tiktok/upload", express.raw({ type: ["video/mp4", "video/quicktime"], limit: "64mb" }));
 // Public image URLs (Facebook/Instagram fetch these); ids are unguessable.
 app.get("/media/:file", async (req, res) => {
   const id = String(req.params.file).replace(/\.[a-z0-9]+$/i, "");
