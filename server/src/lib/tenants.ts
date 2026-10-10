@@ -50,7 +50,7 @@ export function expireLapsedPlans(now = Date.now()): string[] {
   return lapsed;
 }
 
-export function withDefaults(t: Tenant): Required<Omit<Tenant, "trialEndsAt" | "city" | "planExpiresAt">> & { trialEndsAt?: string; city?: string; planExpiresAt?: string } {
+export function withDefaults(t: Tenant): Required<Omit<Tenant, "trialEndsAt" | "city" | "planExpiresAt" | "addonUntil" | "seoCommitUntil">> & { trialEndsAt?: string; city?: string; planExpiresAt?: string; addonUntil?: Tenant["addonUntil"]; seoCommitUntil?: string } {
   return {
     ...t,
     commitmentMonths: t.commitmentMonths ?? 0,
